@@ -1,0 +1,148 @@
+﻿import sqlite3
+import hashlib
+import datetime
+import config 
+
+class UserManager:
+    def __init__(self, db_path = config.db_path):
+        self.db_path = db_path
+
+    def connect(self):
+        return sqlite3.connect(self.db_path)
+
+    def add_user(self, username, password, email, role="user"):
+        hashed = hashlib.sha256(password.encode()).hexdigest()
+        now = datetime.datetime.now().isoformat()
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO user_data (username, password, email, role, is_online, last_active)
+                VALUES (?, ?, ?, ?, 0, ?)
+            """, (username, hashed, email, role, now))
+            conn.commit()
+
+    def delete_user(self, username):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM user_data WHERE username = ?", (username,))
+
+    def find_user(self, username):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT 1 FROM user_data WHERE username = ?", (username,))
+            return cur.fetchone() is not None
+
+    def get_password(self, username):
+        return self._get_field(username, "password")
+    
+    def set_password(self, username, new_password):
+        hashed = hashlib.sha256(new_password.encode()).hexdigest()
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("UPDATE user_data SET password = ? WHERE username = ?", (hashed, username))
+            
+    def get_role(self, username):
+        return self._get_field(username, "role")
+
+    def get_status(self, username):
+        status = self._get_field(username, "is_online")
+        return bool(status) if status is not None else None
+    
+    def set_status(self, username, is_online=True):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("UPDATE user_data SET is_online = ? WHERE username = ?", (int(is_online), username))
+
+    def get_last_active(self, username):
+        return self._get_field(username, "last_active")
+
+    def set_last_active(self, username):
+        now = datetime.datetime.now().isoformat()
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("UPDATE user_data SET last_active = ? WHERE username = ?", (now, username))
+            
+    def get_all_usernames(self):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT username FROM user_data")
+            rows = cur.fetchall()
+        return [row[0] for row in rows]
+    
+    def find_email(self, email):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT username FROM user_data WHERE email = ? LIMIT 1", (email,))
+            result = cur.fetchone()
+        return result[0] if result else False
+
+    def set_email(self, old_email, new_email):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("UPDATE user_data SET email = ? WHERE email = ?", (new_email, old_email))
+            conn.commit()
+
+    def _get_field(self, username, field):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute(f"SELECT {field} FROM user_data WHERE username = ?", (username,))
+            result = cur.fetchone()
+            return result[0] if result else None
+
+    def add_otp(self, email, otp, expires_at):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO otp_codes (email, otp, expires_at, used)
+                VALUES (?, ?, ?, 0)
+                ON CONFLICT(email) DO UPDATE SET
+                    otp = excluded.otp,
+                    expires_at = excluded.expires_at,
+                    used = 0
+            """, (email, otp, expires_at))
+            conn.commit()
+            
+    def get_otp(self, email):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT otp FROM otp_codes
+                WHERE email = ? AND used = 0
+                ORDER BY expires_at DESC LIMIT 1
+            """, (email,))
+            result = cur.fetchone()
+
+        return result[0] if result else None
+    
+    def get_otp_used(self, otp):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT used FROM otp_codes
+                WHERE otp = ?
+                ORDER BY expires_at DESC LIMIT 1
+            """, (otp,))
+            result = cur.fetchone()
+
+        return bool(result[0]) if result else None
+
+    def set_otp_used(self, otp):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                UPDATE otp_codes SET used = 1
+                WHERE otp = ? AND used = 0
+            """, (otp,))
+            conn.commit()
+            
+    def get_expire(self, otp):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT expires_at FROM otp_codes
+                WHERE otp = ?
+                ORDER BY expires_at DESC LIMIT 1
+            """, (otp,))
+            result = cur.fetchone()
+
+        return result[0] if result else None
