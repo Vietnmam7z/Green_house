@@ -1,0 +1,187 @@
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Lưu trữ tài khoản bằng cơ sở dữ liệu SQLite. Đọc nội bộ không phải cloud
+SQLite đã sử dụng B-Tree để lưu trữ bảng và chỉ mục ( Cây cân bằng)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+id		INTEGER		Khóa chính tự động tăng. Mỗi người dùng có một ID duy nhất.
+username	TEXT		Tên đăng nhập của người dùng. Không được để trống.
+password	TEXT		Mật khẩu đã được mã hóa bằng SHA-256. Không lưu mật khẩu gốc.
+role	TEXT	Vai trò 	của người dùng: "user" hoặc "admin". Dùng để phân quyền.
+is_online	INTEGER		Trạng thái kết nối: 1 là đang online, 0 là offline.
+last_active	TEXT		Thời điểm cuối cùng người dùng hoạt động (định dạng ISO datetime).
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code Test Cơ sở dữ liệu
+
+manager = UserManager()
+
+if manager.find_user("alice"):
+    print("Username: alice")
+    print("Password:", manager.get_password("alice"))
+    print("Role:", manager.get_role("alice"))
+    print("Online:", manager.get_status("alice"))
+    print("Last Active:", manager.get_last_active("alice"))
+else:
+    print("unknown")
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+manager = UserManager()
+username = manager.find_email("det@gmail.com")
+if username:
+    print(f"✅ Email thuộc về tài khoản: {username}")
+else:
+    print("❌ Email chưa được đăng ký.")
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Hướng dẫn luồng thực hiện đăng nhập web.
+
+[Client] → Gửi username/password
+    ↓
+[Server] → Kiểm tra DB → Tạo session → Gửi session ID
+    ↓
+[Client] → Gửi session ID trong các request tiếp theo
+    ↓
+[Server] → Dùng session ID để xác định người dùng
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+Có nên mã hóa mật khẩu ở phía client không?
+✅ Có thể, nhưng không bắt buộc:
+Một số hệ thống bảo mật cao sẽ mã hóa mật khẩu ngay trên trình duyệt (bằng JavaScript) trước khi gửi.
+
+Tuy nhiên, nếu bạn đã dùng HTTPS, thì dữ liệu gửi đi (bao gồm mật khẩu) đã được mã hóa toàn bộ trong quá trình truyền tải, nên không cần mã hóa thủ công ở client.
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Session token duy nhất
+Khi người dùng đăng nhập, hệ thống tạo một session_token duy nhất
+
+Nếu có phiên đăng nhập mới, token cũ bị vô hiệu hóa
+
+Chỉ một phiên hoạt động được phép tồn tại
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test đăng nhập chạy trong file authentication.py
+
+manager = UserManager()
+log = UserLogger()
+otp = OTPManager(manager)
+auth = Authentication(manager, log, otp)
+# Trường hợp 1: Người dùng tồn tại và mật khẩu đúng
+print("🔍 Test 1: Đăng nhập đúng")
+result = auth.login_user("alice", "1")
+print(result["message"])
+
+# Trường hợp 2: Người dùng tồn tại nhưng sai mật khẩu
+print("\n🔍 Test 2: Sai mật khẩu")
+result = auth.login_user("alice", "wrongpassword")
+print(result["message"])
+
+# Trường hợp 3: Người dùng không tồn tại
+print("\n🔍 Test 3: Người dùng không tồn tại")
+result = auth.login_user("ghost", "anypassword")
+print(result["message"])
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test đăng ký chạy trong file authentication.py
+
+manager = UserManager()
+log = UserLogger()
+otp = OTPManager(manager)
+auth = Authentication(manager, log, otp)
+result = auth.register_user("ndlice", "mypassword","hehe@gmail.com")
+print(result["message"])
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test offline . Dùng hàm đăng nhập và bật DB Browser for SQLite để xem trạng thái. Sau đó theo dõi bằng hàm đăng xuất. Chạy trong file authentication.py
+
+manager = UserManager()
+log = UserLogger()
+otp = OTPManager(manager)
+auth = Authentication(manager, log, otp)
+result = auth.offline_user("alice")
+
+
+Nên nhớ đây là hàm offline không phải đăng xuất. Bản chất hàm đăng xuất vẫn chạy hàm offline này nhưng mục đích chính của offline còn là quan sát người dùng có bị mất kết nối hay thoát web hay không. Thế nên, đây không phải hàm đăng xuất mà nó rộng hơn đăng xuất.
+
+Để tôi ưu vấn đề người dùng rời trang hoặc mất kết nối thì nên dùng JS 2 dạng câu lệnh này (hỏi AI để hiểu thêm):
+
+// Gửi ping định kỳ
+setInterval(() => {
+    fetch("/ping", { method: "POST", body: JSON.stringify({ username: "alice" }) });
+}, 30000);
+
+// Gửi beacon khi rời trang
+document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden") {
+        navigator.sendBeacon("/logout", JSON.stringify({ username: "alice" }));
+    }
+});
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test đổi mật khẩu(Admin) chạy trong file authentication.py
+
+manager = UserManager()
+log = UserLogger()
+otp = OTPManager(manager)
+auth = Authentication(manager, log, otp)
+result = auth.change_password("slice", "mypassword", "newsecurepassword")
+print(result["message"])
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test xóa tài khoản chạy trong file authentication.py
+
+manager = UserManager()
+log = UserLogger()
+otp = OTPManager(manager)
+auth = Authentication(manager, log, otp)
+result = auth.delete_user("alice")
+print(result)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test file logger.py
+
+
+logger = UserLogger()
+logger.log_login("slice")
+logger.log_register("slice")
+logger.log_logout("slice")
+logger.log_offline("slice")
+logger.log_delete_user("slice")
+logger.log_change_password("slice")
+logger.log_reset_password("slice")
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+hàm test tạo OTP chạy trong file authentication.py
+
+manager = UserManager()
+log = UserLogger()
+otp = OTPManager(manager)
+auth = Authentication(manager, log, otp)
+auth.forget_password("deta@gmail.com")
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+hàm test xác nhận OTP chạy trong file email_otp.py
+
+manager = UserManager()
+otp = OTPManager(manager)
+result = otp.confirm_otp("073703")
+print(result)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
