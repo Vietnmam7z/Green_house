@@ -19,24 +19,24 @@ class UserLogger:
         if not self.logger.hasHandlers():
             self.logger.addHandler(handler)
 
-    def log_login(self, username):
+    def log_login(self, username: str):
         self.logger.info(f"Đăng nhập: {username}")
 
-    def log_register(self, username):
+    def log_register(self, username: str):
         self.logger.info(f"Đăng ký: {username}")
 
-    def log_logout(self, username):
+    def log_logout(self, username: str):
         self.logger.info(f"Đăng xuất: {username}")
 
-    def log_offline(self, username):
+    def log_offline(self, username: str):
         self.logger.info(f"Offline: {username}")
 
-    def log_delete_user(self, username):
+    def log_delete_user(self, username: str):
         self.logger.warning(f"Xóa tài khoản: {username}")
 
-    def log_change_password(self, username):
+    def log_change_password(self, username: str):
         self.logger.info(f"Đổi mật khẩu: {username}")
 
-    def log_reset_password(self, username):
+    def log_reset_password(self, username: str):
         self.logger.warning(f"Đặt lại mật khẩu: {username}")
         

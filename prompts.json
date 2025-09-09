@@ -1,0 +1,7 @@
+[
+  {
+    "id": "watering_request",
+    "description": "Yêu cầu tư vấn lịch tưới nước cho cây trồng trong nhà kính",
+    "template": "Tôi đang vận hành một hệ thống nhà kính trồng {ten_cay_trong}. Dưới đây là các thông số hiện tại của cây trồng và môi trường:\n\nTuổi cây: {tuoi} ngày\nChiều cao trung bình: {chieu_cao} cm\nĐộ ẩm đất: {do_am}%\nNhiệt độ trong nhà kính: {nhiet_do}°C\nÁnh sáng trung bình mỗi ngày: {anh_sang} giờ\nTình trạng lá: {tinh_trang_la}\nTốc độ sinh trưởng tuần qua: {toc_do_sinh_truong}\n\nHãy cho tôi biết nên tưới nước mấy lần trong ngày, lúc nào, mấy giờ.\n\nChỉ trả lời đơn giản theo định dạng và không giải thích , không lưu ý: số lần - giờ/phút/giây.\n Ví dụ: 3 lần - 7 giờ sáng, 12 giờ trưa, 18 giờ tối"
+  }
+]

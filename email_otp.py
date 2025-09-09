@@ -14,11 +14,11 @@ class OTPManager:
         expires_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=5)
         return otp, expires_at
 
-    def update_otp(self, email):
+    def update_otp(self, email: str):
         otp, expires_at = self.generate_otp()
         self.user_manager.add_otp(email,otp,expires_at)
         
-    def send_otp_email(self, receiver_email):
+    def send_otp_email(self, receiver_email: str):
         sender_email = config.sender_email
         app_password = config.app_password
         otp_code = self.user_manager.get_otp(receiver_email)
@@ -53,7 +53,7 @@ class OTPManager:
             print("Lỗi gửi email:", e)
             return False
 
-    def confirm_otp(self, otp):
+    def confirm_otp(self, otp: str):
         used = self.user_manager.get_otp_used(otp)
         if used is None:
             return {"success": False, "message": "Mã OTP không tồn tại."}
@@ -68,5 +68,4 @@ class OTPManager:
         self.user_manager.set_otp_used(otp)
 
         return {"success": True, "message": "Mã OTP hợp lệ và đã được xác nhận."}
-
 

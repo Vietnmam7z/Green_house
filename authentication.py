@@ -10,7 +10,7 @@ class Authentication:
         self.logger = logger
         self.email_otp = email_otp
 
-    def login_user(self, username, password):
+    def login_user(self, username: str, password: str):
         if not self.user_manager.find_user(username):
             return {"success": False, "message": "Người dùng không tồn tại."}
 
@@ -26,7 +26,7 @@ class Authentication:
         
         return {"success": True, "message": f"Đăng nhập thành công: {username}"}
     
-    def register_user(self, username, password, email, role="user"):
+    def register_user(self, username: str, password: str, email: str, role="user"):
         if self.user_manager.find_user(username):
             return {"success": False, "message": "Tên người dùng đã tồn tại."}
         
@@ -38,7 +38,7 @@ class Authentication:
         
         return {"success": True, "message": f"Đăng ký thành công"}
 
-    def change_password(self, username, old_password, new_password):
+    def change_password(self, username: str, old_password: str, new_password: str):
         if not self.user_manager.find_user(username):
             return {"success": False, "message": "Người dùng không tồn tại."}
         
@@ -54,34 +54,34 @@ class Authentication:
         
         return {"success": True, "message": "Đổi mật khẩu thành công."}
 
-    def reset_password(self, username, new_password):
+    def reset_password(self, username: str, new_password: str):
         self.logger.log_reset_password(username)
         return self.user_manager.set_password(username, new_password)
 
-    def delete_user(self, username):
+    def delete_user(self, username: str):
         self.user_manager.delete_user(username)
         self.logger.log_delete_user(username)
         return self.user_manager.get_all_usernames()
 
-    def offline_user(self, username):
+    def offline_user(self, username: str):
         self.logger.log_offline(username)
         self.user_manager.set_status(username, False)
        
-    def forget_password(self, email):
+    def forget_password(self, email: str):
         username = self.user_manager.find_email(email)
         if not username:
             return {"success": False, "message": "Email không tồn tại."}
         self.email_otp.update_otp(email)
         self.email_otp.send_otp_email(email)
         
-    def change_email(self, email):
+    def change_email(self, email: str):
         username = self.user_manager.find_email(email)
         if not username:
             return {"success": False, "message": "Email không tồn tại."}
         self.email_otp.update_otp(email)
         self.email_otp.send_otp_email(email)         
         
-    def confirm_otp(self, otp):
+    def confirm_otp(self, otp: str):
         return self.email_otp.confirm_otp(otp)
         
 
