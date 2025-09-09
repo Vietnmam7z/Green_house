@@ -28,7 +28,7 @@ class OTPManager:
         Xin chào,
 
         Đây là mã OTP của bạn: {otp_code}
-        Mã này có hiệu lực trong vòng 10 phút.
+        Mã này có hiệu lực trong vòng 5 phút.
 
         Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này.
 
