@@ -1,8 +1,9 @@
 ﻿import logging
 from logging.handlers import RotatingFileHandler
+import config
 
 class UserLogger:
-    def __init__(self, log_file="user_activity.log", max_bytes=1_000_000, backup_count=3):
+    def __init__(self, log_file=config.log_file, max_bytes=1_000_000, backup_count=3):
         self.logger = logging.getLogger("UserActivity")
         self.logger.setLevel(logging.INFO)
 
