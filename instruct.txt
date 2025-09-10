@@ -188,6 +188,7 @@ print(result)
 
 Code chạy test AI dùng bên AI_api.py
 
+history = ChatHistoryManager()
 caller = Mistral_API()
 caller.model_small()
 prompst = EditPrompts()
@@ -202,7 +203,15 @@ mes = prompst.update_prompt_status(
     tinh_trang_la="vàng mép lá",
     toc_do_sinh_truong="chậm",
 )
-result = caller.send_message(mes)
+result = caller.send_message("còn gì cần lưu ý nữa không","alice",history)
 print(result["message"])
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Hàm xóa lịch sử box chat dùng bên AI_api.py
+
+history = ChatHistoryManager()
+caller = Mistral_API()
+caller.model_small()
+prompst = EditPrompts()
+history.clear_message("alice")
