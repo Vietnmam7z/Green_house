@@ -25,7 +25,7 @@ class Routes:
     
     def logout(self):
         username = session.get('username')
-        auth.logout_user(username)
+        self.auth.logout_user(username)
         if username:
             session.pop('username', None)
             return jsonify({
