@@ -130,7 +130,7 @@ document.addEventListener("visibilitychange", function () {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Code test đổi mật khẩu(Admin) chạy trong file authentication.py
+Code test đổi mật khẩu chạy trong file authentication.py
 
 manager = UserManager()
 log = UserLogger()
@@ -186,6 +186,8 @@ print(result)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+Tải thư viện của Mistral AI qua lệnh: pip install mistralai
+
 Code chạy test AI dùng bên AI_api.py
 
 history = ChatHistoryManager()
@@ -208,6 +210,8 @@ print(result["message"])
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+Tải thư viện của Mistral AI qua lệnh: pip install mistralai
+
 Hàm xóa lịch sử box chat dùng bên AI_api.py
 
 history = ChatHistoryManager()
@@ -215,3 +219,50 @@ caller = Mistral_API()
 caller.model_small()
 prompst = EditPrompts()
 history.clear_message("alice")
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Server này sẽ hoạt động dựa trên flask.
+Cách thức mở là local và truy cập bằng ip của máy
+Các phiên đăng nhập sẽ dùng session - thông qua flask để quản lý 
+
+Ta sẽ dùng lệnh:
+self.app.secret_key = 'secret_key'  
+Mục đích để bảo mật session
+
+Ngoài ra khi chưa đăng nhập phải sử dụng lệnh để chuyển sang trang đăng nhập khi người dùng chưa đăng nhập nhưng lại truy cập sang các route khác.
+Ta sẽ dùng thêm lệnh cho các route:
+
+        if self.require_login():
+            return self.require_login() 
+
+Vd: Dùng cho trang home:
+
+    def home_page(self):
+        if self.require_login():
+            return self.require_login() 
+        username = session.get('username')
+        return render_template('home.html', username=username)
+
+Tải thư viện của Flask qua lệnh: pip install flask
+Code test webserver có hỗ trợ đăng nhập và đăng xuất chạy trên file route.py
+
+
+from webserver import FlaskServer
+
+manager = UserManager()
+log = UserLogger()
+otp = OTPManager(manager)
+auth = Authentication(manager,log,otp)
+server = FlaskServer()
+routes = Routes(auth)
+
+server.add_route('/', routes.home_page, methods=['GET'])
+server.add_route('/login', routes.login_page, methods=['GET'])
+server.add_route('/login', routes.login, methods=['POST'])
+server.add_route('/logout', routes.logout, methods=['POST'])
+
+if __name__ == '__main__':
+    server.run()
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////

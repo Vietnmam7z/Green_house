@@ -12,19 +12,19 @@ class Authentication:
 
     def login_user(self, username: str, password: str):
         if not self.user_manager.find_user(username):
-            return {"success": False, "message": "Người dùng không tồn tại."}
+            return {"success": False, "message": "Tài khoản hoặc mật khẩu không đúng."}
 
         hashed_input = hashlib.sha256(password.encode()).hexdigest()
         stored_password = self.user_manager.get_password(username)
 
         if hashed_input != stored_password:
-            return {"success": False, "message": "Sai mật khẩu."}
+            return {"success": False, "message": "Tài khoản hoặc mật khẩu không đúng."}
 
         self.user_manager.set_status(username, True)
         self.user_manager.set_last_active(username)
         self.logger.log_login(username)
         
-        return {"success": True, "message": f"Đăng nhập thành công: {username}"}
+        return {"success": True, "message": f"Đăng nhập thành công"}
     
     def register_user(self, username: str, password: str, email: str, role="user"):
         if self.user_manager.find_user(username):
@@ -66,7 +66,11 @@ class Authentication:
     def offline_user(self, username: str):
         self.logger.log_offline(username)
         self.user_manager.set_status(username, False)
-       
+
+    def logout_user(self, username: str):
+        self.logger.log_logout(username)
+        self.user_manager.set_status(username, False)
+        
     def forget_password(self, email: str):
         username = self.user_manager.find_email(email)
         if not username:
@@ -84,4 +88,3 @@ class Authentication:
     def confirm_otp(self, otp: str):
         return self.email_otp.confirm_otp(otp)
         
-
