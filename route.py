@@ -68,25 +68,3 @@ class Routes:
         
 #################################################################################################################################
         
-
-
-    
-from webserver import FlaskServer
-from user_manager import UserManager
-from logger import UserLogger
-from email_otp import OTPManager
-
-manager = UserManager()
-log = UserLogger()
-otp = OTPManager(manager)
-auth = Authentication(manager,log,otp)
-server = FlaskServer()
-routes = Routes(auth)
-
-server.add_route('/', routes.home_page, methods=['GET'])
-server.add_route('/login', routes.login_page, methods=['GET'])
-server.add_route('/login', routes.login, methods=['POST'])
-server.add_route('/logout', routes.logout, methods=['POST'])
-
-if __name__ == '__main__':
-    server.run()
