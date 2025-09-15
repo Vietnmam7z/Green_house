@@ -57,6 +57,7 @@ class Routes:
             return jsonify({
                 "success": result['success'],
                 "message": result['message'],
+                "role": self.auth.get_role(username),
                 "redirect": "/"
             })
     
@@ -65,6 +66,7 @@ class Routes:
                 "success": result['success'],
                 "message": result['message']
             })
-        
+
 #################################################################################################################################
         
+    

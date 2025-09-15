@@ -77,6 +77,13 @@ class Authentication:
             return {"success": False, "message": "Email không tồn tại."}
         self.email_otp.update_otp(email)
         self.email_otp.send_otp_email(email)
+
+    def get_role(self, username: str):
+        role = self.user_manager.get_role(username)
+        if role:
+            return role
+        else:
+            return None
         
     def change_email(self, email: str):
         username = self.user_manager.find_email(email)
@@ -87,4 +94,5 @@ class Authentication:
         
     def confirm_otp(self, otp: str):
         return self.email_otp.confirm_otp(otp)
-        
+
+

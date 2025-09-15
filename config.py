@@ -12,8 +12,8 @@ hs_path= "box_chat.json"
 #log file
 log_file="user_activity.log"
 #webserver
-template_folder='Test_server'
-static_folder='Test_server'
+template_folder='Web/templates'
+static_folder='Web/static'
 #route
 home_page = 'home.html'
 login_page = 'login.html'
