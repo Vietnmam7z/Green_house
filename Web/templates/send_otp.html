@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SmartCare - Verify OTP</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="../static/css/send_otp.css">
+</head>
+<body>
+  <!-- Logo -->
+  <div class="logo">
+    <img src="../static/img/logo.png" alt="Logo">
+    <span>SmartCare</span>
+  </div>
+
+  <!-- OTP Modal -->
+  <div class="modal">
+    <p>We have sent the OTP code, please check your email and fill it below.</p>
+
+    <div class="otp-row">
+      <input type="text" placeholder="Enter OTP">
+      <button id="resendBtn">03:00</button>
+    </div>
+
+    <button class="verify-btn">Verify</button>
+  </div>
+
+  <script>
+    const resendBtn = document.getElementById("resendBtn");
+    let timer;
+    let timeLeft = 180;
+
+    function startTimer() {
+      timeLeft = 180;
+      resendBtn.disabled = true;
+
+      timer = setInterval(() => {
+        let minutes = Math.floor(timeLeft / 60);
+        let seconds = timeLeft % 60;
+        resendBtn.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+
+        timeLeft--;
+
+        if (timeLeft < 0) {
+          clearInterval(timer);
+          resendBtn.disabled = false;
+          resendBtn.textContent = "Resend OTP";
+        }
+      }, 1000);
+    }
+
+    resendBtn.addEventListener("click", () => {
+      if (resendBtn.textContent === "Resend OTP") {
+        startTimer();
+      }
+    });
+
+    // Khi load trang thì bắt đầu đếm luôn
+    window.onload = startTimer;
+  </script>
+</body>
+</html>
