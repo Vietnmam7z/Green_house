@@ -1,4 +1,5 @@
-﻿from flask import request, session, redirect, render_template, jsonify
+﻿﻿from flask import request, session, redirect, render_template, jsonify
+from datetime import datetime, timedelta
 from authentication import Authentication
 from email_otp import OTPManager
 import config
@@ -10,12 +11,21 @@ class Routes:
         
     def require_login(self):
         if 'username' not in session:
-         return redirect('/login')
+            return redirect('/login')
         
     def redirect_if_logged_in(self):
         if 'username' in session:
             return redirect('/')   
-        
+
+    def reset_password_page(self):
+        username = session.get('username')
+        if not session.get(f"{username}_allow_reset"):
+            return redirect('/forgot-password')  
+
+    def pop_reset_session(self):
+        username = session.get('username')
+        session.pop(f"{username}_allow_reset", None)
+
 # HOME PAGE
 ################################################################################################################################        
         
@@ -82,9 +92,8 @@ class Routes:
         username = request.form.get('username')
         password = request.form.get('password')
         email = request.form.get('email')
-        role = request.form.get('role')
         
-        result = self.auth.register_user(username, password, email, role)
+        result = self.auth.register_user(username, password, email)
 
         if result['success']:
             return jsonify({
@@ -108,23 +117,24 @@ class Routes:
         else:
             return render_template(config.forgot_password_page)
 
-    def forgot_password(self):
-        email = request.form.get('email')
-        result = self.auth.forget_password(email)
+    def forgot_password(self, OTP: str):
 
-        if result and result['success']:
+        username = session.get('username')
+        session[f"{username}_allow_reset"] = (datetime.utcnow() + timedelta(minutes=15)).timestamp()
+        result = otp.confirm_otp(OTP, username)
+        
+        if result['success']:
             return jsonify({
                 "success": result['success'],
-                "message": "Mã OTP đã được gửi đến email của bạn.",
+                "message": result['message'],
                 "redirect": "/reset-password"
             })
     
         else:
             return jsonify({
-                "success": False,
-                "message": "Email không tồn tại."
+                "success": result['success'],
+                "message": result['message']
             })
-
 #################################################################################################################################
 
  # SEND OTP PAGE
@@ -133,15 +143,23 @@ class Routes:
             return self.redirect_if_logged_in()
         else:
             return render_template(config.reset_password_page)
-
+        
+        
     def reset_password(self):
-        email = request.form.get('email')
-        otp = request.form.get('otp')
+        username = session.get('username')
+        expire_at = session.get(f"{username}_allow_reset")
+        if not expire_at or datetime.utcnow().timestamp() > expire_at:
+            self.pop_reset_session()
+            return jsonify({
+                "success": False,
+                "message": "Hết thời gian đổi mật khẩu"
+            })            
         new_password = request.form.get('new_password')
         
-        result = self.auth.reset_password(email, otp, new_password)
+        result = self.auth.reset_password(username, new_password)
 
         if result['success']:
+            self.pop_reset_session()
             return jsonify({
                 "success": result['success'],
                 "message": result['message'],
@@ -155,5 +173,4 @@ class Routes:
             })
         
 #################################################################################################################################
-
 

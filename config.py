@@ -17,3 +17,5 @@ static_folder='Web/static'
 #route
 home_page = 'home.html'
 login_page = 'login.html'
+forgot_password_page  = 'forgot_password.html'
+signup_page = 'signup.html'

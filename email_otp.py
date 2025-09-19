@@ -74,5 +74,3 @@ class OTPManager:
         self.user_manager.set_otp_used(otp)
 
         return {"success": True, "message": "Mã OTP hợp lệ và đã được xác nhận."}
-
-
