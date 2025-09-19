@@ -157,28 +157,3 @@ class Routes:
 #################################################################################################################################
 
 
-from webserver import FlaskServer
-from user_manager import UserManager
-from email_otp import OTPManager
-from logger import UserLogger
-
-manager = UserManager()
-log = UserLogger()
-otp = OTPManager(manager)
-auth = Authentication(manager,log,otp)
-server = FlaskServer()
-routes = Routes(auth)
-
-server.add_route('/', routes.home_page, methods=['GET'])
-server.add_route('/login', routes.login_page, methods=['GET'])
-server.add_route('/login', routes.login, methods=['POST'])
-server.add_route('/logout', routes.logout, methods=['POST'])
-server.add_route('/signup', routes.signup_page, methods=['GET'])
-server.add_route('/signup', routes.signup, methods=['POST'])
-server.add_route('/forgot-password', routes.forgot_password_page, methods=['GET'])
-server.add_route('/forgot-password', routes.forgot_password, methods=['POST'])
-server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
-server.add_route('/reset-password', routes.reset_password, methods=['POST'])
-
-if __name__ == '__main__':
-    server.run()
