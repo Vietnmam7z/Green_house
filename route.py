@@ -1,10 +1,12 @@
 ﻿from flask import request, session, redirect, render_template, jsonify
 from authentication import Authentication
+from email_otp import OTPManager
 import config
 
 class Routes:
-    def __init__(self, auth: Authentication):
+    def __init__(self, auth: Authentication, otp: OTPManager):
         self.auth = auth
+        self.otp = otp
         
     def require_login(self):
         if 'username' not in session:
@@ -12,7 +14,7 @@ class Routes:
         
     def redirect_if_logged_in(self):
         if 'username' in session:
-         return redirect('/')   
+            return redirect('/')   
         
 # HOME PAGE
 ################################################################################################################################        
@@ -37,7 +39,7 @@ class Routes:
                 "success": False,
                 "message": "Không tìm thấy người dùng trong session"
             })
-    
+            
 ################################################################################################################################
     
  # LOGIN PAGE   
@@ -69,4 +71,114 @@ class Routes:
 
 #################################################################################################################################
         
+ # SIGNUP PAGE   
+    def signup_page(self):
+        if self.redirect_if_logged_in():
+            return self.redirect_if_logged_in()
+        else:
+            return render_template(config.signup_page)
+
+    def signup(self):
+        username = request.form.get('username')
+        password = request.form.get('password')
+        email = request.form.get('email')
+        role = request.form.get('role')
+        
+        result = self.auth.register_user(username, password, email, role)
+
+        if result['success']:
+            return jsonify({
+                "success": result['success'],
+                "message": result['message'],
+                "redirect": "/login"
+            })
     
+        else:
+            return jsonify({
+                "success": result['success'],
+                "message": result['message']
+            })
+
+#################################################################################################################################
+
+ # FORGOT PASSWORD PAGE
+    def forgot_password_page(self):
+        if self.redirect_if_logged_in():
+            return self.redirect_if_logged_in()
+        else:
+            return render_template(config.forgot_password_page)
+
+    def forgot_password(self):
+        email = request.form.get('email')
+        result = self.auth.forget_password(email)
+
+        if result and result['success']:
+            return jsonify({
+                "success": result['success'],
+                "message": "Mã OTP đã được gửi đến email của bạn.",
+                "redirect": "/reset-password"
+            })
+    
+        else:
+            return jsonify({
+                "success": False,
+                "message": "Email không tồn tại."
+            })
+
+#################################################################################################################################
+
+ # SEND OTP PAGE
+    def reset_password_page(self):
+        if self.redirect_if_logged_in():
+            return self.redirect_if_logged_in()
+        else:
+            return render_template(config.reset_password_page)
+
+    def reset_password(self):
+        email = request.form.get('email')
+        otp = request.form.get('otp')
+        new_password = request.form.get('new_password')
+        
+        result = self.auth.reset_password(email, otp, new_password)
+
+        if result['success']:
+            return jsonify({
+                "success": result['success'],
+                "message": result['message'],
+                "redirect": "/login"
+            })
+    
+        else:
+            return jsonify({
+                "success": result['success'],
+                "message": result['message']
+            })
+        
+#################################################################################################################################
+
+
+from webserver import FlaskServer
+from user_manager import UserManager
+from email_otp import OTPManager
+from logger import UserLogger
+
+manager = UserManager()
+log = UserLogger()
+otp = OTPManager(manager)
+auth = Authentication(manager,log,otp)
+server = FlaskServer()
+routes = Routes(auth)
+
+server.add_route('/', routes.home_page, methods=['GET'])
+server.add_route('/login', routes.login_page, methods=['GET'])
+server.add_route('/login', routes.login, methods=['POST'])
+server.add_route('/logout', routes.logout, methods=['POST'])
+server.add_route('/signup', routes.signup_page, methods=['GET'])
+server.add_route('/signup', routes.signup, methods=['POST'])
+server.add_route('/forgot-password', routes.forgot_password_page, methods=['GET'])
+server.add_route('/forgot-password', routes.forgot_password, methods=['POST'])
+server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
+server.add_route('/reset-password', routes.reset_password, methods=['POST'])
+
+if __name__ == '__main__':
+    server.run()
