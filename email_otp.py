@@ -53,7 +53,12 @@ class OTPManager:
             print("Lỗi gửi email:", e)
             return False
 
-    def confirm_otp(self, otp: str):
+    def confirm_otp(self, otp: str, username: str):
+
+        user = self.user_manager.find_user(username)
+        if user is False:
+            return {"success": False, "message": "Mã OTP không đúng."}
+
         used = self.user_manager.get_otp_used(otp)
         if used is None:
             return {"success": False, "message": "Mã OTP không tồn tại."}
@@ -65,7 +70,9 @@ class OTPManager:
         if expires_at <= now:
             return {"success": False, "message": "Mã OTP đã hết hạn."}
 
+        # Đánh dấu OTP đã dùng
         self.user_manager.set_otp_used(otp)
 
         return {"success": True, "message": "Mã OTP hợp lệ và đã được xác nhận."}
+
 

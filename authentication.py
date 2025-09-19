@@ -89,10 +89,14 @@ class Authentication:
         username = self.user_manager.find_email(email)
         if not username:
             return {"success": False, "message": "Email không tồn tại."}
-        self.email_otp.update_otp(email)
-        self.email_otp.send_otp_email(email)         
+        
+    def confirm_email(self, email: str):
+       username = self.user_manager.find_email(email)
+
+       if username is False:
+           return {"success": False, "message": "Email không tồn tại."}
+       else:
+           return {"success": True, "message": "Đã xác nhận email."}
         
     def confirm_otp(self, otp: str):
         return self.email_otp.confirm_otp(otp)
-
-
