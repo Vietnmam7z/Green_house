@@ -1,13 +1,16 @@
-﻿﻿from flask import request, session, redirect, render_template, jsonify
+﻿from flask import request, session, redirect, render_template, jsonify
 from datetime import datetime, timedelta
 from authentication import Authentication
 from email_otp import OTPManager
+from sensor_API import Sensor_API
+import requests
 import config
 
 class Routes:
-    def __init__(self, auth: Authentication, otp: OTPManager):
+    def __init__(self, auth: Authentication, otp: OTPManager, sensor: Sensor_API):
         self.auth = auth
         self.otp = otp
+        self.sensor = sensor
         
     def require_login(self):
         if 'username' not in session:
@@ -174,3 +177,15 @@ class Routes:
         
 #################################################################################################################################
 
+ # DASHBOARD_PAGE
+    def get_status(self):
+        try:
+            response = requests.get(self.sensor.get_url(), headers = self.sensor.get_headers())
+            data = response.json()
+            print(self.sensor.get_headers())
+            telemetries = self.sensor.read_all_sensor_values(data)
+
+            return jsonify(telemetries), 200
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500

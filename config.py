@@ -14,6 +14,10 @@ log_file="user_activity.log"
 #webserver
 template_folder='Web/templates'
 static_folder='Web/static'
+#sensor_API
+jwt = ""
+url = ""
+headers = {}
 #route
 home_page = 'home.html'
 login_page = 'login.html'
