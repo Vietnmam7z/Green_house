@@ -4,11 +4,11 @@ import datetime
 import config 
 
 class UserManager:
-    def __init__(self, db_path = config.db_path):
-        self.db_path = db_path
+    def __init__(self, user_db_path = config.user_db_path):
+        self.user_db_path = user_db_path
 
     def connect(self):
-        return sqlite3.connect(self.db_path)
+        return sqlite3.connect(self.user_db_path)
 
     def add_user(self, username: str, password: str, email: str, role="user"):
         hashed = hashlib.sha256(password.encode()).hexdigest()

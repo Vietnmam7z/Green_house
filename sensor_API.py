@@ -3,7 +3,7 @@ import config
 class Sensor_API:
     def __init__(self):
         self.token = ""
-        self.url = ""
+        self.urls = []
         self.header ={}
 
     def get_token(self) -> str:
@@ -12,16 +12,20 @@ class Sensor_API:
     def set_token(self, value: str):
         self.token = value.strip()
 
-    def get_url(self) -> str:
-        return self.url
+    def get_urls(self):
+        return self.urls
 
     def get_headers(self) -> str:
         return self.headers
 
-    def update(self, device_id: str):
-        self.url = f"https://app.coreiot.io/api/plugins/telemetry/DEVICE/{device_id}/values/timeseries"
+    def update(self, device_ids):
+        self.urls = []
         self.headers = {"Authorization": f"{self.token}"}
 
+        for device_id in device_ids:
+            url = f"https://app.coreiot.io/api/plugins/telemetry/DEVICE/{device_id}/values/timeseries"
+            self.urls.append(url)
+            
     def read_all_sensor_values(self, data: dict) -> dict:
         result = {}
         try:

@@ -1,5 +1,7 @@
-#database
-db_path="userdata.db"
+#user_database
+user_db_path="userdata.db"
+#field_database
+field_db_path="field.db"
 #email
 sender_email = "theinspirer2000@gmail.com"
 app_password = "xvqm ykqq piil vape"  

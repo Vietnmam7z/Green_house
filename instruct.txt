@@ -274,3 +274,177 @@ if __name__ == '__main__':
     server.run()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+code test thêm field chạy ở field_manager
+
+db = FieldDB()
+
+result = db.add_field("field_003", "trung"):
+print(result["message"])
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+code test tìm field mà user được cấp quyền chạy ở field_manager
+
+db = FieldDB()
+
+fields = db.get_fields("trung")
+print("▶️ Các field của 'trung':", fields)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+code xóa field được cấp quyền, chạy ở field_manager(xem bằng browser để kiểm tra)
+
+db = FieldDB()
+
+db.delete_field("field_001"):
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test đổi tên field chạy ở field_manager
+
+db = FieldDB()
+
+result = db.rename_field_id("field_001", "field_999"):
+print(result["message"])
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test gửi danh sách các device của field ở field_manager
+
+db = FieldDB()
+
+device_names = db.get_devices("field_999")
+print(device_names)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code thêm device chạy ở field_manager
+
+db = FieldDB()
+
+result = db.add_device("field_001", "dev-003", "Valve C"):
+print(result["message"])
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code xóa device chạy ở field_manager(xem bằng browser để kiểm tra)
+
+db = FieldDB()
+
+db.delete_device("field_001", "Valve C"):
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code đổi tên device chạy ở field_manager
+
+db = FieldDB()
+
+if db.rename_device_by_name("Valve C", "Sensor X"):
+    print("✅ Đã đổi tên thiết bị thành công.")
+else:
+    print("⛔ Tên mới đã bị trùng.")
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code tìm user dựa trên field chạy ở field_manager
+
+db = FieldDB()
+
+if db.find_username("field_001", "admin"):
+    print("✅ Người dùng tồn tại trong field.")
+else:
+    print("⛔ Không tìm thấy người dùng trong field.")
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code thêm user dựa trên field chạy ở field_manager( hàm này chưa check user có tồn tại không)
+
+db = FieldDB()
+
+db.add_user_to_field("field_001", "trung123")
+print("✅ Đã thêm người dùng vào field.")
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Hàm dùng để nhận tín hiệu xóa từ client. Khi client bấm nút xử lý qua js qua lệnh:
+
+fetch("/delete-field", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ field_id: "field_001" })
+})
+
+
+def delete_field(self):
+    field_id = request.get_json().get("field_id")
+    username = session.get('username')
+    self.field.delete_field()
+    return jsonify(self.field.get_fields(username))
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code gửi telemetry lên web( đã có chỉnh sửa thông qua user) chạy ở file route.py 
+
+LƯU Ý: phải đổi hàm get_status thành:
+
+    def get_status(self):
+        try:
+            username = session.get('username')
+            device_ids = self.field.get_device_ids("admin")
+
+            self.sensor.set_token("key_jwt")
+            self.sensor.update(device_ids)
+
+            all_telemetries = {}
+
+            for device_id, url in zip(device_ids, self.sensor.get_urls()):
+                try:
+                    response = requests.get(url, headers=self.sensor.get_headers())
+                    data = response.json()
+                    telemetries = self.sensor.read_all_sensor_values(data)
+
+                    # ✅ Lấy tên thiết bị từ device_id
+                    device_name = self.field.get_device_name_by_id(device_id)
+                    if not device_name:
+                        device_name = device_id  # fallback nếu không có tên
+
+                    all_telemetries[device_name] = telemetries
+
+                except Exception as inner_e:
+                    all_telemetries[device_name] = {"error": str(inner_e)}
+
+            return jsonify(all_telemetries), 200
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+//////////////////////////////////////////////////////////////
+
+from webserver import FlaskServer
+from user_manager import UserManager
+from logger import UserLogger
+from email_otp import OTPManager
+from sensor_API import Sensor_API
+from field_manager import FieldDB
+
+manager = UserManager()
+log = UserLogger()
+otp = OTPManager(manager)
+auth = Authentication(manager,log,otp)
+server = FlaskServer()
+sensor = Sensor_API()
+field = FieldDB()
+routes = Routes(auth,otp,sensor,field)
+
+server.add_route('/', routes.get_status, methods=['GET'])
+
+
+if __name__ == '__main__':
+    server.run()
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////

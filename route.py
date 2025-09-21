@@ -1,16 +1,19 @@
-﻿from flask import request, session, redirect, render_template, jsonify
+﻿from dataclasses import Field
+from flask import request, session, redirect, render_template, jsonify
 from datetime import datetime, timedelta
 from authentication import Authentication
 from email_otp import OTPManager
 from sensor_API import Sensor_API
+from field_manager import FieldDB
 import requests
 import config
 
 class Routes:
-    def __init__(self, auth: Authentication, otp: OTPManager, sensor: Sensor_API):
+    def __init__(self, auth: Authentication, otp: OTPManager, sensor: Sensor_API, field: FieldDB):
         self.auth = auth
         self.otp = otp
         self.sensor = sensor
+        self.field = field
         
     def require_login(self):
         if 'username' not in session:
@@ -121,10 +124,9 @@ class Routes:
             return render_template(config.forgot_password_page)
 
     def forgot_password(self, OTP: str):
-
         username = session.get('username')
         session[f"{username}_allow_reset"] = (datetime.utcnow() + timedelta(minutes=15)).timestamp()
-        result = otp.confirm_otp(OTP, username)
+        result = self.otp.confirm_otp(OTP, username)
         
         if result['success']:
             return jsonify({
@@ -178,14 +180,133 @@ class Routes:
 #################################################################################################################################
 
  # DASHBOARD_PAGE
+    def add_field(self):
+        field_id =  request.form.get("field_id")
+        username = session.get('username')
+        result = self.field.add_field(field_id, username)
+
+        if result:
+            return jsonify({
+                "success": result['success'],
+                "message": result['message'],
+            })
+        else:
+            return jsonify({
+                "success": result['success'],
+                "message": result['message'],
+            })
+
+    def get_field(self):
+        username = session.get('username')
+        return jsonify(self.field.get_fields(username))
+    
+    def delete_field(self):
+        field_id = request.get_json().get("field_id")
+        username = session.get('username')
+        self.field.delete_field()
+        return jsonify(self.field.get_fields(username))
+    
+    def rename_field(self):
+        old_field_id =  request.get_json().get("old_field_id")
+        new_field_id =  request.get_json().get("new_field_id")
+        result = self.field.rename_field_id(old_field_id,new_field_id)
+        
+        if result:
+            return jsonify({
+                "success": result['success'],
+                "message": result['message'],
+            })
+        else:
+            return jsonify({
+                "success": result['success'],
+                "message": result['message'],
+            })
+        
+    def get_device(self):
+        field_id =  request.get_json().get("field_id")
+        return jsonify(self.field.get_devices(field_id))
+    
+    def add_device(self):
+        field_id =  request.get_json().get("field_id")
+        device_id =  request.get_json().get("device_id")
+        device_name =  request.get_json().get("device_name")
+        result = self.field.add_device(field_id,device_id,device_name)
+
+        if result:
+            return jsonify({
+                "success": result['success'],
+                "message": result['message'],
+            })
+        else:
+            return jsonify({
+                "success": result['success'],
+                "message": result['message'],
+            })
+        
+    def delete_device(self):
+        device_id = request.get_json().get("device_id")
+        field_id = request.get_json().get("field_id")
+        self.field.delete_device()
+        return jsonify(self.field.get_devices(field_id))
+    
+    def rename_device(self):
+        old_name =  request.get_json().get("old_name")
+        new_name =  request.get_json().get("new_name")
+        result = self.field.rename_device(old_name,new_name)
+        
+        if result:
+            return jsonify({
+                "success": result['success'],
+                "message": result['message'],
+            })
+        else:
+            return jsonify({
+                "success": result['success'],
+                "message": result['message'],
+            })
+       
+    def add_user(self):
+        username = session.get('username')
+        result = self.field.find_username(username)
+        if result:              
+            return jsonify({
+                "success": False,
+                "message": "Người dùng không cần cấp quyền",
+            })
+        else:
+            return jsonify({
+                "success": True,
+                "message": "Người dùng đã được cấp quyền",
+            })
+     
     def get_status(self):
         try:
-            response = requests.get(self.sensor.get_url(), headers = self.sensor.get_headers())
-            data = response.json()
-            print(self.sensor.get_headers())
-            telemetries = self.sensor.read_all_sensor_values(data)
+            username = session.get('username')
+            device_ids = self.field.get_device_ids(username)
+            self.sensor.update(device_ids)
+            all_telemetries = {}
+            
+            for device_id, url in zip(device_ids, self.sensor.get_urls()):
+                try:
+                    response = requests.get(url, headers=self.sensor.get_headers())
+                    data = response.json()
+                    telemetries = self.sensor.read_all_sensor_values(data)
 
-            return jsonify(telemetries), 200
+                    device_name = self.field.get_device_name_by_id(device_id)
+                    if not device_name:
+                        device_name = device_id  
+
+                    all_telemetries[device_name] = telemetries
+
+                except Exception as inner_e:
+                    all_telemetries[device_name] = {"error": str(inner_e)}
+
+            return jsonify(all_telemetries), 200
 
         except Exception as e:
             return jsonify({"error": str(e)}), 500
+
+
+
+        
+   
