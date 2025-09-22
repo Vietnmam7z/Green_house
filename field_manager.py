@@ -155,14 +155,18 @@ class FieldDB:
             row = cursor.fetchone()
             return row[0] if row else None
 
+    def get_field_by_device_name(self, device_name: str) -> str:
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT field_id
+                FROM device
+                WHERE device_name = ?
+            """, (device_name,))
+            row = cursor.fetchone()
+            return row[0] if row else None
 
             
-
-
-
-
-
-
 
 
 

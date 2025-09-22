@@ -282,31 +282,40 @@ class Routes:
     def get_status(self):
         try:
             username = session.get('username')
-            device_ids = self.field.get_device_ids(username)
+            device_ids = self.field.get_device_ids("admin")
+            self.sensor.set_token("Bearer eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ0cnVuZy5ub25nN3pAaGNtdXQuZWR1LnZuIiwidXNlcklkIjoiZGNkMWIwMDAtOTNhMi0xMWYwLWE5MzQtYmIzNDg0NDc0NGY3Iiwic2NvcGVzIjpbIlRFTkFOVF9BRE1JTiJdLCJzZXNzaW9uSWQiOiIzY2ZkZmI1ZC05ODExLTQyYTEtOGEyMS1mY2Q0NDkxN2RkZTUiLCJleHAiOjE3NTg1Mzc1NDksImlzcyI6ImNvcmVpb3QuaW8iLCJpYXQiOjE3NTg1Mjg1NDksImZpcnN0TmFtZSI6IlRSVU5HIiwibGFzdE5hbWUiOiJOw5RORyBWxIJOIiwiZW5hYmxlZCI6dHJ1ZSwiaXNQdWJsaWMiOmZhbHNlLCJ0ZW5hbnRJZCI6ImRjYTkxOTYwLTkzYTItMTFmMC1hOTM0LWJiMzQ4NDQ3NDRmNyIsImN1c3RvbWVySWQiOiIxMzgxNDAwMC0xZGQyLTExYjItODA4MC04MDgwODA4MDgwODAifQ.iIjjv9r3lNvVF7YaAvC1lOnkkDpgJt2xNBIiR4QgvX-_JnH8VhXRQ2kBiPdE2r6qgfgio479gs-C41UQ2gtgcg")
             self.sensor.update(device_ids)
-            all_telemetries = {}
-            
+
+            grouped_telemetries = {}
+
             for device_id, url in zip(device_ids, self.sensor.get_urls()):
                 try:
                     response = requests.get(url, headers=self.sensor.get_headers())
                     data = response.json()
                     telemetries = self.sensor.read_all_sensor_values(data)
-
                     device_name = self.field.get_device_name_by_id(device_id)
+                    
                     if not device_name:
-                        device_name = device_id  
+                        device_name = device_id
 
-                    all_telemetries[device_name] = telemetries
+                    field_id = self.field.get_field_by_device_name(device_name)
+                    if not field_id:
+                        field_id = "unknown_field"
+
+                    
+                    if field_id not in grouped_telemetries:
+                        grouped_telemetries[field_id] = {}
+
+                    grouped_telemetries[field_id][device_name] = telemetries
 
                 except Exception as inner_e:
-                    all_telemetries[device_name] = {"error": str(inner_e)}
+                    if field_id not in grouped_telemetries:
+                        grouped_telemetries[field_id] = {}
+                    grouped_telemetries[field_id][device_name] = {"error": str(inner_e)}
 
-            return jsonify(all_telemetries), 200
+            return jsonify(grouped_telemetries), 200
 
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
 
-
-        
-   

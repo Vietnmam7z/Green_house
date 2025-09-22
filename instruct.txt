@@ -251,13 +251,18 @@ Code test webserver có hỗ trợ đăng nhập và đăng xuất chạy trên 
 from webserver import FlaskServer
 from user_manager import UserManager
 from logger import UserLogger
+from email_otp import OTPManager
+from sensor_API import Sensor_API
+from field_manager import FieldDB
 
 manager = UserManager()
 log = UserLogger()
 otp = OTPManager(manager)
 auth = Authentication(manager,log,otp)
 server = FlaskServer()
-routes = Routes(auth,otp)
+sensor = Sensor_API()
+field = FieldDB()
+routes = Routes(auth,otp,sensor,field)
 
 server.add_route('/', routes.home_page, methods=['GET'])
 server.add_route('/login', routes.login_page, methods=['GET'])
@@ -325,7 +330,7 @@ Code thêm device chạy ở field_manager
 
 db = FieldDB()
 
-result = db.add_device("field_001", "dev-003", "Valve C"):
+result = db.add_device("field_001", "dev-003", "Valve C")
 print(result["message"])
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -395,29 +400,37 @@ LƯU Ý: phải đổi hàm get_status thành:
         try:
             username = session.get('username')
             device_ids = self.field.get_device_ids("admin")
-
-            self.sensor.set_token("key_jwt")
+            self.sensor.set_token("token")
             self.sensor.update(device_ids)
 
-            all_telemetries = {}
+            grouped_telemetries = {}
 
             for device_id, url in zip(device_ids, self.sensor.get_urls()):
                 try:
                     response = requests.get(url, headers=self.sensor.get_headers())
                     data = response.json()
                     telemetries = self.sensor.read_all_sensor_values(data)
-
-                    # ✅ Lấy tên thiết bị từ device_id
                     device_name = self.field.get_device_name_by_id(device_id)
+                    
                     if not device_name:
-                        device_name = device_id  # fallback nếu không có tên
+                        device_name = device_id
 
-                    all_telemetries[device_name] = telemetries
+                    field_id = self.field.get_field_by_device_name(device_name)
+                    if not field_id:
+                        field_id = "unknown_field"
+
+                    
+                    if field_id not in grouped_telemetries:
+                        grouped_telemetries[field_id] = {}
+
+                    grouped_telemetries[field_id][device_name] = telemetries
 
                 except Exception as inner_e:
-                    all_telemetries[device_name] = {"error": str(inner_e)}
+                    if field_id not in grouped_telemetries:
+                        grouped_telemetries[field_id] = {}
+                    grouped_telemetries[field_id][device_name] = {"error": str(inner_e)}
 
-            return jsonify(all_telemetries), 200
+            return jsonify(grouped_telemetries), 200
 
         except Exception as e:
             return jsonify({"error": str(e)}), 500
