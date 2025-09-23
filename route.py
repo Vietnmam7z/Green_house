@@ -36,16 +36,24 @@ class Routes:
 ################################################################################################################################        
         
     def home_page(self):
-        if self.require_login():
-            return self.require_login() 
+        resp = self.require_login()
+        if resp:  # Nếu require_login trả về một response (redirect hoặc render)
+            return resp
+
         username = session.get('username')
         return render_template(config.home_page, username=username)
+
     
     def logout(self):
         username = session.get('username')
-        self.auth.logout_user(username)
         if username:
+            # Cập nhật trạng thái offline và thời gian hoạt động cuối
+            self.auth.logout_user(username)
+            self.auth.user_manager.set_last_active(username)
+
+            # Xoá session
             session.pop('username', None)
+
             return jsonify({
                 "success": True,
                 "redirect": "/login"
@@ -55,6 +63,7 @@ class Routes:
                 "success": False,
                 "message": "Không tìm thấy người dùng trong session"
             })
+
             
 ################################################################################################################################
     
@@ -140,6 +149,7 @@ class Routes:
                 "success": result['success'],
                 "message": result['message']
             })
+        
 #################################################################################################################################
 
  # SEND OTP PAGE
@@ -318,4 +328,34 @@ class Routes:
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+#################################################################################################################################
 
+from webserver import FlaskServer
+from user_manager import UserManager
+from logger import UserLogger
+from email_otp import OTPManager
+from sensor_API import Sensor_API
+from field_manager import FieldDB
+
+manager = UserManager()
+log = UserLogger()
+otp = OTPManager(manager)
+auth = Authentication(manager,log,otp)
+server = FlaskServer()
+sensor = Sensor_API()
+field = FieldDB()
+routes = Routes(auth,otp,sensor,field)
+
+server.add_route('/', routes.home_page, methods=['GET'])
+server.add_route('/login', routes.login_page, methods=['GET'])
+server.add_route('/login', routes.login, methods=['POST'])
+server.add_route('/logout', routes.logout, methods=['POST'])
+server.add_route('/signup', routes.signup_page, methods=['GET'])
+server.add_route('/signup', routes.signup, methods=['POST'])
+server.add_route('/forgot-password', routes.forgot_password_page, methods=['GET'])
+server.add_route('/forgot-password', routes.forgot_password, methods=['POST'])
+server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
+server.add_route('/reset-password', routes.reset_password, methods=['POST'])
+
+if __name__ == '__main__':
+    server.run()

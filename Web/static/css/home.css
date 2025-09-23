@@ -1,61 +1,66 @@
-* {
+body {
   margin: 0;
-  padding: 0;
-  box-sizing: border-box;
   font-family: Arial, sans-serif;
 }
 
-body {
-  background: #f4f4f4;
-  margin: 0;
-}
-
-/* Navbar */
+/* Thanh điều hướng */
 .navbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  background: white;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 24px;
-  z-index: 1000;
+  background-color: white;
+  padding: 10px 20px;
+  border-bottom: 1px solid #ddd;
 }
 
-.logo {
+.navbar-left {
   display: flex;
   align-items: center;
 }
 
-.logo img {
-  width: 28px;
-  height: 28px;
-  margin-right: 8px;
+.logo-img {
+  height: 40px;
+  margin-right: 10px;
 }
 
-.logo span {
-  font-size: 18px;
+.logo-text {
+  font-size: 24px;
   font-weight: bold;
   color: #333;
 }
 
-.nav-icons {
+.navbar-right {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 15px;
 }
 
-.nav-icons img {
-  width: 22px;
-  height: 22px;
+.nav-icon {
+  height: 24px;
   cursor: pointer;
 }
 
-/* Nội dung giả để test scroll */
+.logout-btn {
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.logout-btn:hover {
+  background-color: #c0392b;
+}
+
+/* Nội dung */
 .content {
-  margin-top: 70px; /* chừa chỗ cho navbar */
   padding: 20px;
+}
+
+#result {
+  margin-top: 20px;
+  color: red;
+  font-weight: bold;
 }

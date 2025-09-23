@@ -3,21 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <title>SmartCare - Home</title>
-
+  <link rel="stylesheet" href="../static/css/home.css">
 </head>
 <body>
 
   <!-- Navbar -->
   <div class="navbar">
-    <div class="logo">
-      <img src="../static/img/logo.png" alt="Logo">
-      <span>SmartCare</span>
+    <!-- Vùng trái -->
+    <div class="navbar-left">
+      <img src="../static/img/logo.png" alt="Logo" class="logo-img">
+      <span class="logo-text">SmartCare</span>
     </div>
 
-    <div class="nav-icons">
-      <img src="../static/img/bell.png" alt="Notifications">
-      <img src="../static/img/user.png" alt="User">
-      <img src="../static/img/menu.png" alt="Menu">
+    <!-- Vùng phải -->
+    <div class="navbar-right">
+      <img src="../static/img/bell.png" alt="Notifications" class="nav-icon">
+      <img src="../static/img/user.png" alt="User" class="nav-icon">
+      <img src="../static/img/menu.png" alt="Menu" class="nav-icon">
+      <button id="logoutBtn" class="logout-btn">Log out</button>
     </div>
   </div>
 
@@ -26,7 +29,12 @@
     <h2>Welcome to SmartCare Dashboard</h2>
     <p>Here will display sensor values, device status, and more...</p>
     <p style="margin-top: 1000px;">Scroll test content...</p>
+
+    <!-- Hộp hiển thị thông báo -->
+    <div id="result"></div>
   </div>
 
+  <!-- JS xử lý logout -->
+  <script src="../static/js/home.js"></script>
 </body>
 </html>
