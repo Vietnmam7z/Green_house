@@ -35,11 +35,12 @@ class UserManager:
     def get_password(self, username: str):
         return self._get_field(username, "password")
     
-    def set_password(self, username: str, new_password: str):
-        hashed = hashlib.sha256(new_password.encode()).hexdigest()
-        with self.connect() as conn:
-            cur = conn.cursor()
-            cur.execute("UPDATE user_data SET password = ? WHERE username = ?", (hashed, username))
+    def set_password(self, username, hashed_password):
+        conn = sqlite3.connect(self.user_db_path)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE user_data SET password = ? WHERE username = ?", (hashed_password, username))
+        conn.commit()
+        conn.close()
             
     def get_role(self, username: str):
         return self._get_field(username, "role")
