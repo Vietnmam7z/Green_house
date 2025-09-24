@@ -41,7 +41,7 @@ class Authentication:
     def change_password(self, username: str, old_password: str, new_password: str):
         if not self.user_manager.find_user(username):
             return {"success": False, "message": "Người dùng không tồn tại."}
-        
+
         current_hashed = self.user_manager.get_password(username)
         input_hashed = hashlib.sha256(old_password.encode()).hexdigest()
 
@@ -49,14 +49,20 @@ class Authentication:
             return {"success": False, "message": "Mật khẩu cũ không đúng."}
 
         new_hashed = hashlib.sha256(new_password.encode()).hexdigest()
-        self.user_manager.set_password(username, new_password)
+        self.user_manager.set_password(username, new_hashed)
         self.logger.log_change_password(username)
-        
+
         return {"success": True, "message": "Đổi mật khẩu thành công."}
 
     def reset_password(self, username: str, new_password: str):
+        if not self.user_manager.find_user(username):
+            return {"success": False, "message": "Người dùng không tồn tại."}
+
+        hashed = hashlib.sha256(new_password.encode()).hexdigest()
+        self.user_manager.set_password(username, hashed)
         self.logger.log_reset_password(username)
-        return self.user_manager.set_password(username, new_password)
+
+        return {"success": True, "message": "Mật khẩu đã được cập nhật thành công."}
 
     def delete_user(self, username: str):
         self.user_manager.delete_user(username)
