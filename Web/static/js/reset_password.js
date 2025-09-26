@@ -33,3 +33,9 @@ document.getElementById("resetForm").addEventListener("submit", function(e) {
     alert("Something went wrong.");
   });
 });
+
+
+// Clear reset session after password reset attempt
+window.addEventListener("beforeunload", function() {
+  navigator.sendBeacon("/clear-reset-session");
+});
