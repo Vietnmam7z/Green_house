@@ -57,45 +57,45 @@ document.getElementById("closeOtpBtn").addEventListener("click", function() {
 });
 
 // Logic đếm ngược và resend OTP
-const resendBtn = document.getElementById("resendBtn");
-let timer;
-let timeLeft = 180;
+// const resendBtn = document.getElementById("resendBtn");
+// let timer;
+// let timeLeft = 180;
 
-function startTimer() {
-  timeLeft = 180;
-  resendBtn.disabled = true;
+// function startTimer() {
+//   timeLeft = 180;
+//   resendBtn.disabled = true;
 
-  timer = setInterval(() => {
-    let minutes = Math.floor(timeLeft / 60);
-    let seconds = timeLeft % 60;
-    resendBtn.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+//   timer = setInterval(() => {
+//     let minutes = Math.floor(timeLeft / 60);
+//     let seconds = timeLeft % 60;
+//     resendBtn.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 
-    timeLeft--;
+//     timeLeft--;
 
-    if (timeLeft < 0) {
-      clearInterval(timer);
-      resendBtn.disabled = false;
-      resendBtn.textContent = "Resend OTP";
-    }
-  }, 1000);
-}
+//     if (timeLeft < 0) {
+//       clearInterval(timer);
+//       resendBtn.disabled = false;
+//       resendBtn.textContent = "Resend OTP";
+//     }
+//   }, 1000);
+// }
 
-resendBtn.addEventListener("click", () => {
-  if (resendBtn.textContent === "Resend OTP") {
-    // Gửi lại OTP tới email
-    fetch("/resend-otp", { method: "POST" })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          alert("OTP resent to your email.");
-          startTimer();
-        } else {
-          alert(data.message || "Failed to resend OTP.");
-        }
-      })
-      .catch(err => {
-        console.error(err);
-        alert("Server error.");
-      });
-  }
-});
+// resendBtn.addEventListener("click", () => {
+//   if (resendBtn.textContent === "Resend OTP") {
+//     // Gửi lại OTP tới email
+//     fetch("/resend-otp", { method: "POST" })
+//       .then(res => res.json())
+//       .then(data => {
+//         if (data.success) {
+//           alert("OTP resent to your email.");
+//           startTimer();
+//         } else {
+//           alert(data.message || "Failed to resend OTP.");
+//         }
+//       })
+//       .catch(err => {
+//         console.error(err);
+//         alert("Server error.");
+//       });
+//   }
+// });

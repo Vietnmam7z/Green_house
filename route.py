@@ -376,7 +376,7 @@ server.add_route('/signup', routes.signup, methods=['POST'])
 server.add_route('/forgot-password', routes.forgot_password_page, methods=['GET'])
 server.add_route('/forgot-password', routes.send_otp, methods=['POST'])
 server.add_route('/verify-otp', routes.verify_otp, methods=['POST'])
-server.add_route('/resend-otp', routes.resend_otp, methods=['POST'])
+# server.add_route('/resend-otp', routes.resend_otp, methods=['POST'])
 server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
 server.add_route('/reset-password', routes.reset_password, methods=['POST'])
 
