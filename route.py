@@ -36,6 +36,10 @@ class Routes:
             session.pop('username', None)
             session.pop(f"{username}_allow_reset", None)
 
+    def clear_reset_session(self):
+        self.pop_reset_session()
+        return ("", 204)
+
 # HOME PAGE
 ################################################################################################################################        
         
@@ -164,16 +168,16 @@ class Routes:
         else:
             return jsonify({"success": False, "message": result['message']})
         
-    def resend_otp(self):   # Gửi lại OTP nếu người dùng yêu cầu
-        username = session.get('username')
-        if not username:
-            return jsonify({"success": False, "message": "Không tìm thấy người dùng trong session."})
+    # def resend_otp(self):   # Gửi lại OTP nếu người dùng yêu cầu
+    #     username = session.get('username')
+    #     if not username:
+    #         return jsonify({"success": False, "message": "Không tìm thấy người dùng trong session."})
 
-        email = self.auth.user_manager.get_email(username)
-        self.otp.update_otp(email)
-        self.otp.send_otp_email(email)
+    #     email = self.auth.user_manager.get_email(username)
+    #     self.otp.update_otp(email)
+    #     self.otp.send_otp_email(email)
 
-        return jsonify({"success": True, "message": "OTP đã được gửi lại."})
+    #     return jsonify({"success": True, "message": "OTP đã được gửi lại."})
 
         
 #################################################################################################################################
@@ -185,10 +189,7 @@ class Routes:
 
         if not username or not expire_at or datetime.utcnow().timestamp() > expire_at:
             self.pop_reset_session()
-            return jsonify({
-                "success": False,
-                "message": "Hết thời gian đổi mật khẩu"
-            })
+            return redirect('/forgot-password')
 
         data = request.get_json()
         new_password = data.get('new_password')
@@ -379,6 +380,7 @@ server.add_route('/verify-otp', routes.verify_otp, methods=['POST'])
 # server.add_route('/resend-otp', routes.resend_otp, methods=['POST'])
 server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
 server.add_route('/reset-password', routes.reset_password, methods=['POST'])
+server.add_route('/clear-reset-session', routes.clear_reset_session, methods=['POST'])
 
 if __name__ == '__main__':
     server.run()
