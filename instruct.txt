@@ -254,6 +254,7 @@ from logger import UserLogger
 from email_otp import OTPManager
 from sensor_API import Sensor_API
 from field_manager import FieldDB
+from logger import UserLogger
 
 manager = UserManager()
 log = UserLogger()
@@ -262,7 +263,8 @@ auth = Authentication(manager,log,otp)
 server = FlaskServer()
 sensor = Sensor_API()
 field = FieldDB()
-routes = Routes(auth,otp,sensor,field)
+log = UserLogger()
+routes = Routes(auth,otp,sensor,field,log)
 
 server.add_route('/', routes.home_page, methods=['GET'])
 server.add_route('/login', routes.login_page, methods=['GET'])
@@ -271,7 +273,9 @@ server.add_route('/logout', routes.logout, methods=['POST'])
 server.add_route('/signup', routes.signup_page, methods=['GET'])
 server.add_route('/signup', routes.signup, methods=['POST'])
 server.add_route('/forgot-password', routes.forgot_password_page, methods=['GET'])
-server.add_route('/forgot-password', routes.forgot_password, methods=['POST'])
+server.add_route('/forgot-password', routes.send_otp, methods=['POST'])
+server.add_route('/verify-otp', routes.verify_otp, methods=['POST'])
+# server.add_route('/resend-otp', routes.resend_otp, methods=['POST'])
 server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
 server.add_route('/reset-password', routes.reset_password, methods=['POST'])
 
@@ -339,7 +343,7 @@ Code xóa device chạy ở field_manager(xem bằng browser để kiểm tra)
 
 db = FieldDB()
 
-db.delete_device("field_001", "Valve C"):
+db.delete_device("field_001", "Valve C")
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -394,55 +398,58 @@ def delete_field(self):
 
 Code gửi telemetry lên web( đã có chỉnh sửa thông qua user) chạy ở file route.py 
 
-LƯU Ý: phải đổi hàm get_status thành:
+LƯU Ý: phải đổi hàm send_telemetry thành:
 
-    def get_status(self):
-        try:
-            username = session.get('username')
-            device_ids = self.field.get_device_ids("admin")
-            self.sensor.set_token("token")
-            self.sensor.update(device_ids)
+    def send_telemetry(self):
+        field_id =  ""
+        devices = ""
 
-            grouped_telemetries = {}
+        result = []
+        for device in devices:
+            result.append(self.field.get_telemetry(device))
 
-            for device_id, url in zip(device_ids, self.sensor.get_urls()):
-                try:
-                    response = requests.get(url, headers=self.sensor.get_headers())
-                    data = response.json()
-                    telemetries = self.sensor.read_all_sensor_values(data)
-                    device_name = self.field.get_device_name_by_id(device_id)
-                    
-                    if not device_name:
-                        device_name = device_id
+        return result
 
-                    field_id = self.field.get_field_by_device_name(device_name)
-                    if not field_id:
-                        field_id = "unknown_field"
+print(routes.send_chart())
 
-                    
-                    if field_id not in grouped_telemetries:
-                        grouped_telemetries[field_id] = {}
 
-                    grouped_telemetries[field_id][device_name] = telemetries
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-                except Exception as inner_e:
-                    if field_id not in grouped_telemetries:
-                        grouped_telemetries[field_id] = {}
-                    grouped_telemetries[field_id][device_name] = {"error": str(inner_e)}
+chạy pip install pandas 
 
-            return jsonify(grouped_telemetries), 200
+Code gửi bảng chart chạy ở route.py( Lưu ý: trước khi chạy chỉnh hàm send_chart lại như này)
 
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
 
-//////////////////////////////////////////////////////////////
+    def send_chart(self):
+        #payload = request.get_json()
+        #device_name = payload.get("device_name")
+        #telemetry_name = payload.get("telemetry_name")
+        #time_mode = payload.get("time")   # "1h", "1d", "7d", "30d"
+        device_name = "Moisture 5"
+        telemetry_name="temperature"
+        time_mode = "1h"
 
-from webserver import FlaskServer
-from user_manager import UserManager
-from logger import UserLogger
-from email_otp import OTPManager
-from sensor_API import Sensor_API
-from field_manager import FieldDB
+        raw_data = self.field.get_all_telemetry_status(device_name, telemetry_name)
+
+        freq_map = {
+            "1h": "10min",   
+            "1d": "1H",      
+            "7d": "6H",      
+            "30d": "1D"      
+        }
+
+        resampled = self.resample_mean(raw_data, freq=freq_map[time_mode])
+
+        return resampled
+
+
+Code chạy test
+
+routes.send_chart(self)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test chạy cập nhật telemetry và đồng thời chạy web. Code chạy trên route.py
 
 manager = UserManager()
 log = UserLogger()
@@ -451,13 +458,27 @@ auth = Authentication(manager,log,otp)
 server = FlaskServer()
 sensor = Sensor_API()
 field = FieldDB()
-routes = Routes(auth,otp,sensor,field)
+log = UserLogger()
+routes = Routes(auth,otp,sensor,field,log)
+scheduler = BackgroundScheduler()
 
-server.add_route('/', routes.get_status, methods=['GET'])
+server.add_route('/', routes.home_page, methods=['GET'])
+server.add_route('/login', routes.login_page, methods=['GET'])
+server.add_route('/login', routes.login, methods=['POST'])
+server.add_route('/logout', routes.logout, methods=['POST'])
+server.add_route('/signup', routes.signup_page, methods=['GET'])
+server.add_route('/signup', routes.signup, methods=['POST'])
+server.add_route('/forgot-password', routes.forgot_password_page, methods=['GET'])
+server.add_route('/forgot-password', routes.send_otp, methods=['POST'])
+server.add_route('/verify-otp', routes.verify_otp, methods=['POST'])
+# server.add_route('/resend-otp', routes.resend_otp, methods=['POST'])
+server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
+server.add_route('/reset-password', routes.reset_password, methods=['POST'])
 
+scheduler.add_job(routes.update_status, 'interval', seconds=5)
 
 if __name__ == '__main__':
+    scheduler.start()
     server.run()
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////

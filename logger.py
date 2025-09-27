@@ -40,4 +40,25 @@ class UserLogger:
 
     def log_reset_password(self, username: str):
         self.logger.warning(f"Đặt lại mật khẩu: {username}")
+
+    def log_add_field(self, field_id: str):
+        self.logger.warning(f"Tạo ruộng: {field_id}")
+
+    def log_delete_field(self, field_id: str):
+        self.logger.warning(f"Xóa ruộng: {field_id}")
+
+    def log_rename_field(self, old_field_id: str, new_field_id: str):
+        self.logger.warning(f"Đổi tên ruộng {old_field_id} thành {new_field_id}")
+
+    def log_add_device(self, device_name: str):
+        self.logger.warning(f"Tạo thiết bị: {device_name}")
+
+    def log_delete_device(self, device_name: str):
+        self.logger.warning(f"Xóa thiết bị: {device_name}")
+
+    def log_rename_device(self, old_device_name: str, new_device_name: str):
+        self.logger.warning(f"Đổi tên thiết bị {old_device_name} thành {new_device_name}")
+
+    def log_add_user_to_field(self, field_id: str,  username: str,):
+        self.logger.warning(f"Thêm user {username} vào ruộng {field_id}")
         

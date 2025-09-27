@@ -133,17 +133,33 @@ class FieldDB:
             """, (field_id, username))
             conn.commit()
             
-    def get_device_ids(self, username: str):
+    def get_device_ids(self, field_id: int):
         with self.connect() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                SELECT d.device_id
-                FROM device d
-                JOIN field_user fu ON d.field_id = fu.field_id
-                WHERE fu.username = ?
-            """, (username,))
+            cursor.execute(
+                """
+                SELECT device_id
+                FROM device
+                WHERE field_id = ?
+                """,
+                (field_id,)
+            )
             return [row[0] for row in cursor.fetchall()]
         
+    def get_device_names(self, field_id: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT device_name
+                FROM device
+                WHERE field_id = ?
+                """,
+                (field_id,)
+            )
+            rows = cursor.fetchall()
+            return [row[0] for row in rows]
+
     def get_device_name_by_id(self, device_id: str) -> str:
         with self.connect() as conn:
             cursor = conn.cursor()
@@ -166,9 +182,67 @@ class FieldDB:
             row = cursor.fetchone()
             return row[0] if row else None
 
-            
+    def insert_telemetry(self, data: dict):
+        device_id = data.get("device")   
+        ts = data.get("ts")
+        telemetry = data.get("telemetry", {})
 
+        with self.connect() as conn:
+            cursor = conn.cursor()
 
+            for name, value in telemetry.items():
+                cursor.execute(
+                    """
+                    INSERT INTO telemetry (device_id, name, ts, value)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (device_id, name, ts, value)
+                )
+
+            conn.commit()
+    
+    def get_telemetry(self, device_name: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT t.name, t.ts, t.value
+                FROM telemetry t
+                JOIN device d ON t.device_id = d.device_id
+                WHERE d.device_name = ?
+                AND t.ts = (
+                    SELECT MAX(ts)
+                    FROM telemetry
+                    WHERE device_id = t.device_id AND name = t.name
+                )
+                """,
+                (device_name,)
+            )
+
+            rows = cursor.fetchall()
+            telemetry_dict = {}
+            for name, ts, value in rows:
+                telemetry_dict[name] = {"ts": ts, "value": value}
+
+            return {device_name: telemetry_dict}
+
+    def get_all_telemetry_status(self, device_name: str, telemetry_name: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT t.ts, t.value
+                FROM telemetry t
+                JOIN device d ON t.device_id = d.device_id
+                WHERE d.device_name = ? AND t.name = ?
+                ORDER BY t.ts ASC
+                """,
+                (device_name, telemetry_name)
+            )
+
+            rows = cursor.fetchall()
+            result = [{ "ts": ts, "value": value } for ts, value in rows]
+            return result
 
 
 

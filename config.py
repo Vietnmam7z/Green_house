@@ -17,9 +17,7 @@ log_file="user_activity.log"
 template_folder='Web/templates'
 static_folder='Web/static'
 #sensor_API
-jwt = ""
-url = ""
-headers = {}
+api_sensor = "https://68d62acdc2a1754b4269b2c7.mockapi.io/API"
 #route
 home_page = 'home.html'
 login_page = 'login.html'

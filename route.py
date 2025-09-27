@@ -5,15 +5,18 @@ from authentication import Authentication
 from email_otp import OTPManager
 from sensor_API import Sensor_API
 from field_manager import FieldDB
+from logger import UserLogger
 import requests
 import config
+import pandas as pd
 
 class Routes:
-    def __init__(self, auth: Authentication, otp: OTPManager, sensor: Sensor_API, field: FieldDB):
+    def __init__(self, auth: Authentication, otp: OTPManager, sensor: Sensor_API, field: FieldDB, logger: UserLogger):
         self.auth = auth
         self.otp = otp
         self.sensor = sensor
         self.field = field
+        self.logger = logger
         
     def require_login(self):
         if 'username' not in session:
@@ -36,9 +39,11 @@ class Routes:
             session.pop('username', None)
             session.pop(f"{username}_allow_reset", None)
 
-# HOME PAGE
+
 ################################################################################################################################        
-        
+ 
+ # HOME PAGE  
+     
     def home_page(self):
         resp = self.require_login()
         if resp:  # Nếu require_login trả về một response (redirect hoặc render)
@@ -47,7 +52,6 @@ class Routes:
         username = session.get('username')
         return render_template(config.home_page, username=username)
 
-    
     def logout(self):
         username = session.get('username')
         if username:
@@ -67,11 +71,11 @@ class Routes:
                 "success": False,
                 "message": "Không tìm thấy người dùng trong session"
             })
-
-            
+          
 ################################################################################################################################
     
- # LOGIN PAGE   
+ # LOGIN PAGE
+    
     def login_page(self):
         if self.redirect_if_logged_in():
             return self.redirect_if_logged_in()
@@ -100,7 +104,8 @@ class Routes:
 
 #################################################################################################################################
         
- # SIGNUP PAGE   
+ # SIGNUP PAGE
+    
     def signup_page(self):
         if self.redirect_if_logged_in():
             return self.redirect_if_logged_in()
@@ -130,6 +135,7 @@ class Routes:
 #################################################################################################################################
 
  # FORGOT PASSWORD PAGE
+
     def forgot_password_page(self):
         if self.redirect_if_logged_in():
             return self.redirect_if_logged_in()
@@ -179,6 +185,7 @@ class Routes:
 #################################################################################################################################
 
  # RESET PASSWORD PAGE
+
     def reset_password(self):
         username = session.get('username')
         expire_at = session.get(f"{username}_allow_reset")
@@ -211,12 +218,14 @@ class Routes:
 #################################################################################################################################
 
  # DASHBOARD_PAGE
+
     def add_field(self):
         field_id =  request.form.get("field_id")
         username = session.get('username')
         result = self.field.add_field(field_id, username)
 
         if result:
+            self.logger.log_add_field(field_id)
             return jsonify({
                 "success": result['success'],
                 "message": result['message'],
@@ -235,6 +244,7 @@ class Routes:
         field_id = request.get_json().get("field_id")
         username = session.get('username')
         self.field.delete_field()
+        self.logger.log_delete_field(field_id)
         return jsonify(self.field.get_fields(username))
     
     def rename_field(self):
@@ -243,6 +253,7 @@ class Routes:
         result = self.field.rename_field_id(old_field_id,new_field_id)
         
         if result:
+            self.logger.log_rename_field(old_field_id,new_field_id)
             return jsonify({
                 "success": result['success'],
                 "message": result['message'],
@@ -264,6 +275,7 @@ class Routes:
         result = self.field.add_device(field_id,device_id,device_name)
 
         if result:
+            self.logger.log_add_device(device_id)
             return jsonify({
                 "success": result['success'],
                 "message": result['message'],
@@ -278,14 +290,16 @@ class Routes:
         device_id = request.get_json().get("device_id")
         field_id = request.get_json().get("field_id")
         self.field.delete_device()
+        self.logger.log_delete_device(device_id)
         return jsonify(self.field.get_devices(field_id))
     
     def rename_device(self):
-        old_name =  request.get_json().get("old_name")
-        new_name =  request.get_json().get("new_name")
-        result = self.field.rename_device(old_name,new_name)
+        old_name_device =  request.get_json().get("old_name")
+        new_name_device =  request.get_json().get("new_name")
+        result = self.field.rename_device(old_name_device,new_name_device)
         
         if result:
+            self.logger.log_rename_device(old_name_device,new_name_device)
             return jsonify({
                 "success": result['success'],
                 "message": result['message'],
@@ -299,86 +313,87 @@ class Routes:
     def add_user(self):
         username = session.get('username')
         result = self.field.find_username(username)
-        if result:              
+        field_id =  request.get_json().get("field_id")
+
+        if result:
+                     
             return jsonify({
                 "success": False,
                 "message": "Người dùng không cần cấp quyền",
             })
         else:
+            self.field.add_user_to_field(field_id,username)
+            self.logger.log_add_user_to_field(field_id,username)  
             return jsonify({
                 "success": True,
                 "message": "Người dùng đã được cấp quyền",
             })
      
-    def get_status(self):
-        try:
-            username = session.get('username')
-            device_ids = self.field.get_device_ids("admin")
-            self.sensor.set_token("Bearer eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ0cnVuZy5ub25nN3pAaGNtdXQuZWR1LnZuIiwidXNlcklkIjoiZGNkMWIwMDAtOTNhMi0xMWYwLWE5MzQtYmIzNDg0NDc0NGY3Iiwic2NvcGVzIjpbIlRFTkFOVF9BRE1JTiJdLCJzZXNzaW9uSWQiOiIzY2ZkZmI1ZC05ODExLTQyYTEtOGEyMS1mY2Q0NDkxN2RkZTUiLCJleHAiOjE3NTg1Mzc1NDksImlzcyI6ImNvcmVpb3QuaW8iLCJpYXQiOjE3NTg1Mjg1NDksImZpcnN0TmFtZSI6IlRSVU5HIiwibGFzdE5hbWUiOiJOw5RORyBWxIJOIiwiZW5hYmxlZCI6dHJ1ZSwiaXNQdWJsaWMiOmZhbHNlLCJ0ZW5hbnRJZCI6ImRjYTkxOTYwLTkzYTItMTFmMC1hOTM0LWJiMzQ4NDQ3NDRmNyIsImN1c3RvbWVySWQiOiIxMzgxNDAwMC0xZGQyLTExYjItODA4MC04MDgwODA4MDgwODAifQ.iIjjv9r3lNvVF7YaAvC1lOnkkDpgJt2xNBIiR4QgvX-_JnH8VhXRQ2kBiPdE2r6qgfgio479gs-C41UQ2gtgcg")
-            self.sensor.update(device_ids)
+    def update_status(self):
+        data = self.sensor.update()
+        for entry in data:
+            self.field.insert_telemetry(entry)
+            id = self.sensor.find_id(entry)
+            self.sensor.delete(id)
 
-            grouped_telemetries = {}
+    def send_all_field(self):
+        username = session.get('username')
+        result = self.field.get_fields(username)
+        print(result)
+        return jsonify(result)
 
-            for device_id, url in zip(device_ids, self.sensor.get_urls()):
-                try:
-                    response = requests.get(url, headers=self.sensor.get_headers())
-                    data = response.json()
-                    telemetries = self.sensor.read_all_sensor_values(data)
-                    device_name = self.field.get_device_name_by_id(device_id)
-                    
-                    if not device_name:
-                        device_name = device_id
+    def send_telemetry(self):
+        field_id =  request.get_json().get("field_id")
+        devices = self.field.get_device_names(field_id)
 
-                    field_id = self.field.get_field_by_device_name(device_name)
-                    if not field_id:
-                        field_id = "unknown_field"
+        result = []
+        for device in devices:
+            result.append(self.field.get_telemetry(device))
 
-                    
-                    if field_id not in grouped_telemetries:
-                        grouped_telemetries[field_id] = {}
+        return jsonify(result)
 
-                    grouped_telemetries[field_id][device_name] = telemetries
+    def resample_mean(self, data, freq="10min", median_window=5):
 
-                except Exception as inner_e:
-                    if field_id not in grouped_telemetries:
-                        grouped_telemetries[field_id] = {}
-                    grouped_telemetries[field_id][device_name] = {"error": str(inner_e)}
+        df = pd.DataFrame(data)
+        df["ts"] = pd.to_datetime(df["ts"], unit="ms")  
+        df = df.set_index("ts")
 
-            return jsonify(grouped_telemetries), 200
+        df["filtered"] = df["value"].rolling(window=median_window, min_periods=1).median()       
+        resampled = df["filtered"].resample(freq).mean().dropna()
+        
+        result = [
+            {"ts": int(ts.timestamp() * 1000), "value": round(val, 2) if pd.notnull(val) else None}
+            for ts, val in resampled.items()
+        ]
+        return result
 
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
+    def send_chart(self):
+        device_name = request.get_json().get("device_name")
+        telemetry = request.get_json().get("telemetry")
+        time_mode = request.get_json().get("time")
+        #device_name = "Moisture 5"
+        #telemetry_name="temperature"
+        #time_mode = "1h"
+
+        raw_data = self.field.get_all_telemetry_status(device_name, telemetry)
+
+        print(raw_data)
+        
+        freq_map = {
+            "1h": "10min",   
+            "1d": "1H",      
+            "7d": "6H",      
+            "30d": "1D"      
+        }
+
+        resampled = self.resample_mean(raw_data, freq=freq_map[time_mode])
+
+        return resampled
 
 #################################################################################################################################
 
-from webserver import FlaskServer
-from user_manager import UserManager
-from logger import UserLogger
-from email_otp import OTPManager
-from sensor_API import Sensor_API
-from field_manager import FieldDB
 
-manager = UserManager()
-log = UserLogger()
-otp = OTPManager(manager)
-auth = Authentication(manager,log,otp)
-server = FlaskServer()
-sensor = Sensor_API()
-field = FieldDB()
-routes = Routes(auth,otp,sensor,field)
 
-server.add_route('/', routes.home_page, methods=['GET'])
-server.add_route('/login', routes.login_page, methods=['GET'])
-server.add_route('/login', routes.login, methods=['POST'])
-server.add_route('/logout', routes.logout, methods=['POST'])
-server.add_route('/signup', routes.signup_page, methods=['GET'])
-server.add_route('/signup', routes.signup, methods=['POST'])
-server.add_route('/forgot-password', routes.forgot_password_page, methods=['GET'])
-server.add_route('/forgot-password', routes.send_otp, methods=['POST'])
-server.add_route('/verify-otp', routes.verify_otp, methods=['POST'])
-# server.add_route('/resend-otp', routes.resend_otp, methods=['POST'])
-server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
-server.add_route('/reset-password', routes.reset_password, methods=['POST'])
 
-if __name__ == '__main__':
-    server.run()
+
+
