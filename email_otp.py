@@ -70,7 +70,6 @@ class OTPManager:
         if expires_at <= now:
             return {"success": False, "message": "Mã OTP đã hết hạn."}
 
-        # Đánh dấu OTP đã dùng
         self.user_manager.set_otp_used(otp)
 
         return {"success": True, "message": "Mã OTP hợp lệ và đã được xác nhận."}
