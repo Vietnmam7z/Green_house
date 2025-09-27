@@ -132,19 +132,6 @@ class FieldDB:
                 VALUES (?, ?)
             """, (field_id, username))
             conn.commit()
-            
-    def get_device_ids(self, field_id: int):
-        with self.connect() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT device_id
-                FROM device
-                WHERE field_id = ?
-                """,
-                (field_id,)
-            )
-            return [row[0] for row in cursor.fetchall()]
         
     def get_device_names(self, field_id: str):
         with self.connect() as conn:
@@ -159,28 +146,6 @@ class FieldDB:
             )
             rows = cursor.fetchall()
             return [row[0] for row in rows]
-
-    def get_device_name_by_id(self, device_id: str) -> str:
-        with self.connect() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT device_name
-                FROM device
-                WHERE device_id = ?
-            """, (device_id,))
-            row = cursor.fetchone()
-            return row[0] if row else None
-
-    def get_field_by_device_name(self, device_name: str) -> str:
-        with self.connect() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT field_id
-                FROM device
-                WHERE device_name = ?
-            """, (device_name,))
-            row = cursor.fetchone()
-            return row[0] if row else None
 
     def insert_telemetry(self, data: dict):
         device_id = data.get("device")   
