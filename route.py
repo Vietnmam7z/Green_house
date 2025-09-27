@@ -39,7 +39,11 @@ class Routes:
             session.pop('username', None)
             session.pop(f"{username}_allow_reset", None)
 
+    def clear_reset_session(self):
+        self.pop_reset_session()
+        return ("", 204)
 
+# HOME PAGE
 ################################################################################################################################        
  
  # HOME PAGE  
@@ -170,16 +174,16 @@ class Routes:
         else:
             return jsonify({"success": False, "message": result['message']})
         
-    def resend_otp(self):   # Gửi lại OTP nếu người dùng yêu cầu
-        username = session.get('username')
-        if not username:
-            return jsonify({"success": False, "message": "Không tìm thấy người dùng trong session."})
+    # def resend_otp(self):   # Gửi lại OTP nếu người dùng yêu cầu
+    #     username = session.get('username')
+    #     if not username:
+    #         return jsonify({"success": False, "message": "Không tìm thấy người dùng trong session."})
 
-        email = self.auth.user_manager.get_email(username)
-        self.otp.update_otp(email)
-        self.otp.send_otp_email(email)
+    #     email = self.auth.user_manager.get_email(username)
+    #     self.otp.update_otp(email)
+    #     self.otp.send_otp_email(email)
 
-        return jsonify({"success": True, "message": "OTP đã được gửi lại."})
+    #     return jsonify({"success": True, "message": "OTP đã được gửi lại."})
 
         
 #################################################################################################################################
@@ -192,10 +196,7 @@ class Routes:
 
         if not username or not expire_at or datetime.utcnow().timestamp() > expire_at:
             self.pop_reset_session()
-            return jsonify({
-                "success": False,
-                "message": "Hết thời gian đổi mật khẩu"
-            })
+            return redirect('/forgot-password')
 
         data = request.get_json()
         new_password = data.get('new_password')
@@ -392,8 +393,35 @@ class Routes:
 
 #################################################################################################################################
 
+from webserver import FlaskServer
+from user_manager import UserManager
+from logger import UserLogger
+from email_otp import OTPManager
+from sensor_API import Sensor_API
+from field_manager import FieldDB
 
+manager = UserManager()
+log = UserLogger()
+otp = OTPManager(manager)
+auth = Authentication(manager,log,otp)
+server = FlaskServer()
+sensor = Sensor_API()
+field = FieldDB()
+routes = Routes(auth,otp,sensor,field)
 
+server.add_route('/', routes.home_page, methods=['GET'])
+server.add_route('/login', routes.login_page, methods=['GET'])
+server.add_route('/login', routes.login, methods=['POST'])
+server.add_route('/logout', routes.logout, methods=['POST'])
+server.add_route('/signup', routes.signup_page, methods=['GET'])
+server.add_route('/signup', routes.signup, methods=['POST'])
+server.add_route('/forgot-password', routes.forgot_password_page, methods=['GET'])
+server.add_route('/forgot-password', routes.send_otp, methods=['POST'])
+server.add_route('/verify-otp', routes.verify_otp, methods=['POST'])
+# server.add_route('/resend-otp', routes.resend_otp, methods=['POST'])
+server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
+server.add_route('/reset-password', routes.reset_password, methods=['POST'])
+server.add_route('/clear-reset-session', routes.clear_reset_session, methods=['POST'])
 
-
-
+if __name__ == '__main__':
+    server.run()
