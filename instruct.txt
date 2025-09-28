@@ -450,6 +450,16 @@ routes.send_chart(self)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Code test chạy cập nhật telemetry và đồng thời chạy web. Code chạy trên route.py
+Chạy pip install apscheduler
+
+from webserver import FlaskServer
+from user_manager import UserManager
+from logger import UserLogger
+from email_otp import OTPManager
+from sensor_API import Sensor_API
+from field_manager import FieldDB
+from logger import UserLogger
+from apscheduler.schedulers.background import BackgroundScheduler
 
 manager = UserManager()
 log = UserLogger()
@@ -476,6 +486,7 @@ server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
 server.add_route('/reset-password', routes.reset_password, methods=['POST'])
 
 scheduler.add_job(routes.update_status, 'interval', seconds=5)
+scheduler.add_job(routes.update_out_date_status, 'interval', seconds=5)
 
 if __name__ == '__main__':
     scheduler.start()

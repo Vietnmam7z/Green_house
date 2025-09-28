@@ -336,6 +336,9 @@ class Routes:
             self.field.insert_telemetry(entry)
             id = self.sensor.find_id(entry)
             self.sensor.delete(id)
+    
+    def update_out_date_status(self):
+        self.field.delete_time_out()
 
     def send_all_field(self):
         username = session.get('username')
@@ -355,15 +358,19 @@ class Routes:
 
     def resample_mean(self, data, freq="10min", median_window=5):
 
+        if not data:
+            return []
+
         df = pd.DataFrame(data)
-        df["ts"] = pd.to_datetime(df["ts"], unit="ms")  
+        df["ts"] = pd.to_datetime(df["ts"], unit="ms")
         df = df.set_index("ts")
 
-        df["filtered"] = df["value"].rolling(window=median_window, min_periods=1).median()       
+        df["filtered"] = df["value"].rolling(window=median_window, min_periods=1).median()
         resampled = df["filtered"].resample(freq).mean().dropna()
-        
+
         result = [
-            {"ts": int(ts.timestamp() * 1000), "value": round(val, 2) if pd.notnull(val) else None}
+            {"ts": int(ts.timestamp() * 1000),
+            "value": round(val, 2) if pd.notnull(val) else None}
             for ts, val in resampled.items()
         ]
         return result
@@ -372,24 +379,24 @@ class Routes:
         device_name = request.get_json().get("device_name")
         telemetry = request.get_json().get("telemetry")
         time_mode = request.get_json().get("time")
-        #device_name = "Moisture 5"
-        #telemetry_name="temperature"
-        #time_mode = "1h"
+        #device_name = "SI Soil Moisture 5"
+        #telemetry="temperature"
+        #time_mode = "7d"
 
-        raw_data = self.field.get_all_telemetry_status(device_name, telemetry)
-
-        print(raw_data)
-        
         freq_map = {
             "1h": "10min",   
-            "1d": "1H",      
-            "7d": "6H",      
-            "30d": "1D"      
+            "1d": "1h",      
+            "7d": "6h",      
+            "30d": "1d"      
         }
+
+        raw_data = self.field.get_all_telemetry_status(device_name, telemetry, time_mode)   
 
         resampled = self.resample_mean(raw_data, freq=freq_map[time_mode])
 
-        return resampled
+        return jsonify(resampled)
 
 #################################################################################################################################
+
+
 

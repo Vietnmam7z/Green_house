@@ -1,6 +1,7 @@
 ﻿import sqlite3
 import json
 import config 
+from datetime import datetime, timedelta
 
 class FieldDB:
     def __init__(self, field_db_path = config.field_db_path):
@@ -191,23 +192,63 @@ class FieldDB:
 
             return {device_name: telemetry_dict}
 
-    def get_all_telemetry_status(self, device_name: str, telemetry_name: str):
+    def get_all_telemetry_status(self, device_id: str, telemetry_name: str, time_range: str):
+        now = datetime.now()
+
+        if time_range == "1h":
+            start_time = now - timedelta(hours=1)
+        elif time_range == "1d":
+            start_time = now - timedelta(days=1)
+        elif time_range == "7d":
+            start_time = now - timedelta(days=7)
+        elif time_range == "30d":
+            start_time = now - timedelta(days=30)
+        else:
+            raise ValueError("time_range không hợp lệ")
+
+        start_ms = int(start_time.timestamp() * 1000)
+        end_ms   = int(now.timestamp() * 1000)
+
         with self.connect() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                SELECT t.ts, t.value
-                FROM telemetry t
-                JOIN device d ON t.device_id = d.device_id
-                WHERE d.device_name = ? AND t.name = ?
-                ORDER BY t.ts ASC
+                SELECT ts, value
+                FROM telemetry
+                WHERE device_id = ?
+                  AND name = ?
+                  AND ts BETWEEN ? AND ?
+                ORDER BY ts DESC
                 """,
-                (device_name, telemetry_name)
+                (device_id, telemetry_name, start_ms, end_ms)
             )
-
             rows = cursor.fetchall()
-            result = [{ "ts": ts, "value": value } for ts, value in rows]
-            return result
+
+        result = [{"ts": int(ts), "value": value} for ts, value in rows]
+
+        return result
+
+    def delete_time_out(self):
+        now = datetime.now()
+
+        cutoff_time = now - timedelta(days=1)
+        cutoff_ms = int(cutoff_time.timestamp() * 1000)
+
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM telemetry WHERE ts < ?",
+                (cutoff_ms,)
+            )
+            conn.commit()
+
+
+
+
+
+
+
+
 
 
 
