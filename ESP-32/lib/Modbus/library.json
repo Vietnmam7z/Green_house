@@ -1,0 +1,14 @@
+{
+  "name": "ModbusRTU",
+  "version": "1.0.0",
+  "description": "Simple Modbus RTU master library for ESP32",
+  "keywords": "modbus, rtu, esp32",
+  "authors": [
+    {
+      "name": "Trung7z",
+      "email": "your@email.com"
+    }
+  ],
+  "frameworks": "arduino",
+  "platforms": "espressif32"
+}
