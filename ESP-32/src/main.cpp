@@ -62,6 +62,14 @@ void sortArray(uint16_t *a, int n) {
   }
 }
 
+// Biến lưu trữ data để chạy AI
+static float features[4] = {0};
+int raw_feature_get_data(size_t offset, size_t length, float *out_ptr) {
+    memcpy(out_ptr, features + offset, length * sizeof(float));
+    return 0;
+}
+
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
@@ -159,6 +167,10 @@ void loop() {
       // tb.sendTelemetryData("moisture_raw", medianVal); 
 
       // --- BƯỚC 5: Phân loại dữ liệu ---
+      features[0]= 1;
+      features[1]= 1;
+      features[2]= 1;
+      features[3]= currentEmaMoisture/10;
       if (sizeof(features) / sizeof(float) != EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE) {
         ei_printf("The size of your 'features' array is not correct. Expected %lu items, but had %lu\n",
             EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, sizeof(features) / sizeof(float));
@@ -169,10 +181,7 @@ void loop() {
       ei_impulse_result_t result = { 0 };
 
       // the features are stored into flash, and we don't want to load everything into RAM
-      feature[0]= 1;
-      feature[1]= 1;
-      feature[2]= 1;
-      feature[3]= currentEmaMoisture/10;
+     
       signal_t features_signal;
       features_signal.total_length = sizeof(features) / sizeof(features[0]);
       features_signal.get_data = &raw_feature_get_data;
