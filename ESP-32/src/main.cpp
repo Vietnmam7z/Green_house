@@ -1,7 +1,14 @@
+#define PUMP_PIN GPIO_NUM_7
+#define SDA_PIN GPIO_NUM_11
+#define SCL_PIN GPIO_NUM_12
+#define SOIL_DETECTOR GPIO_NUM_1
+#define LIGHT_DETECTOR GPIO_NUM_2
 #include <WiFi.h>
 #include <Arduino_MQTT_Client.h>
 #include <ThingsBoard.h>
-#include <ModbusMaster.h>
+#include "DHT20.h"
+#include "Wire.h"
+#include <ArduinoOTA.h>
 #include <ADv2_inferencing.h>
 
 #include "edge-impulse-sdk/tensorflow/lite/micro/all_ops_resolver.h"
@@ -9,60 +16,48 @@
 #include "edge-impulse-sdk/tensorflow/lite/micro/micro_interpreter.h"
 #include "edge-impulse-sdk/tensorflow/lite/micro/system_setup.h"
 #include "edge-impulse-sdk/tensorflow/lite/schema/schema_generated.h"
-// ================== Cấu hình Bộ lọc (Filter Config) ==================
-const int SAMPLES = 5;       // Số mẫu đọc để lấy trung vị (Nên là số lẻ: 5, 7, 9)
-const float ALPHA = 0.2;     // Hệ số EMA (0.1 - 0.3 là đẹp cho độ ẩm đất). 
-                             // 0.2 nghĩa là tin giá trị mới 20%, tin lịch sử 80% -> Rất mượt.
-float currentEmaMoisture = 0.0; // Biến lưu giá trị sau khi đã lọc
-bool firstRun = true;        // Cờ đánh dấu lần chạy đầu tiên
 
-// ================== WiFi ==================
-const char* WIFI_SSID     = "ACLAB";
-const char* WIFI_PASSWORD = "ACLAB2023";
+constexpr char WIFI_SSID[] = "BiBo";
+constexpr char WIFI_PASSWORD[] = "trunghieu3868";
 
-// ================== ThingsBoard ==================
-#define TOKEN "L2EeczCnJSN0xBjh6Mwp"
-#define THINGSBOARD_SERVER "mqtt.thingsboard.cloud"
-#define THINGSBOARD_PORT 1883
+// constexpr char WIFI_SSID[] = "ACLAB";
+// constexpr char WIFI_PASSWORD[] = "ACLAB2023";
+
+constexpr char TOKEN[] = "yP7aktl8hhTHTzEbjVR5";
+
+constexpr char THINGSBOARD_SERVER[] = "thingsboard.cloud";
+constexpr uint16_t THINGSBOARD_PORT = 1883U;
+
+constexpr uint32_t MAX_MESSAGE_SIZE = 2048U;
+constexpr uint32_t SERIAL_DEBUG_BAUD = 115200U;
+
+constexpr char BLINKING_INTERVAL_ATTR[] = "blinkingInterval";
+constexpr char LED_MODE_ATTR[] = "ledMode";
+constexpr char LED_STATE_ATTR[] = "ledState";
+
+volatile bool attributesChanged = false;
+volatile int ledMode = 0;
+volatile bool ledState = false;
+
+constexpr uint16_t BLINKING_INTERVAL_MS_MIN = 10U;
+constexpr uint16_t BLINKING_INTERVAL_MS_MAX = 60000U;
+volatile uint16_t blinkingInterval = 1000U;
+
+uint32_t previousStateChange;
+
+constexpr int16_t telemetrySendInterval = 10000U;
+uint32_t previousDataSend;
+
+constexpr std::array<const char *, 2U> SHARED_ATTRIBUTES_LIST = {
+  LED_STATE_ATTR,
+  BLINKING_INTERVAL_ATTR
+};
 
 WiFiClient wifiClient;
 Arduino_MQTT_Client mqttClient(wifiClient);
-ThingsBoard tb(mqttClient);
+ThingsBoard tb(mqttClient, MAX_MESSAGE_SIZE);
+DHT20 dht20;
 
-// ================== Modbus RTU ==================
-#define RS485_RX 6   // RX2
-#define RS485_TX 7   // TX2
-#define RS485_DE_RE 4 // DE/RE chân điều khiển MAX485
-
-HardwareSerial mySerial(2);
-ModbusMaster node;
-
-unsigned long lastSend = 0;
-
-// Hàm điều khiển luồng RS485
-void preTransmission() {
-  digitalWrite(RS485_DE_RE, HIGH);
-}
-
-void postTransmission() {
-  digitalWrite(RS485_DE_RE, LOW);
-}
-
-// ================== Hàm phụ trợ: Sắp xếp mảng (Bubble Sort) ==================
-// Dùng để sắp xếp các mẫu đọc được từ bé đến lớn -> Lấy số ở giữa
-void sortArray(uint16_t *a, int n) {
-  for (int i = 0; i < n - 1; i++) {
-    for (int j = i + 1; j < n; j++) {
-      if (a[i] > a[j]) {
-        uint16_t temp = a[i];
-        a[i] = a[j];
-        a[j] = temp;
-      }
-    }
-  }
-}
-
-// Biến lưu trữ data để chạy AI
 static float features[4] = {0};
 int raw_feature_get_data(size_t offset, size_t length, float *out_ptr) {
     memcpy(out_ptr, features + offset, length * sizeof(float));
@@ -70,159 +65,226 @@ int raw_feature_get_data(size_t offset, size_t length, float *out_ptr) {
 }
 
 
-void setup() {
-  Serial.begin(115200);
-  delay(1000);
+RPC_Response setLedSwitchState(const RPC_Data &data) {
+    Serial.println("Received Switch state");
+    bool newState = data["KeyRPC"];
+    Serial.print("Switch state change: ");
+    Serial.println(newState);
+    digitalWrite(PUMP_PIN, newState);
+    tb.sendAttributeData("state",newState);
+    return RPC_Response("setLedSwitchValue", newState);
+}
 
-  // Kết nối WiFi
+const std::array<RPC_Callback, 1U> callbacks = {
+  RPC_Callback{ "setState", setLedSwitchState }
+};
+
+
+void processSharedAttributes(const Shared_Attribute_Data &data) {
+  for (auto it = data.begin(); it != data.end(); ++it) {
+    if (strcmp(it->key().c_str(), BLINKING_INTERVAL_ATTR) == 0) {
+      const uint16_t new_interval = it->value().as<uint16_t>();
+      if (new_interval >= BLINKING_INTERVAL_MS_MIN && new_interval <= BLINKING_INTERVAL_MS_MAX) {
+        blinkingInterval = new_interval;
+        Serial.print("Blinking interval is set to: ");
+        Serial.println(new_interval);
+      }
+    } else if (strcmp(it->key().c_str(), LED_STATE_ATTR) == 0) {
+      ledState = it->value().as<bool>();
+      digitalWrite(PUMP_PIN, ledState);
+      Serial.print("LED state is set to: ");
+      Serial.println(ledState);
+    }
+  }
+  attributesChanged = true;
+}
+
+const Shared_Attribute_Callback attributes_callback(&processSharedAttributes, SHARED_ATTRIBUTES_LIST.cbegin(), SHARED_ATTRIBUTES_LIST.cend());
+const Attribute_Request_Callback attribute_shared_request_callback(&processSharedAttributes, SHARED_ATTRIBUTES_LIST.cbegin(), SHARED_ATTRIBUTES_LIST.cend());
+
+void InitWiFi() {
+  Serial.println("Connecting to AP ...");
+// Attempting to establish a connection to the given WiFi network
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting to WiFi");
   while (WiFi.status() != WL_CONNECTED) {
+    // Delay 500ms until a connection has been successfully established
     delay(500);
     Serial.print(".");
   }
-  Serial.println("\nWiFi connected!");
-
-  // UART2 cho RS485
-  pinMode(RS485_DE_RE, OUTPUT);
-  digitalWrite(RS485_DE_RE, LOW);
-  mySerial.begin(9600, SERIAL_8N1, RS485_RX, RS485_TX);
-
-  // Khởi tạo ModbusMaster
-  node.begin(0x11, mySerial); // Slave ID = 0x11
-  node.preTransmission(preTransmission);
-  node.postTransmission(postTransmission);
-
-  Serial.println("Modbus RTU + ThingsBoard start...");
+  Serial.println("Connected to AP");
 }
 
-void loop() {
-  // Nếu chưa kết nối tới ThingsBoard thì kết nối lại
-  if (!tb.connected()) {
-    Serial.print("Connecting to ThingsBoard...");
-    if (!tb.connect(THINGSBOARD_SERVER, TOKEN, THINGSBOARD_PORT)) {
-      Serial.println(" Failed!");
-      delay(2000);
-      return;
-    }
-    Serial.println(" Connected!");
-  }
-
-  // Gửi dữ liệu mỗi 5 giây
-  if (millis() - lastSend > 5000) {
-    lastSend = millis();
-
-    uint16_t rawBuffer[SAMPLES]; // Mảng chứa các mẫu đọc thô
-    int validCount = 0;          // Đếm số lần đọc thành công
-
-    // --- BƯỚC 1: Thu thập mẫu (Sampling) ---
-    Serial.print("Sampling: ");
-    for (int i = 0; i < SAMPLES; i++) {
-      uint8_t result = node.readHoldingRegisters(0x0013, 1);
-      
-      if (result == node.ku8MBSuccess) {
-        uint16_t val = node.getResponseBuffer(0);
-        
-        // Lọc sơ cấp: Chỉ nhận giá trị trong khoảng hợp lý (VD: 0-100 hoặc 0-1000 tùy cảm biến)
-        // Giả sử cảm biến trả về 0-100%. Nếu > 100 coi là nhiễu bỏ qua.
-        // Nếu cảm biến bạn trả về kiểu 655 (65.5%) thì sửa số 100 thành 1000 nhé.
-        if (val <= 1000) { 
-           rawBuffer[validCount] = val;
-           validCount++;
-           Serial.print(val); Serial.print(" ");
-        }
-      } else {
-        Serial.print("Err ");
-      }
-      delay(50); // Nghỉ 50ms giữa các lần đọc để tránh nghẽn Modbus
-    }
-    Serial.println();
-
-    // Chỉ xử lý nếu có ít nhất 1 mẫu đọc thành công
-    if (validCount > 0) {
-      
-      // --- BƯỚC 2: Bộ lọc Trung vị (Median Filter) ---
-      // Loại bỏ nhiễu gai (Outliers)
-      sortArray(rawBuffer, validCount);
-      uint16_t medianVal = rawBuffer[validCount / 2]; 
-      Serial.printf("Median Value: %u\n", medianVal);
-
-      // --- BƯỚC 3: Bộ lọc EMA (Exponential Moving Average) ---
-      // Làm mượt đường đồ thị
-      if (firstRun) {
-        currentEmaMoisture = medianVal; // Lần đầu thì gán luôn
-        firstRun = false;
-      } else {
-        // Công thức: EMA = alpha * Mới + (1 - alpha) * Cũ
-        currentEmaMoisture = (ALPHA * medianVal) + ((1.0 - ALPHA) * currentEmaMoisture);
-      }
-
-      Serial.printf("Filtered (EMA): %.2f\n", currentEmaMoisture/10);
-
-      // --- BƯỚC 4: Gửi dữ liệu đã lọc lên ThingsBoard ---
-      // Gửi giá trị thực (float) hoặc ép kiểu về int tùy nhu cầu hiển thị
-      tb.sendTelemetryData("moisture", currentEmaMoisture/10); 
-      
-      // Mẹo: Nếu muốn gửi cả raw để so sánh trên Dashboard
-      // tb.sendTelemetryData("moisture_raw", medianVal); 
-
-      // --- BƯỚC 5: Phân loại dữ liệu ---
-      features[0]= 1;
-      features[1]= 1;
-      features[2]= 1;
-      features[3]= currentEmaMoisture/10;
-      if (sizeof(features) / sizeof(float) != EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE) {
+    
+void AItask(void *pvParameters){
+  while(1){
+    if (sizeof(features) / sizeof(float) != EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE) {
         ei_printf("The size of your 'features' array is not correct. Expected %lu items, but had %lu\n",
             EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, sizeof(features) / sizeof(float));
         delay(1000);
         return;
-      }
-
-      ei_impulse_result_t result = { 0 };
-
-      // the features are stored into flash, and we don't want to load everything into RAM
-     
-      signal_t features_signal;
-      features_signal.total_length = sizeof(features) / sizeof(features[0]);
-      features_signal.get_data = &raw_feature_get_data;
-
-      // invoke the impulse
-      EI_IMPULSE_ERROR res = run_classifier(&features_signal, &result, false /* debug */);
-      ei_printf("run_classifier returned: %d\n", res);
-
-      if (res != 0) return;
-
-      // print the predictions
-      ei_printf("Predictions ");
-      ei_printf("(DSP: %d ms., Classification: %d ms., Anomaly: %d ms.)",
-          result.timing.dsp, result.timing.classification, result.timing.anomaly);
-      ei_printf(": \n");
-      ei_printf("[");
-      for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
-          ei_printf("%.5f", result.classification[ix].value);
-          #if EI_CLASSIFIER_HAS_ANOMALY == 1
-            ei_printf(", ");
-          #else
-          if (ix != EI_CLASSIFIER_LABEL_COUNT - 1) {
-              ei_printf(", ");
-          }
-          #endif
-      }
-      #if EI_CLASSIFIER_HAS_ANOMALY == 1
-        ei_printf("%.3f", result.anomaly);
-      #endif
-        ei_printf("]\n");
-      // human-readable predictions
-      for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
-          ei_printf("    %s: %.5f\n", result.classification[ix].label, result.classification[ix].value);
-      }
-      #if EI_CLASSIFIER_HAS_ANOMALY == 1
-      ei_printf("    anomaly score: %.3f\n", result.anomaly);
-      #endif
-      } else {
-        Serial.println("Read failed all samples!");
-      }
     }
 
-  tb.loop(); // Xử lý MQTT
+    ei_impulse_result_t result = { 0 };
+
+    // the features are stored into flash, and we don't want to load everything into RAM
+    signal_t features_signal;
+    features_signal.total_length = sizeof(features) / sizeof(features[0]);
+    features_signal.get_data = &raw_feature_get_data;
+
+    // invoke the impulse
+    EI_IMPULSE_ERROR res = run_classifier(&features_signal, &result, false /* debug */);
+    ei_printf("run_classifier returned: %d\n", res);
+
+    if (res != 0) return;
+
+    // print the predictions
+    ei_printf("Predictions ");
+    ei_printf("(DSP: %d ms., Classification: %d ms., Anomaly: %d ms.)",
+        result.timing.dsp, result.timing.classification, result.timing.anomaly);
+    ei_printf(": \n");
+    ei_printf("[");
+    for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
+        ei_printf("%.5f", result.classification[ix].value);
+#if EI_CLASSIFIER_HAS_ANOMALY == 1
+        ei_printf(", ");
+#else
+        if (ix != EI_CLASSIFIER_LABEL_COUNT - 1) {
+            ei_printf(", ");
+        }
+#endif
+    }
+#if EI_CLASSIFIER_HAS_ANOMALY == 1
+    ei_printf("%.3f", result.anomaly);
+#endif
+    ei_printf("]\n");
+
+    // human-readable predictions
+    for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
+        ei_printf("    %s: %.5f\n", result.classification[ix].label, result.classification[ix].value);
+    }
+#if EI_CLASSIFIER_HAS_ANOMALY == 1
+    ei_printf("    anomaly score: %.3f\n", result.anomaly);
+#endif
+
+    vTaskDelay(5000);
+  }
+}
+void WiFiTask(void *pvParameters) {
+  while(1) {
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("WiFi not connected, reconnecting...");
+      WiFi.disconnect();
+      WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+      while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+      }
+      Serial.println("WiFi reconnected");
+    }
+    vTaskDelay(10000);
+  }
+}
+
+void serverTask(void *pvParameters) {
+  while(1) {
+    if (!tb.connected()) {
+      Serial.print("Connecting to: ");
+      Serial.print(THINGSBOARD_SERVER);
+      Serial.print(" with token ");
+      Serial.println(TOKEN);
+      if (!tb.connect(THINGSBOARD_SERVER, TOKEN, THINGSBOARD_PORT)) {
+        Serial.println("Failed to connect");
+        return;
+      }
+  
+      tb.sendAttributeData("macAddress", WiFi.macAddress().c_str());
+  
+      Serial.println("Subscribing for RPC...");
+      if (!tb.RPC_Subscribe(callbacks.cbegin(), callbacks.cend())) {
+        Serial.println("Failed to subscribe for RPC");
+        return;
+      }
+  
+      if (!tb.Shared_Attributes_Subscribe(attributes_callback)) {
+        Serial.println("Failed to subscribe for shared attribute updates");
+        return;
+      }
+  
+      Serial.println("Subscribe done");
+  
+      if (!tb.Shared_Attributes_Request(attribute_shared_request_callback)) {
+        Serial.println("Failed to request for shared attributes");
+        return;
+      }
+    }
+    vTaskDelay(1000);
+  }
+}
+void LoopTask(void * pvParameters) {
+  while(1) {
+    tb.loop();
+    vTaskDelay(1000);
+  }
+}
+void sendTask(void * pvParameters) {
+  while (1) {
+    dht20.read();
+    float temperature = dht20.getTemperature();
+    float humidity = dht20.getHumidity();
+    float soil_mois_value = analogRead(SOIL_DETECTOR);
+    float light_value = analogRead(LIGHT_DETECTOR);
+    float converted_soil_value = (1 - (soil_mois_value / 4095.0)) * 100;
+
+    if (isnan(temperature) || isnan(humidity)) {
+      Serial.println("Failed to read from DHT20 sensor!");
+    } else {
+      Serial.print("Temperature: ");
+      Serial.print(temperature);
+      Serial.print(" °C, Humidity: ");
+      Serial.print(humidity);
+      Serial.println(" %");
+    }
+
+    Serial.print("Soil-Moisture: ");
+    Serial.print(converted_soil_value);
+    Serial.println(" %");
+    Serial.print("Light: ");
+    Serial.print(light_value);
+    Serial.println(" LUX");
+    features[0] = 1;
+    features[1] = 1;
+    features[2] = 1;
+    features[3] = converted_soil_value;
+    String jsonPayload = "{";
+    jsonPayload += "\"temperature\":" + String(temperature, 2) + ",";
+    jsonPayload += "\"humidity\":" + String(humidity, 2) + ",";
+    jsonPayload += "\"light\":" + String(light_value, 2) + ",";
+    jsonPayload += "\"moisture\":" + String(converted_soil_value, 2);
+    jsonPayload += "}";
+
+    tb.sendTelemetryJson(jsonPayload.c_str());
+
+    vTaskDelay(5000);
+  }
+}
+void setup() {
+  Serial.begin(SERIAL_DEBUG_BAUD);
+  pinMode(PUMP_PIN, OUTPUT);
+  delay(1000);
+  InitWiFi();
+
+  Wire.begin(SDA_PIN, SCL_PIN);
+  dht20.begin();
+  
+
+  xTaskCreate(WiFiTask, "WiFiTask", 4096, NULL, 1, NULL);
+  xTaskCreate(serverTask, "serverTask", 4096, NULL, 1, NULL);
+  xTaskCreate(LoopTask, "LoopTask", 4096, NULL, 1, NULL);
+  xTaskCreate(sendTask, "sendTask", 4096, NULL, 2, NULL);
+  xTaskCreate(AItask, "AItask", 4096, NULL, 3, NULL);
+}
+
+void loop() {
+  
 }
