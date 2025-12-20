@@ -169,6 +169,10 @@ void loop() {
       ei_impulse_result_t result = { 0 };
 
       // the features are stored into flash, and we don't want to load everything into RAM
+      feature[0]= 1;
+      feature[1]= 1;
+      feature[2]= 1;
+      feature[3]= currentEmaMoisture/10;
       signal_t features_signal;
       features_signal.total_length = sizeof(features) / sizeof(features[0]);
       features_signal.get_data = &raw_feature_get_data;
