@@ -2,7 +2,13 @@
 #include <Arduino_MQTT_Client.h>
 #include <ThingsBoard.h>
 #include <ModbusMaster.h>
+#include <ADv2_inferencing.h>
 
+#include "edge-impulse-sdk/tensorflow/lite/micro/all_ops_resolver.h"
+#include "edge-impulse-sdk/tensorflow/lite/micro/micro_error_reporter.h"
+#include "edge-impulse-sdk/tensorflow/lite/micro/micro_interpreter.h"
+#include "edge-impulse-sdk/tensorflow/lite/micro/system_setup.h"
+#include "edge-impulse-sdk/tensorflow/lite/schema/schema_generated.h"
 // ================== Cấu hình Bộ lọc (Filter Config) ==================
 const int SAMPLES = 5;       // Số mẫu đọc để lấy trung vị (Nên là số lẻ: 5, 7, 9)
 const float ALPHA = 0.2;     // Hệ số EMA (0.1 - 0.3 là đẹp cho độ ẩm đất). 
@@ -152,10 +158,58 @@ void loop() {
       // Mẹo: Nếu muốn gửi cả raw để so sánh trên Dashboard
       // tb.sendTelemetryData("moisture_raw", medianVal); 
 
-    } else {
-      Serial.println("Read failed all samples!");
+      // --- BƯỚC 5: Phân loại dữ liệu ---
+      if (sizeof(features) / sizeof(float) != EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE) {
+        ei_printf("The size of your 'features' array is not correct. Expected %lu items, but had %lu\n",
+            EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, sizeof(features) / sizeof(float));
+        delay(1000);
+        return;
+      }
+
+      ei_impulse_result_t result = { 0 };
+
+      // the features are stored into flash, and we don't want to load everything into RAM
+      signal_t features_signal;
+      features_signal.total_length = sizeof(features) / sizeof(features[0]);
+      features_signal.get_data = &raw_feature_get_data;
+
+      // invoke the impulse
+      EI_IMPULSE_ERROR res = run_classifier(&features_signal, &result, false /* debug */);
+      ei_printf("run_classifier returned: %d\n", res);
+
+      if (res != 0) return;
+
+      // print the predictions
+      ei_printf("Predictions ");
+      ei_printf("(DSP: %d ms., Classification: %d ms., Anomaly: %d ms.)",
+          result.timing.dsp, result.timing.classification, result.timing.anomaly);
+      ei_printf(": \n");
+      ei_printf("[");
+      for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
+          ei_printf("%.5f", result.classification[ix].value);
+          #if EI_CLASSIFIER_HAS_ANOMALY == 1
+            ei_printf(", ");
+          #else
+          if (ix != EI_CLASSIFIER_LABEL_COUNT - 1) {
+              ei_printf(", ");
+          }
+          #endif
+      }
+      #if EI_CLASSIFIER_HAS_ANOMALY == 1
+        ei_printf("%.3f", result.anomaly);
+      #endif
+        ei_printf("]\n");
+      // human-readable predictions
+      for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
+          ei_printf("    %s: %.5f\n", result.classification[ix].label, result.classification[ix].value);
+      }
+      #if EI_CLASSIFIER_HAS_ANOMALY == 1
+      ei_printf("    anomaly score: %.3f\n", result.anomaly);
+      #endif
+      } else {
+        Serial.println("Read failed all samples!");
+      }
     }
-  }
 
   tb.loop(); // Xử lý MQTT
 }
