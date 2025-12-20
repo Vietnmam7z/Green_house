@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartCare - Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+    --primary-green: #66bb6a; /* Màu xanh lá logo */
+    --dark-green: #388e3c;
+    --primary-blue: #42a5f5; /* Màu xanh dương nút Back */
+    --bg-color: #f9f9f9;
+    --card-bg: #ffffff;
+    --text-color: #333;
+    --gray-bg: #e0e0e0;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+/* Header */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: #333;
+}
+
+.logo img {
+    height: 24px;
+    margin-right: 10px;
+}
+
+.user-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.btn-logout {
+    background-color: #0056b3;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* Main Content */
+.container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 0 20px;
+}
+
+h1.page-title {
+    text-align: center;
+    color: #7cb342;
+    font-weight: 700;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+}
+
+/* Navigation Bar (Back, Info, Control) */
+.nav-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.btn-back {
+    background-color: var(--primary-blue);
+    color: black;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.info-bar {
+    background-color: var(--gray-bg);
+    padding: 10px 30px;
+    border-radius: 25px;
+    display: flex;
+    gap: 30px;
+    font-size: 0.9rem;
+    color: #333;
+    font-weight: 500;
+}
+
+.btn-control {
+    background-color: #00c853;
+    color: white;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: bold;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+/* Dashboard Cards Grid */
+.section-title {
+    font-weight: bold;
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+    margin-top: 20px;
+}
+
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    position: relative;
+}
+
+.card-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.card-info h3 {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 5px;
+    font-weight: normal;
+}
+
+.card-info p {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #000;
+}
+
+.unit {
+    font-size: 0.8rem;
+    color: #666;
+    font-weight: normal;
+}
+
+.alert-badge {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background: #ffb74d;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Control Page Specifics */
+.control-layout {
+    display: flex;
+    gap: 40px;
+}
+
+.control-panel {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.video-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.control-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.control-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: bold;
+}
+
+/* Toggle Switch */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: #2196F3;
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+
+.video-container {
+    width: 100%;
+}
+
+.video-container img {
+    width: 100%;
+    border-radius: 15px;
+    display: block;
+}
+
+.video-label {
+    text-align: center;
+    margin-top: 5px;
+    font-weight: bold;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .control-layout {
+        flex-direction: column;
+    }
+    .nav-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .info-bar {
+        flex-direction: column;
+        gap: 5px;
+        text-align: center;
+    }
+}
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">
+            <i class="fa-solid fa-leaf" style="color: #66bb6a; margin-right: 8px;"></i>
+            SmartCare
+        </div>
+        <div class="user-actions">
+            <button class="btn-logout">Log out</button>
+            <i class="fa-regular fa-bell"></i>
+            <i class="fa-regular fa-user"></i>
+            <i class="fa-solid fa-bars"></i>
+        </div>
+    </header>
+
+    <div class="container">
+        <h1 class="page-title">DASHBOARD</h1>
+
+        <div class="nav-bar">
+            <button class="btn-back"><i class="fa-solid fa-rotate-left"></i> Back</button>
+            
+            <div class="info-bar">
+                <span>ID: 1</span>
+                <span>Name: Strawberry</span>
+                <span>Location: Field A1</span>
+            </div>
+
+            <a href="/control" class="btn-control"><i class="fa-solid fa-wifi"></i> Control</a>
+        </div>
+
+        <div class="section-title">Air</div>
+        <div class="grid-container">
+            <div class="card">
+                <div class="alert-badge" id="badge-temp">!</div>
+                <div class="card-icon"><i class="fa-solid fa-temperature-three-quarters" style="color: #e53935;"></i></div>
+                <div class="card-info">
+                    <h3>Temperature</h3>
+                    <p><span id="nhiet-do">--</span><span class="unit">°C</span></p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="alert-badge" id="badge-humid">!</div>
+                <div class="card-icon"><i class="fa-solid fa-droplet" style="color: #42a5f5;"></i></div>
+                <div class="card-info">
+                    <h3>Humidity</h3>
+                    <p><span id="do-am">--</span><span class="unit">%</span></p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="alert-badge" id="badge-light">!</div>
+                <div class="card-icon"><i class="fa-solid fa-sun" style="color: #fdd835;"></i></div>
+                <div class="card-info">
+                    <h3>Ambient light</h3>
+                    <p>260 <span class="unit">lx</span></p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="alert-badge" id="badge-co2">!</div>
+                <div class="card-icon"><i class="fa-solid fa-leaf" style="color: #66bb6a;"></i></div>
+                <div class="card-info">
+                    <h3>CO<sub>2</sub></h3>
+                    <p>260 <span class="unit">ppm</span></p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="alert-badge" id="badge-air">!</div>
+                <div class="alert-badge">!</div>
+                <div class="card-icon"><i class="fa-solid fa-cloud" style="color: #78909c;"></i></div>
+                <div class="card-info">
+                    <h3>Air pressure</h3>
+                    <p>1008 <span class="unit">hPa</span></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title">Soil</div>
+        <div class="grid-container">
+            <div class="card">
+                <div class="alert-badge" id="badge-soil-temp">!</div>
+                <div class="card-icon"><i class="fa-solid fa-temperature-low" style="color: #e53935;"></i></div>
+                <div class="card-info">
+                    <h3>Temperature</h3>
+                    <p>27 <span class="unit">°C</span></p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="alert-badge" id="badge-soil-mois">!</div>
+                <div class="card-icon"><i class="fa-solid fa-water" style="color: #5d4037;"></i></div>
+                <div class="card-info">
+                    <h3>Soil moisture</h3>
+                    <p>69 <span class="unit">%</span></p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="alert-badge" id="badge-soil-pH">!</div>
+                <div class="card-icon"><i class="fa-solid fa-flask" style="color: #42a5f5;"></i></div>
+                <div class="card-info">
+                    <h3>pH</h3>
+                    <p>6.9</p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="alert-badge" id="badge-soil-EC">!</div>
+                <div class="card-icon"><i class="fa-solid fa-bolt" style="color: #5c6bc0;"></i></div>
+                <div class="card-info">
+                    <h3>EC</h3>
+                    <p>46 <span class="unit">us/cm</span></p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="alert-badge" id="badge-soil-nitrogen">!</div>
+                <div class="card-icon"><i class="fa-solid fa-bottle-droplet" style="color: #ff7043;"></i></div>
+                <div class="card-info">
+                    <h3>Nitrogen</h3>
+                    <p>21 <span class="unit">mg/Kg</span></p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="alert-badge" id="badge-soil-phosphorus">!</div>
+                <div class="card-icon"><i class="fa-solid fa-prescription-bottle" style="color: #8d6e63;"></i></div>
+                <div class="card-info">
+                    <h3>Phosphorus</h3>
+                    <p>32 <span class="unit">mg/Kg</span></p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="alert-badge" id="badge-soil-kalium">!</div>
+                <div class="card-icon"><i class="fa-solid fa-sack-dollar" style="color: #fbc02d;"></i></div> <div class="card-info">
+                    <h3>Kalium</h3>
+                    <p>36 <span class="unit">mg/Kg</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+<script>
+    function capNhatDuLieu() {
+        fetch('/api/data')
+            .then(response => response.json())
+            .then(data => {
+                // --- DEBUG: In ra Console để kiểm tra ---
+                console.log("Dữ liệu nhận được:", data);
+                // ----------------------------------------
+
+                // 1. CẬP NHẬT SỐ LIỆU TEXT
+                
+                // Ép kiểu dữ liệu về số thực (Float) để đảm bảo so sánh đúng
+                let tempVal = parseFloat(data.temperature); 
+                let humidVal = parseFloat(data.humidity);
+                let lightVal = parseFloat(data.light);
+
+                // Cập nhật text Nhiệt độ
+                let theNhietDo = document.getElementById('nhiet-do');
+                if (theNhietDo) {
+                    theNhietDo.innerText = tempVal; // Hiển thị số đã ép kiểu
+                }
+
+                // Cập nhật text Độ ẩm
+                let theDoAm = document.getElementById('do-am');
+                if (theDoAm) {
+                    theDoAm.innerText = humidVal;
+                }
+
+                // Cập nhật text Ánh sáng
+                let theAnhSang = document.getElementById('anh-sang');
+                if (theAnhSang) {
+                    theAnhSang.innerText = lightVal;
+                }
+
+                // 2. XỬ LÝ ALERT BADGE (CẢNH BÁO)
+
+                // --- Badge Nhiệt độ ---
+                const tempBadge = document.getElementById('badge-temp');
+                if (tempBadge) {
+                    // In ra để xem máy tính so sánh thế nào
+                    console.log(`Kiểm tra Nhiệt: ${tempVal} < 20 hoặc > 50? -> ${tempVal < 20 || tempVal > 50}`);
+                    
+                    if (tempVal < 20 || tempVal > 50) {
+                        tempBadge.style.display = 'flex'; // Hiện
+                    } else {
+                        tempBadge.style.display = 'none'; // Ẩn
+                    }
+                }
+
+                // --- Badge Độ ẩm (Ví dụ thêm) ---
+                const humidBadge = document.getElementById('badge-humid');
+                if (humidBadge) {
+                    // Ví dụ: Độ ẩm dưới 40 hoặc trên 90 thì báo động
+                    if (humidVal < 40 || humidVal > 90) {
+                        humidBadge.style.display = 'flex';
+                    } else {
+                        humidBadge.style.display = 'none';
+                    }
+                }
+
+            })
+            .catch(err => console.error("Lỗi tải dữ liệu:", err));
+    }
+
+    // Chạy ngay khi tải trang
+    capNhatDuLieu();
+
+    // Lặp lại mỗi 5 giây
+    setInterval(capNhatDuLieu, 5000);
+</script>
