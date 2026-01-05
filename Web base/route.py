@@ -398,5 +398,43 @@ class Routes:
 
 #################################################################################################################################
 
+from webserver import FlaskServer
+from user_manager import UserManager
+from logger import UserLogger
+from email_otp import OTPManager
+from sensor_API import Sensor_API
+from field_manager import FieldDB
+from logger import UserLogger
+from apscheduler.schedulers.background import BackgroundScheduler
 
+manager = UserManager()
+log = UserLogger()
+otp = OTPManager(manager)
+auth = Authentication(manager,log,otp)
+server = FlaskServer()
+sensor = Sensor_API()
+field = FieldDB()
+log = UserLogger()
+routes = Routes(auth,otp,sensor,field,log)
+scheduler = BackgroundScheduler()
+
+server.add_route('/', routes.home_page, methods=['GET'])
+server.add_route('/login', routes.login_page, methods=['GET'])
+server.add_route('/login', routes.login, methods=['POST'])
+server.add_route('/logout', routes.logout, methods=['POST'])
+server.add_route('/signup', routes.signup_page, methods=['GET'])
+server.add_route('/signup', routes.signup, methods=['POST'])
+server.add_route('/forgot-password', routes.forgot_password_page, methods=['GET'])
+server.add_route('/forgot-password', routes.send_otp, methods=['POST'])
+server.add_route('/verify-otp', routes.verify_otp, methods=['POST'])
+# server.add_route('/resend-otp', routes.resend_otp, methods=['POST'])
+server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
+server.add_route('/reset-password', routes.reset_password, methods=['POST'])
+
+scheduler.add_job(routes.update_status, 'interval', seconds=5)
+scheduler.add_job(routes.update_out_date_status, 'interval', seconds=5)
+
+if __name__ == '__main__':
+    scheduler.start()
+    server.run()
 

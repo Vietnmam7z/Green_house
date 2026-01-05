@@ -149,10 +149,10 @@ class FieldDB:
             return [row[0] for row in rows]
 
     def insert_telemetry(self, data: dict):
-        device_id = data.get("device")   
+        device_id = data.get("deviceName")   
         ts = data.get("ts")
-        telemetry = data.get("telemetry", {})
-
+        telemetry = data.get("data", {})
+        print(telemetry)
         with self.connect() as conn:
             cursor = conn.cursor()
 
@@ -241,7 +241,6 @@ class FieldDB:
                 (cutoff_ms,)
             )
             conn.commit()
-
 
 
 
