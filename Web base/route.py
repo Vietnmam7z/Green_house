@@ -9,6 +9,8 @@ from logger import UserLogger
 import requests
 import config
 import pandas as pd
+import random
+import read_value
 
 class Routes:
     def __init__(self, auth: Authentication, otp: OTPManager, sensor: Sensor_API, field: FieldDB, logger: UserLogger):
@@ -139,7 +141,7 @@ class Routes:
 #################################################################################################################################
 
  # FORGOT PASSWORD PAGE
-
+    
     def forgot_password_page(self):
         if self.redirect_if_logged_in():
             return self.redirect_if_logged_in()
@@ -219,11 +221,14 @@ class Routes:
 #################################################################################################################################
 
  # DASHBOARD_PAGE
+    def dashboard_page(self):
+        return render_template(config.dashboard_page)
 
     def add_field(self):
         field_id =  request.form.get("field_id")
+        field_name =  request.form.get("field_name")
         username = session.get('username')
-        result = self.field.add_field(field_id, username)
+        result = self.field.add_field(field_id, field_name, username)
 
         if result:
             self.logger.log_add_field(field_id)
@@ -239,6 +244,7 @@ class Routes:
 
     def get_field(self):
         username = session.get('username')
+        print(self.field.get_fields(username))
         return jsonify(self.field.get_fields(username))
     
     def delete_field(self):
@@ -332,10 +338,11 @@ class Routes:
      
     def update_status(self):
         data = self.sensor.update()
-        for entry in data:
-            self.field.insert_telemetry(entry)
-            id = self.sensor.find_id(entry)
-            self.sensor.delete(id)
+        if data:
+            for entry in data:
+                self.field.insert_telemetry(entry)
+                id = self.sensor.find_id(entry)
+                self.sensor.delete(id)
     
     def update_out_date_status(self):
         self.field.delete_time_out()
@@ -349,12 +356,11 @@ class Routes:
     def send_telemetry(self):
         field_id =  request.get_json().get("field_id")
         devices = self.field.get_device_names(field_id)
-
+        
         result = []
         for device in devices:
             result.append(self.field.get_telemetry(device))
-
-        return jsonify(result)
+        return result
 
     def resample_mean(self, data, freq="10min", median_window=5):
 
@@ -395,8 +401,28 @@ class Routes:
         resampled = self.resample_mean(raw_data, freq=freq_map[time_mode])
 
         return jsonify(resampled)
+    
+    def get_data(self):
+        fake_temp = round(random.uniform(10.0, 45.0), 1)
+        fake_humid = random.randint(30, 100)
+        fake_light = random.randint(100, 500)
+        soil_moisture = 0
+        test = routes.send_telemetry()
+        for item in test:
+            for device_name, telemetry in item.items():
+                if 'moisture' in telemetry:
+                    moisture_data = telemetry['moisture']
+                    soil_moisture = moisture_data.get('value')
+        return jsonify({
+            "temperature": fake_temp,
+            "humidity": fake_humid,
+            "light": fake_light,
+            "soil_moisture": soil_moisture
+    })
+
 
 #################################################################################################################################
+
 
 from webserver import FlaskServer
 from user_manager import UserManager
@@ -417,7 +443,6 @@ field = FieldDB()
 log = UserLogger()
 routes = Routes(auth,otp,sensor,field,log)
 scheduler = BackgroundScheduler()
-
 server.add_route('/', routes.home_page, methods=['GET'])
 server.add_route('/login', routes.login_page, methods=['GET'])
 server.add_route('/login', routes.login, methods=['POST'])
@@ -431,8 +456,13 @@ server.add_route('/verify-otp', routes.verify_otp, methods=['POST'])
 server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
 server.add_route('/reset-password', routes.reset_password, methods=['POST'])
 
-scheduler.add_job(routes.update_status, 'interval', seconds=5)
-scheduler.add_job(routes.update_out_date_status, 'interval', seconds=5)
+server.add_route('/dashboard', routes.dashboard_page, methods=['GET'])
+server.add_route('/api/data', routes.get_data, methods=['POST'])
+server.add_route('/api/fields', routes.get_field, methods=['GET'])
+
+scheduler.add_job(routes.update_status, 'interval', seconds=10)
+# scheduler.add_job(routes.update_out_date_status, 'interval', seconds=5)
+
 
 if __name__ == '__main__':
     scheduler.start()

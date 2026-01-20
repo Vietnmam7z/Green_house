@@ -12,16 +12,22 @@ class FieldDB:
         conn.execute("PRAGMA foreign_keys = ON")
         return conn
     
-    def add_field(self, field_id: str, username: str):
+    def add_field(self, field_id: str, field_name: str, username: str):
         with self.connect() as conn:
             cursor = conn.cursor()
 
+            # Kiểm tra xem field_id đã tồn tại chưa
             cursor.execute("SELECT 1 FROM field WHERE field_id = ?", (field_id,))
             if cursor.fetchone():
                 return {"success": False, "message": "Ruộng đã tồn tại."} 
 
-            cursor.execute("INSERT INTO field (field_id) VALUES (?)", (field_id,))
-         
+            # Thêm field mới với cả field_id và field_name
+            cursor.execute(
+                "INSERT INTO field (field_id, field_name) VALUES (?, ?)",
+                (field_id, field_name)
+            )
+
+            # Liên kết field với user
             cursor.execute("""
                 INSERT INTO field_user (field_id, username)
                 VALUES (?, ?)
@@ -29,15 +35,17 @@ class FieldDB:
 
             conn.commit()
             return {"success": True, "message": "Thêm ruộng thành công."}
-
+                            
     def get_fields(self, username: str):
         with self.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT field_id FROM field_user
-                WHERE username = ?
+                SELECT f.field_id, f.field_name
+                FROM field_user fu
+                JOIN field f ON fu.field_id = f.field_id
+                WHERE fu.username = ?
             """, (username,))
-            return [row[0] for row in cursor.fetchall()]
+            return [{"field_id": row[0], "field_name": row[1]} for row in cursor.fetchall()]
 
     def delete_field(self, field_id: str):
         with self.connect() as conn:
@@ -60,8 +68,22 @@ class FieldDB:
             """, (new_field_id, old_field_id))
 
             conn.commit()
-            return {"success": True, "message": "Đổi tên ruộng thành công."}
+            return {"success": True, "message": "Đổi id ruộng thành công."}
 
+    def rename_field_name(self, field_id: str, new_field_name: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+
+            # Cập nhật tên ruộng theo field_id
+            cursor.execute("""
+                UPDATE field
+                SET field_name = ?
+                WHERE field_id = ?
+            """, (new_field_name, field_id))
+
+            conn.commit()
+            return {"success": True, "message": "Đổi tên ruộng thành công."}
+        
     def get_devices(self, field_id: str):
         with self.connect() as conn:
             cursor = conn.cursor()
@@ -241,15 +263,5 @@ class FieldDB:
                 (cutoff_ms,)
             )
             conn.commit()
-
-
-
-
-
-
-
-
-
-
 
 

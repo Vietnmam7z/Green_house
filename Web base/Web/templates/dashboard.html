@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartCare - Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../static/css/dashboard.css">
+</head>
+<body>
+
+    <header>
+        <div class="logo">
+            <i class="fa-solid fa-leaf" style="color: #66bb6a; margin-right: 8px;"></i>
+            SmartCare
+        </div>
+        <div class="user-actions">
+            <button class="btn-logout">Log out</button>
+            <i class="fa-regular fa-bell"></i>
+            <i class="fa-regular fa-user"></i>
+            <i class="fa-solid fa-bars"></i>
+        </div>
+    </header>
+
+    <div class="container">
+        <h1 class="page-title">DASHBOARD</h1>
+
+        <div class="nav-bar">
+            <button class="btn-back"><i class="fa-solid fa-rotate-left"></i> Back</button>
+            
+            <div class="info-bar">
+                <span>ID: 1</span>
+                <span>Name: Strawberry</span>
+                <span>Location: Field A1</span>
+            </div>
+
+            <a href="/control" class="btn-control"><i class="fa-solid fa-wifi"></i> Control</a>
+        </div>
+
+        <!-- Air Section -->
+        <div class="section-title">Air</div>
+        <div class="grid-container">
+            <div class="card">
+                <div class="alert-badge" id="badge-temp">!</div>
+                <div class="card-icon"><i class="fa-solid fa-temperature-three-quarters" style="color: #e53935;"></i></div>
+                <div class="card-info">
+                    <h3>Temperature</h3>
+                    <p><span id="nhiet-do">--</span><span class="unit">°C</span></p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="alert-badge" id="badge-humid">!</div>
+                <div class="card-icon"><i class="fa-solid fa-droplet" style="color: #42a5f5;"></i></div>
+                <div class="card-info">
+                    <h3>Humidity</h3>
+                    <p><span id="do-am">--</span><span class="unit">%</span></p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="alert-badge" id="badge-light">!</div>
+                <div class="card-icon"><i class="fa-solid fa-sun" style="color: #fdd835;"></i></div>
+                <div class="card-info">
+                    <h3>Ambient light</h3>
+                    <p><span id="anh-sang">--</span><span class="unit">lx</span></p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="alert-badge" id="badge-co2">!</div>
+                <div class="card-icon"><i class="fa-solid fa-leaf" style="color: #66bb6a;"></i></div>
+                <div class="card-info">
+                    <h3>CO<sub>2</sub></h3>
+                    <p>260 <span class="unit">ppm</span></p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="alert-badge" id="badge-air">!</div>
+                <div class="card-icon"><i class="fa-solid fa-cloud" style="color: #78909c;"></i></div>
+                <div class="card-info">
+                    <h3>Air pressure</h3>
+                    <p>1008 <span class="unit">hPa</span></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Soil Section -->
+        <div class="section-title">Soil</div>
+        <div class="grid-container">
+            <div class="card">
+                <div class="alert-badge" id="badge-soil-temp">!</div>
+                <div class="card-icon"><i class="fa-solid fa-temperature-low" style="color: #e53935;"></i></div>
+                <div class="card-info">
+                    <h3>Temperature</h3>
+                    <p>27 <span class="unit">°C</span></p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="alert-badge" id="badge-soil-mois">!</div>
+                <div class="card-icon"><i class="fa-solid fa-water" style="color: #5d4037;"></i></div>
+                <div class="card-info">
+                    <h3>Soil moisture</h3>
+                    <p><span id="soil-moisture">--</span><span class="unit">%</span></p>
+                </div>
+            </div>
+            <!-- Các card Soil khác giữ nguyên -->
+        </div>
+    </div>
+
+    <!-- Liên kết file JS riêng -->
+    <script src="../static/js/dashboard.js"></script>
+</body>
+</html>
