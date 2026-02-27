@@ -35,19 +35,6 @@ async function capNhatDuLieu() {
         const soilMois = document.getElementById('soil-moisture');
         if (soilMois) soilMois.innerText = soilVal;
 
-        // --- Badge cảnh báo ---
-        const tempBadge = document.getElementById('badge-temp');
-        if (tempBadge) tempBadge.style.display = (tempVal < 20 || tempVal > 50) ? 'flex' : 'none';
-
-        const humidBadge = document.getElementById('badge-humid');
-        if (humidBadge) humidBadge.style.display = (humidVal < 40 || humidVal > 90) ? 'flex' : 'none';
-
-        const lightBadge = document.getElementById('badge-light');
-        if (lightBadge) lightBadge.style.display = (lightVal < 150 || lightVal > 450) ? 'flex' : 'none';
-
-        const soilBadge = document.getElementById('badge-soil-mois');
-        if (soilBadge) soilBadge.style.display = (soilVal < 30 || soilVal > 80) ? 'flex' : 'none';
-
     } catch (err) {
         console.error("Lỗi tải dữ liệu:", err);
     }

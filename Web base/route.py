@@ -360,7 +360,7 @@ class Routes:
         result = []
         for device in devices:
             result.append(self.field.get_telemetry(device))
-        return result
+        return jsonify(result)
 
     def resample_mean(self, data, freq="10min", median_window=5):
 
