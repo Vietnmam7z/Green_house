@@ -457,7 +457,7 @@ server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
 server.add_route('/reset-password', routes.reset_password, methods=['POST'])
 
 server.add_route('/dashboard', routes.dashboard_page, methods=['GET'])
-server.add_route('/api/data', routes.get_data, methods=['POST'])
+server.add_route('/api/data', routes.send_telemetry, methods=['POST','GET'])
 server.add_route('/api/fields', routes.get_field, methods=['GET'])
 
 scheduler.add_job(routes.update_status, 'interval', seconds=10)
