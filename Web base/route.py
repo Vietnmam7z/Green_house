@@ -402,23 +402,23 @@ class Routes:
 
         return jsonify(resampled)
     
-    def get_data(self):
-        fake_temp = round(random.uniform(10.0, 45.0), 1)
-        fake_humid = random.randint(30, 100)
-        fake_light = random.randint(100, 500)
-        soil_moisture = 0
-        test = routes.send_telemetry()
-        for item in test:
-            for device_name, telemetry in item.items():
-                if 'moisture' in telemetry:
-                    moisture_data = telemetry['moisture']
-                    soil_moisture = moisture_data.get('value')
-        return jsonify({
-            "temperature": fake_temp,
-            "humidity": fake_humid,
-            "light": fake_light,
-            "soil_moisture": soil_moisture
-    })
+    # def get_data(self):
+    #     fake_temp = round(random.uniform(10.0, 45.0), 1)
+    #     fake_humid = random.randint(30, 100)
+    #     fake_light = random.randint(100, 500)
+    #     soil_moisture = 0
+    #     test = routes.send_telemetry()
+    #     for item in test:
+    #         for device_name, telemetry in item.items():
+    #             if 'moisture' in telemetry:
+    #                 moisture_data = telemetry['moisture']
+    #                 soil_moisture = moisture_data.get('value')
+    #     return jsonify({
+    #         "temperature": fake_temp,
+    #         "humidity": fake_humid,
+    #         "light": fake_light,
+    #         "moisture": soil_moisture
+    # })
 
 
 #################################################################################################################################
@@ -458,7 +458,7 @@ server.add_route('/reset-password', routes.reset_password, methods=['POST'])
 
 server.add_route('/dashboard', routes.dashboard_page, methods=['GET'])
 server.add_route('/api/data', routes.send_telemetry, methods=['POST','GET'])
-server.add_route('/api/fields', routes.get_field, methods=['GET'])
+server.add_route('/api/fields', routes.get_field, methods=['POST','GET'])
 
 scheduler.add_job(routes.update_status, 'interval', seconds=10)
 # scheduler.add_job(routes.update_out_date_status, 'interval', seconds=5)

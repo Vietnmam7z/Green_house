@@ -1,4 +1,4 @@
-/* === RESET & CÀI ĐẶT CHUNG === */
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -7,11 +7,30 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f4f6f8; /* Nền xám nhạt */
+    background-color: #f4f6f8; 
     color: #333;
 }
 
-/* === THANH NAVBAR (ĐIỀU HƯỚNG TRÊN CÙNG) === */
+
+.btn-nav {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    color: #666;
+    padding: 5px;
+    transition: color 0.3s ease, transform 0.2s ease;
+}
+
+.btn-nav:hover {
+    color: #4CAF50;
+    transform: scale(1.2);
+}
+
+.btn-nav:active {
+    transform: scale(0.9); 
+}
+
 .navbar {
     display: flex;
     justify-content: space-between;
@@ -33,7 +52,7 @@ body {
 }
 
 .nav-logo i {
-    color: #4caf50; /* Màu xanh lá của logo */
+    color: #4caf50;
     font-size: 20px;
     margin-right: 8px;
 }
@@ -45,7 +64,7 @@ body {
 }
 
 .btn-logout {
-    background-color: #0056b3; /* Nút xanh dương đậm */
+    background-color: #0056b3; 
     color: #ffffff;
     border: none;
     padding: 8px 16px;
@@ -66,17 +85,17 @@ body {
     cursor: pointer;
 }
 
-/* === KHUNG CHỨA NỘI DUNG CHÍNH === */
+
 .main-container {
     max-width: 1250px;
     margin: 0 auto;
     padding: 20px 30px;
 }
 
-/* === TIÊU ĐỀ DASHBOARD === */
+
 .dashboard-title {
     text-align: center;
-    color: #7cb342; /* Màu xanh lá mạ */
+    color: #7cb342;
     font-size: 28px;
     font-weight: 800;
     letter-spacing: 1px;
@@ -84,7 +103,7 @@ body {
     margin-bottom: 30px;
 }
 
-/* === THANH CÔNG CỤ (ACTION BAR) === */
+
 .action-bar {
     display: flex;
     justify-content: space-between;
@@ -105,8 +124,8 @@ body {
     gap: 8px;
 }
 
-.btn-back { background-color: #4fc3f7; } /* Xanh lơ nhạt */
-.btn-control { background-color: #2ecc71; } /* Xanh lá */
+.btn-back { background-color: #4fc3f7; } 
+.btn-control { background-color: #2ecc71; } 
 
 .info-pill {
     background-color: #e0e0e0;
@@ -119,7 +138,7 @@ body {
     font-weight: 500;
 }
 
-/* === KHU VỰC PANEL === */
+
 .section-title {
     font-size: 16px;
     font-weight: 700;
@@ -139,7 +158,7 @@ body {
     background-color: #ffffff;
     border-radius: 10px;
     padding: 15px 20px;
-    width: 220px; /* Độ rộng cố định giống ảnh */
+    width: 220px; 
     display: flex;
     align-items: center;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
@@ -152,7 +171,7 @@ body {
     text-align: center;
 }
 
-/* Màu icon */
+
 .color-temp { color: #ff5252; }
 .color-humid { color: #40a9ff; }
 .color-light { color: #ffca28; }
