@@ -64,3 +64,25 @@ body {
   color: red;
   font-weight: bold;
 }
+.go-dashboard-btn {
+    margin-top: 20px;
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: bold;
+    color: white;
+    background-color: #4CAF50; 
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.go-dashboard-btn:hover {
+    background-color: #45a049;
+    transform: translateY(-2px);
+}
+
+.go-dashboard-btn:active {
+    transform: translateY(0);
+}
