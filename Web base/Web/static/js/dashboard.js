@@ -39,9 +39,23 @@ async function layDanhSachField() {
         if (!response.ok) throw new Error("Lỗi HTTP: " + response.status);
 
         fieldsList = await response.json();
+        
         if (fieldsList && fieldsList.length > 0) {
             if (!currentFieldId) {
-                currentIndex = 0;
+                const urlParams = new URLSearchParams(window.location.search);
+                const targetFieldId = urlParams.get('field_id');
+
+                if (targetFieldId) {
+                    const foundIndex = fieldsList.findIndex(f => f.field_id === targetFieldId);
+                    if (foundIndex !== -1) {
+                        currentIndex = foundIndex;
+                    } else {
+                        currentIndex = 0; 
+                    }
+                } else {
+                    currentIndex = 0;
+                }
+                
                 capNhatHienThiField();
             }
         } else {
@@ -127,7 +141,7 @@ async function capNhatDuLieu() {
     }
 }
 
-// --- 3. BẮT SỰ KIỆN NÚT BẤM VÀ KHỞI CHẠY ---
+
 document.addEventListener("DOMContentLoaded", () => {
     const btnPrev = document.getElementById('btn-prev-field');
     const btnNext = document.getElementById('btn-next-field');
@@ -135,7 +149,17 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnPrev) {
         btnPrev.addEventListener('click', () => {
             if (fieldsList.length === 0) return;
+            
+            // Tính toán vị trí của ruộng trước đó
             currentIndex = (currentIndex - 1 + fieldsList.length) % fieldsList.length;
+            
+            // Lấy ID của ruộng mới
+            const newFieldId = fieldsList[currentIndex].field_id;
+            
+            // THAY ĐỔI ĐƯỜNG DẪN URL TRÊN TRÌNH DUYỆT (Không load lại trang)
+            window.history.pushState({ field_id: newFieldId }, '', `/dashboard?field_id=${newFieldId}`);
+            
+            // Cập nhật giao diện mượt mà
             capNhatHienThiField();
         });
     }
@@ -143,40 +167,53 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnNext) {
         btnNext.addEventListener('click', () => {
             if (fieldsList.length === 0) return;
+            
+            // Tính toán vị trí của ruộng tiếp theo
             currentIndex = (currentIndex + 1) % fieldsList.length;
+            
+            // Lấy ID của ruộng mới
+            const newFieldId = fieldsList[currentIndex].field_id;
+            
+            // THAY ĐỔI ĐƯỜNG DẪN URL TRÊN TRÌNH DUYỆT (Không load lại trang)
+            window.history.pushState({ field_id: newFieldId }, '', `/dashboard?field_id=${newFieldId}`);
+            
+            // Cập nhật giao diện mượt mà
             capNhatHienThiField();
         });
     }
 
-    // Khởi chạy
+    // Bắt thêm sự kiện khi người dùng bấm nút "Back" hoặc "Forward" trên trình duyệt
+    window.addEventListener('popstate', (event) => {
+        // Tải lại danh sách field để tự động nhảy về đúng tab theo URL
+        layDanhSachField();
+    });
+
+    // Khởi chạy các hàm đầu tiên
     layDanhSachField(); 
     setInterval(layDanhSachField, 10000); 
     setInterval(capNhatDuLieu, 5000); 
 });
-document.addEventListener('DOMContentLoaded', function () {
-  const logoutBtn = document.getElementById('logoutBtn');
-  const resultBox = document.getElementById('result');
 
-  logoutBtn.addEventListener('click', function (e) {
-    e.preventDefault();
+document.addEventListener("DOMContentLoaded", () => {
+    const goToDashboard = document.getElementById('goToDashboard');
+    const goToControl = document.getElementById('ControlBtn');
 
-    fetch('/logout', {
-      method: 'POST'
-    })
-      .then(res => {
-        if (!res.ok) throw new Error("Server trả về lỗi");
-        return res.json();
-      })
-      .then(data => {
-        if (data.success) {
-          window.location.href = data.redirect || '/login';
-        } else {
-          resultBox.innerText = data.message || "Không thể đăng xuất.";
-        }
-      })
-      .catch(error => {
-        resultBox.innerText = "Lỗi kết nối đến server!";
-        console.error("Lỗi:", error);
-      });
-  });
+    if (goToDashboard) {
+    goToDashboard.addEventListener('click', function () {
+      window.location.href = '/';
+    });
+    }
+    if (goToControl) {
+    goToControl.addEventListener('click', function () {
+      window.location.href = '/control';
+    });
+    }
 });
+// document.addEventListener("DOMContentLoaded", () => {
+//     const goToControl = document.getElementById('goToControl');
+//     if (goToControl) {
+//     goToControl.addEventListener('click', function () {
+//       window.location.href = '/';
+//     });
+//   }
+// });

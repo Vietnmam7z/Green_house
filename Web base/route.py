@@ -223,6 +223,8 @@ class Routes:
  # DASHBOARD_PAGE
     def dashboard_page(self):
         return render_template(config.dashboard_page)
+    def control_page(self):
+        return render_template(config.control_page)
 
     def add_field(self):
         field_id =  request.form.get("field_id")
@@ -455,7 +457,7 @@ server.add_route('/verify-otp', routes.verify_otp, methods=['POST'])
 # server.add_route('/resend-otp', routes.resend_otp, methods=['POST'])
 server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
 server.add_route('/reset-password', routes.reset_password, methods=['POST'])
-
+server.add_route('/control', routes.control_page, methods=['GET'])
 server.add_route('/dashboard', routes.dashboard_page, methods=['GET'])
 server.add_route('/api/data', routes.send_telemetry, methods=['POST','GET'])
 server.add_route('/api/fields', routes.get_field, methods=['POST','GET'])

@@ -64,25 +64,45 @@ body {
   color: red;
   font-weight: bold;
 }
-.go-dashboard-btn {
-    margin-top: 20px;
-    padding: 12px 24px;
-    font-size: 16px;
-    font-weight: bold;
-    color: white;
-    background-color: #4CAF50; 
-    border: none;
-    border-radius: 8px;
+/* CSS cho lưới Card tóm tắt */
+.field-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    margin-top: 30px;
+}
+
+.field-card {
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 20px;
     cursor: pointer;
-    transition: background-color 0.3s ease, transform 0.2s ease;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    transition: transform 0.2s ease, border-color 0.2s ease;
 }
 
-.go-dashboard-btn:hover {
-    background-color: #45a049;
-    transform: translateY(-2px);
+.field-card:hover {
+    transform: translateY(-5px);
+    border-color: #4CAF50; /* Viền xanh khi hover */
+    box-shadow: 0 8px 15px rgba(0,0,0,0.1);
 }
 
-.go-dashboard-btn:active {
-    transform: translateY(0);
+.field-card h3 {
+    margin: 0 0 15px 0;
+    color: #2c3e50;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 10px;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 15px;
+    color: #555;
+}
+
+.summary-item strong {
+    color: #4CAF50;
 }
