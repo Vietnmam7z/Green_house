@@ -245,3 +245,16 @@
 2026-03-04 12:30:34,360 - INFO - Đăng nhập: 1
 2026-03-04 12:30:35,121 - INFO - Đăng nhập: 1
 2026-03-04 12:30:47,788 - INFO - Đăng nhập: 1
+2026-03-07 11:01:54,451 - INFO - Đăng nhập: 1
+2026-03-07 11:15:20,574 - INFO - Đăng xuất: 1
+2026-03-07 11:15:21,752 - INFO - Đăng nhập: 1
+2026-03-07 16:29:50,983 - INFO - Đăng nhập: 1
+2026-03-07 16:30:07,684 - WARNING - Đổi tên thiết bị Moisture 5 thành SI Soil Moisture 5
+2026-03-07 16:37:03,326 - WARNING - Đổi tên ruộng field_999 thành Ruộng ngo
+2026-03-07 16:37:21,345 - WARNING - Đổi tên ruộng Ruộng ngo thành Ruộng ngô
+2026-03-07 16:43:55,660 - WARNING - Đổi tên ruộng Ruộng ngô thành field_999
+2026-03-07 16:46:57,280 - WARNING - Đổi tên ruộng None thành None
+2026-03-07 16:47:16,012 - WARNING - Đổi tên ruộng None thành None
+2026-03-07 16:52:09,752 - WARNING - Đổi tên ruộng field_999 thành None
+2026-03-07 16:56:06,205 - WARNING - Đổi tên ruộng field_999 thành Ruộng ngô
+2026-03-07 16:56:54,021 - WARNING - Đổi tên ruộng field_1 thành Ruộng dâu

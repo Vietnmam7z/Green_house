@@ -193,11 +193,16 @@ document.addEventListener("DOMContentLoaded", () => {
     setInterval(layDanhSachField, 10000); 
     setInterval(capNhatDuLieu, 5000); 
 });
-
 document.addEventListener("DOMContentLoaded", () => {
     const goToDashboard = document.getElementById('goToDashboard');
     const goToControl = document.getElementById('ControlBtn');
-
+    const btnSettings = document.getElementById('btn-settings');
+    if (btnSettings) {
+        btnSettings.addEventListener('click', () => {
+            // Chuyển hướng sang route '/manage' của Python
+            window.location.href = '/manage';
+        });
+    }
     if (goToDashboard) {
     goToDashboard.addEventListener('click', function () {
       window.location.href = '/';

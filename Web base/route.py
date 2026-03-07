@@ -225,7 +225,8 @@ class Routes:
         return render_template(config.dashboard_page)
     def control_page(self):
         return render_template(config.control_page)
-
+    def manage_page(self):
+        return render_template(config.manage_page)
     def add_field(self):
         field_id =  request.form.get("field_id")
         field_name =  request.form.get("field_name")
@@ -256,13 +257,30 @@ class Routes:
         self.logger.log_delete_field(field_id)
         return jsonify(self.field.get_fields(username))
     
-    def rename_field(self):
+    def rename_field_id(self):
         old_field_id =  request.get_json().get("old_field_id")
         new_field_id =  request.get_json().get("new_field_id")
         result = self.field.rename_field_id(old_field_id,new_field_id)
         
         if result:
             self.logger.log_rename_field(old_field_id,new_field_id)
+            return jsonify({
+                "success": result['success'],
+                "message": result['message'],
+            })
+        else:
+            return jsonify({
+                "success": result['success'],
+                "message": result['message'],
+            })
+        
+    def rename_field_name(self):
+        field_id =  request.get_json().get("field_id")
+        new_field_name =  request.get_json().get("new_field_name")
+        result = self.field.rename_field_name(field_id,new_field_name)
+        
+        if result:
+            self.logger.log_rename_field(field_id,new_field_name)
             return jsonify({
                 "success": result['success'],
                 "message": result['message'],
@@ -459,8 +477,11 @@ server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
 server.add_route('/reset-password', routes.reset_password, methods=['POST'])
 server.add_route('/control', routes.control_page, methods=['GET'])
 server.add_route('/dashboard', routes.dashboard_page, methods=['GET'])
+server.add_route('/manage', routes.manage_page, methods=['GET'])
 server.add_route('/api/data', routes.send_telemetry, methods=['POST','GET'])
 server.add_route('/api/fields', routes.get_field, methods=['POST','GET'])
+server.add_route('/api/rename_device', routes.rename_device, methods=['POST'])
+server.add_route('/api/rename_field', routes.rename_field_name, methods=['POST'])
 
 scheduler.add_job(routes.update_status, 'interval', seconds=10)
 # scheduler.add_job(routes.update_out_date_status, 'interval', seconds=5)
