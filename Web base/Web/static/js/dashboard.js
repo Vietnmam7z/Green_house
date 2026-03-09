@@ -197,9 +197,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const goToDashboard = document.getElementById('goToDashboard');
     const goToControl = document.getElementById('ControlBtn');
     const btnSettings = document.getElementById('btn-settings');
+    const logoutBtn = document.getElementById('logoutBtn');
     if (btnSettings) {
         btnSettings.addEventListener('click', () => {
-            // Chuyển hướng sang route '/manage' của Python
             window.location.href = '/manage';
         });
     }
@@ -212,6 +212,21 @@ document.addEventListener("DOMContentLoaded", () => {
     goToControl.addEventListener('click', function () {
       window.location.href = '/control';
     });
+    }
+    if (logoutBtn) {
+    logoutBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      fetch('/logout', { method: 'POST' })
+        .then(res => {
+          if (!res.ok) throw new Error("Server trả về lỗi");
+          return res.json();
+        })
+        .then(data => {
+          if (data.success) { window.location.href = data.redirect || '/login'; } 
+          else { resultBox.innerText = data.message || "Không thể đăng xuất."; }
+        })
+        .catch(error => { resultBox.innerText = "Lỗi kết nối!"; });
+        });
     }
 });
 // document.addEventListener("DOMContentLoaded", () => {

@@ -222,10 +222,19 @@ class Routes:
 
  # DASHBOARD_PAGE
     def dashboard_page(self):
+        resp = self.require_login()
+        if resp:
+            return resp
         return render_template(config.dashboard_page)
     def control_page(self):
+        resp = self.require_login()
+        if resp:
+            return resp
         return render_template(config.control_page)
     def manage_page(self):
+        resp = self.require_login()
+        if resp:
+            return resp
         return render_template(config.manage_page)
     def add_field(self):
         field_id =  request.form.get("field_id")
