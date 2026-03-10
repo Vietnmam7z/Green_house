@@ -1,26 +1,51 @@
+// ==========================================
+// CẤU HÌNH GIAO DIỆN
+// ==========================================
+const telemetryConfig = {
+  "temperature": { label: "Nhiệt độ", unit: "°C", icon: "fa-temperature-half", color: "#e74c3c" },
+  "humidity": { label: "Độ ẩm khí", unit: "%", icon: "fa-droplet", color: "#3498db" },
+  "moisture": { label: "Độ ẩm đất", unit: "%", icon: "fa-water", color: "#8e44ad" },
+  "light": { label: "Ánh sáng", unit: "lx", icon: "fa-sun", color: "#f1c40f" }
+};
+
+function getConfig(key) {
+  const lowerKey = key.toLowerCase();
+  for (let prop in telemetryConfig) {
+      if (lowerKey.includes(prop)) return telemetryConfig[prop];
+  }
+  return { label: key, unit: "", icon: "fa-microchip", color: "#7f8c8d" };
+}
+
+// Biến toàn cục để quản lý các biểu đồ Chart.js (Chống đè biểu đồ)
+window.chartInstances = {};
+
+// ==========================================
+// KHỞI CHẠY KHI TẢI TRANG
+// ==========================================
 document.addEventListener('DOMContentLoaded', function () {
   const logoutBtn = document.getElementById('logoutBtn');
   const resultBox = document.getElementById('result');
   const summaryContainer = document.getElementById('field-summary-container');
 
-  // 1. TẢI VÀ HIỂN THỊ CÁC CARD TÓM TẮT
   if (summaryContainer) {
     loadFieldSummaries();
   }
 
+  // --- 1. TẢI TẤT CẢ RUỘNG ĐỂ TẠO CARD VÀ KHUNG BIỂU ĐỒ ---
   async function loadFieldSummaries() {
     try {
       summaryContainer.innerHTML = '<i>Đang tải thông tin các khu vực...</i>';
 
-      // Lấy danh sách field
       const resFields = await fetch('/api/fields');
       if (!resFields.ok) throw new Error("Không tải được danh sách field");
       const fields = await resFields.json();
 
-      summaryContainer.innerHTML = ''; // Xóa chữ Đang tải
+      summaryContainer.innerHTML = ''; 
 
-      // Lặp qua từng field để tạo Card
+      // Lặp qua từng ruộng
       for (let field of fields) {
+        
+        // A. TẠO CARD TÓM TẮT THÔNG SỐ
         const card = document.createElement('div');
         card.className = 'field-card';
         card.innerHTML = `
@@ -29,14 +54,17 @@ document.addEventListener('DOMContentLoaded', function () {
             <span style="color:#999;">Đang lấy dữ liệu cảm biến...</span>
           </div>
         `;
-
+        
         card.addEventListener('click', () => {
           window.location.href = '/dashboard?field_id=' + field.field_id;
         });
-
         summaryContainer.appendChild(card);
 
+        // Đổ số liệu vào Card
         layDuLieuChoCard(field.field_id);
+
+        // B. TẠO LUÔN KHUNG BIỂU ĐỒ CHO RUỘNG NÀY Ở PHÍA DƯỚI
+        loadTatCaBieuDo(field.field_id, field.field_name);
       }
     } catch (err) {
       console.error(err);
@@ -44,21 +72,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  const telemetryConfig = {
-    "temperature": { label: "Nhiệt độ", unit: "°C", icon: "fa-temperature-half", color: "#e74c3c" },
-    "humidity": { label: "Độ ẩm khí", unit: "%", icon: "fa-droplet", color: "#3498db" },
-    "moisture": { label: "Độ ẩm đất", unit: "%", icon: "fa-water", color: "#8e44ad" },
-    "light": { label: "Ánh sáng", unit: "lx", icon: "fa-sun", color: "#f1c40f" }
-  };
-
-  function getConfig(key) {
-    const lowerKey = key.toLowerCase();
-    for (let prop in telemetryConfig) {
-        if (lowerKey.includes(prop)) return telemetryConfig[prop];
-    }
-    return { label: key, unit: "", icon: "fa-microchip", color: "#7f8c8d" };
-  }
-
+  // --- 2. LẤY DỮ LIỆU ĐIỀN VÀO CARD (MINI PANELS) ---
   async function layDuLieuChoCard(fieldId) {
     try {
       const resData = await fetch('/api/data', {
@@ -74,7 +88,6 @@ document.addEventListener('DOMContentLoaded', function () {
         data.forEach(deviceObj => {
           for (const deviceName in deviceObj) {
             const telemetries = deviceObj[deviceName];
-            
             if (!telemetries || Object.keys(telemetries).length === 0) continue;
 
             miniPanelsHTML += `
@@ -85,7 +98,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
             for (const teleKey in telemetries) {
               const teleData = telemetries[teleKey];
-              
               if (teleData && teleData.value !== undefined) {
                 const val = parseFloat(teleData.value);
                 const config = getConfig(teleKey);
@@ -107,6 +119,7 @@ document.addEventListener('DOMContentLoaded', function () {
           }
         });
       }
+
       if (miniPanelsHTML === "") {
         miniPanelsHTML = '<div style="color:#999; font-size:13px; padding: 10px 0; text-align: center;">Chưa có dữ liệu cảm biến</div>';
       }
@@ -114,9 +127,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const summaryDiv = document.getElementById(`summary-${fieldId}`);
       if (summaryDiv) {
         summaryDiv.innerHTML = `
-          <div style="margin-bottom: 10px;">
-            ${miniPanelsHTML}
-          </div>
+          <div style="margin-bottom: 10px;">${miniPanelsHTML}</div>
           <div style="font-size: 0.85em; color: #4CAF50; text-align: right; margin-top: 12px; font-weight: 500;">
             Vào bảng điều khiển &rarr;
           </div>
@@ -127,6 +138,77 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
+  // --- 3. QUÉT THIẾT BỊ VÀ TẠO KHUNG BIỂU ĐỒ ĐỘNG ---
+  async function loadTatCaBieuDo(fieldId, fieldName) {
+    const mainContainer = document.getElementById('dynamic-charts-container');
+    if (!mainContainer) return;
+
+    // Tạo một khung riêng biệt cho từng ruộng
+    const fieldSection = document.createElement('div');
+    fieldSection.style.cssText = "margin-top: 40px;";
+    fieldSection.innerHTML = `
+        <h3 style="color: #2c3e50; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; display: inline-block;">
+            <i class="fa-solid fa-chart-area"></i> Biểu đồ: ${fieldName}
+        </h3>
+        <div id="chart-grid-${fieldId}" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 15px;"></div>
+    `;
+    mainContainer.appendChild(fieldSection);
+    
+    const chartGrid = document.getElementById(`chart-grid-${fieldId}`);
+
+    try {
+        const res = await fetch('/api/data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ field_id: fieldId })
+        });
+        const data = await res.json();
+
+        // Quét thiết bị để vẽ canvas
+        if (Array.isArray(data)) {
+            data.forEach(deviceObj => {
+                for (const deviceName in deviceObj) {
+                    const telemetries = deviceObj[deviceName];
+                    
+                    for (const teleKey in telemetries) {
+                        if (!telemetries[teleKey] || telemetries[teleKey].value === undefined) continue;
+
+                        // Tạo ID an toàn
+                        const safeDeviceName = deviceName.replace(/\s+/g, '-');
+                        const canvasId = `chart-${fieldId}-${safeDeviceName}-${teleKey}`;
+
+                        const chartDiv = document.createElement('div');
+                        chartDiv.style.cssText = "background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #eee;";
+                        chartDiv.innerHTML = `
+                            <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 14px; text-transform: uppercase;">
+                                <i class="fa-solid fa-chart-line" style="color:#4CAF50;"></i> ${teleKey} <span style="color:#999; font-size:12px;">(${deviceName})</span>
+                            </h4>
+                            
+                            <div style="margin-bottom: 15px; display: flex; gap: 5px;">
+                                <button onclick="window.taiBieuDoRieng('${deviceName}', '${teleKey}', '1h', '${canvasId}')" style="cursor:pointer; padding:3px 8px; font-size:12px; border-radius:4px; border:1px solid #ccc; background:#f9f9f9;">1h</button>
+                                <button onclick="window.taiBieuDoRieng('${deviceName}', '${teleKey}', '1d', '${canvasId}')" style="cursor:pointer; padding:3px 8px; font-size:12px; border-radius:4px; border:1px solid #ccc; background:#f9f9f9;">1d</button>
+                                <button onclick="window.taiBieuDoRieng('${deviceName}', '${teleKey}', '7d', '${canvasId}')" style="cursor:pointer; padding:3px 8px; font-size:12px; border-radius:4px; border:1px solid #ccc; background:#f9f9f9;">7d</button>
+                                <button onclick="window.taiBieuDoRieng('${deviceName}', '${teleKey}', '30d', '${canvasId}')" style="cursor:pointer; padding:3px 8px; font-size:12px; border-radius:4px; border:1px solid #ccc; background:#f9f9f9;">30d</button>
+                            </div>
+                            
+                            <div style="position: relative; height:250px; width:100%">
+                                <canvas id="${canvasId}"></canvas>
+                            </div>
+                        `;
+                        chartGrid.appendChild(chartDiv);
+
+                        // Mặc định gọi API tải và vẽ dữ liệu 1 Ngày (1d)
+                        window.taiBieuDoRieng(deviceName, teleKey, '1d', canvasId);
+                    }
+                }
+            });
+        }
+    } catch (err) {
+        console.error(`Lỗi tạo khung biểu đồ cho ${fieldId}:`, err);
+    }
+  }
+
+  // --- 4. TÍNH NĂNG LOGOUT ---
   if (logoutBtn) {
     logoutBtn.addEventListener('click', function (e) {
       e.preventDefault();
@@ -143,3 +225,81 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 });
+
+
+
+window.taiBieuDoRieng = async function(deviceName, telemetry, timeMode, canvasId) {
+    try {
+        const res = await fetch('/api/send_chart', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                device_name: deviceName,
+                telemetry: telemetry,
+                time: timeMode
+            })
+        });
+
+        const data = await res.json();
+        
+        let labels = [];
+        let values = [];
+
+        // Bóc tách dữ liệu
+        if (Array.isArray(data)) {
+            labels = data.map(item => {
+                
+                let dateObj = new Date(item.ts); 
+                
+                let timeString = dateObj.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                let dateString = dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+                return `${timeString} ${dateString}`;
+            }); 
+            
+            
+            values = data.map(item => item.value); 
+        }
+
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+
+
+        if (window.chartInstances[canvasId]) {
+            window.chartInstances[canvasId].destroy();
+        }
+
+        // Setup màu sắc
+        let lineColor = '#3498db'; 
+        if (telemetry.toLowerCase().includes('temp')) lineColor = '#e74c3c'; 
+        if (telemetry.toLowerCase().includes('moisture')) lineColor = '#8e44ad'; 
+
+        // Khởi tạo Chart
+        window.chartInstances[canvasId] = new Chart(ctx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: `Giá trị (${timeMode})`,
+                    data: values,
+                    borderColor: lineColor,
+                    backgroundColor: lineColor + '22',
+                    borderWidth: 2,
+                    pointRadius: 1, 
+                    fill: true,     
+                    tension: 0.3    
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }, 
+                scales: {
+                    x: { ticks: { autoSkip: true, maxTicksLimit: 8 } } 
+                }
+            }
+        });
+
+    } catch (err) {
+        console.error(`Lỗi tải biểu đồ cho ${canvasId}:`, err);
+    }
+};

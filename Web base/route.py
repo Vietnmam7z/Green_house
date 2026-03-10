@@ -491,7 +491,7 @@ server.add_route('/api/data', routes.send_telemetry, methods=['POST','GET'])
 server.add_route('/api/fields', routes.get_field, methods=['POST','GET'])
 server.add_route('/api/rename_device', routes.rename_device, methods=['POST'])
 server.add_route('/api/rename_field', routes.rename_field_name, methods=['POST'])
-
+server.add_route('/api/send_chart', routes.send_chart, methods=['POST'])
 scheduler.add_job(routes.update_status, 'interval', seconds=10)
 # scheduler.add_job(routes.update_out_date_status, 'interval', seconds=5)
 
