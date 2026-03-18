@@ -10,7 +10,7 @@ class Authentication:
         self.logger = logger
         self.email_otp = email_otp
 
-    # Kiểm tra tài khoản, mã hóa mật khẩu bằng SHA-256, so sánh với mật khẩu trong cơ sở dữ liệu. Nếu đúng sẽ cập nhật trạng thái "đang hoạt động" và ghi log.
+    
     def login_user(self, username: str, password: str):
         if not self.user_manager.find_user(username):
             return {"success": False, "message": "Tài khoản hoặc mật khẩu không đúng."}
@@ -27,7 +27,6 @@ class Authentication:
         
         return {"success": True, "message": f"Đăng nhập thành công"}
     
-    # Kiểm tra xem username hoặc email đã tồn tại chưa trước khi tạo mới.
     def register_user(self, username: str, password: str, email: str, role="user"):
         if self.user_manager.find_user(username):
             return {"success": False, "message": "Tên người dùng đã tồn tại."}
@@ -40,7 +39,6 @@ class Authentication:
         
         return {"success": True, "message": f"Đăng ký thành công"}
 
-    # Cho phép cập nhật mật khẩu mới (có mã hóa SHA-256 trước khi lưu).
     def change_password(self, username: str, old_password: str, new_password: str):
         if not self.user_manager.find_user(username):
             return {"success": False, "message": "Người dùng không tồn tại."}
@@ -67,13 +65,11 @@ class Authentication:
 
         return {"success": True, "message": "Mật khẩu đã được cập nhật thành công."}
 
-    # Xóa người dùng và trả về danh sách người dùng còn lại.
     def delete_user(self, username: str):
         self.user_manager.delete_user(username)
         self.logger.log_delete_user(username)
         return self.user_manager.get_all_usernames()
 
-    # Cập nhật trạng thái ngoại tuyến và ghi log.
     def offline_user(self, username: str):
         self.logger.log_offline(username)
         self.user_manager.set_status(username, False)
@@ -81,25 +77,13 @@ class Authentication:
     def logout_user(self, username: str):
         self.logger.log_logout(username)
         self.user_manager.set_status(username, False)
-    
-    # Kết hợp với OTPManager để hỗ trợ khôi phục tài khoản qua email.
+        
     def forget_password(self, email: str):
         username = self.user_manager.find_email(email)
         if not username:
             return {"success": False, "message": "Email không tồn tại."}
         self.email_otp.update_otp(email)
         self.email_otp.send_otp_email(email)
-
-    def confirm_email(self, email: str):
-       username = self.user_manager.find_email(email)
-
-       if username is False:
-           return {"success": False, "message": "Email không tồn tại."}
-       else:
-           return {"success": True, "message": "Đã xác nhận email."}
-        
-    def confirm_otp(self, otp: str):
-        return self.email_otp.confirm_otp(otp)
 
     def get_role(self, username: str):
         role = self.user_manager.get_role(username)
@@ -113,3 +97,13 @@ class Authentication:
         if not username:
             return {"success": False, "message": "Email không tồn tại."}
         
+    def confirm_email(self, email: str):
+       username = self.user_manager.find_email(email)
+
+       if username is False:
+           return {"success": False, "message": "Email không tồn tại."}
+       else:
+           return {"success": True, "message": "Đã xác nhận email."}
+        
+    def confirm_otp(self, otp: str):
+        return self.email_otp.confirm_otp(otp)
