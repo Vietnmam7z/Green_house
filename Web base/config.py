@@ -3,7 +3,7 @@ user_db_path="userdata.db"
 #field_database
 field_db_path="field.db"
 #email
-sender_email = "theinspirer2000@gmail.com"
+sender_email = "theinspirer2004@gmail.com"
 app_password = "xvqm ykqq piil vape"  
 #AI_api
 api_key = "XUIJGfF7sgKcj4IVdDGmfqkzg7OVVLSM"

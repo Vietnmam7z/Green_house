@@ -9,15 +9,18 @@ class OTPManager:
     def __init__(self, user_manager: UserManager):
         self.user_manager = user_manager  
 
+    # Tạo mã OTP 6 số và tính toán thời gian hết hạn (hiện tại cộng thêm 5 phút).
     def generate_otp(self):
         otp = str(secrets.randbelow(1000000)).zfill(6)
         expires_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=5)
         return otp, expires_at
 
+    # Cập nhật mã OTP mới vào cơ sở dữ liệu cho một email cụ thể.
     def update_otp(self, email: str):
         otp, expires_at = self.generate_otp()
         self.user_manager.add_otp(email,otp,expires_at)
-        
+    
+    # Lấy OTP từ database, soạn nội dung email và gửi qua máy chủ SMTP của Gmail.
     def send_otp_email(self, receiver_email: str):
         sender_email = config.sender_email
         app_password = config.app_password
@@ -53,6 +56,7 @@ class OTPManager:
             print("Lỗi gửi email:", e)
             return False
 
+    # Kiểm tra tính hợp lệ của mã OTP (có tồn tại không, đã dùng chưa, có hết hạn không).
     def confirm_otp(self, otp: str, username: str):
 
         user = self.user_manager.find_user(username)
