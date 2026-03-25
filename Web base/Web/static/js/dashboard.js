@@ -12,6 +12,7 @@ function getConfig(key) {
     for (let prop in telemetryConfig) {
         if (lowerKey.includes(prop)) return telemetryConfig[prop];
     }
+    // Trả về một object đầy đủ các thuộc tính nếu không tìm thấy key
     return { label: key, unit: "", icon: "fa-microchip", color: "color-default" };
 }
 

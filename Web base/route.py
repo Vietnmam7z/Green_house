@@ -449,7 +449,14 @@ class Routes:
     #         "moisture": soil_moisture
     # })
 
-
+    def get_current_user(self):
+        # Kiểm tra xem user có trong session (đã đăng nhập) chưa
+        if 'username' in session:
+            username = session['username']
+            role = self.auth.get_role(username) # Gọi hàm lấy role từ Authentication
+            return jsonify({"success": True, "username": username, "role": role})
+        else:
+            return jsonify({"success": False, "message": "Chưa đăng nhập"}), 401
 #################################################################################################################################
 
 
@@ -492,6 +499,7 @@ server.add_route('/api/fields', routes.get_field, methods=['POST','GET'])
 server.add_route('/api/rename_device', routes.rename_device, methods=['POST'])
 server.add_route('/api/rename_field', routes.rename_field_name, methods=['POST'])
 server.add_route('/api/send_chart', routes.send_chart, methods=['POST'])
+server.add_route('/api/current_user', routes.get_current_user, methods=['GET'])
 scheduler.add_job(routes.update_status, 'interval', seconds=10)
 # scheduler.add_job(routes.update_out_date_status, 'interval', seconds=5)
 

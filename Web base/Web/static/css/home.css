@@ -106,3 +106,33 @@ body {
 .summary-item strong {
     color: #4CAF50;
 }
+
+/* --- CSS cho khu vực User Profile --- */
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Khoảng cách giữa avatar và chữ */
+  margin-right: 15px; /* Tách xa nút Đăng xuất ra một chút */
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column; /* Xếp chữ dọc (trên/dưới) */
+  justify-content: center;
+  line-height: 1.1; /* Ép khoảng cách giữa 2 dòng chữ gần lại giống ảnh */
+}
+
+.user-name {
+  font-family: Arial, sans-serif;
+  font-weight: 900; /* In đậm */
+  font-size: 16px;
+  color: #000;
+  text-transform: uppercase; /* Tự động viết HOA toàn bộ */
+}
+
+.user-role {
+  font-family: Arial, sans-serif;
+  font-size: 15px;
+  color: #333;
+  text-transform: lowercase; /* Tự động viết thường toàn bộ */
+}

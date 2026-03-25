@@ -23,6 +23,24 @@ window.chartInstances = {};
 // KHỞI CHẠY KHI TẢI TRANG
 // ==========================================
 document.addEventListener('DOMContentLoaded', function () {
+// --- LẤY THÔNG TIN TÀI KHOẢN ĐANG ĐĂNG NHẬP ---
+  fetch('/api/current_user')
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        // Điền tên và role vào HTML
+        document.getElementById('userName').innerText = data.username;
+        document.getElementById('userRole').innerText = data.role;
+      } else {
+        // Nếu server báo chưa đăng nhập, tự động đẩy ra trang login
+        window.location.href = '/login'; 
+      }
+    })
+    .catch(err => {
+      console.error("Lỗi lấy thông tin user:", err);
+      document.getElementById('userName').innerText = "ERROR";
+    });
+
   const logoutBtn = document.getElementById('logoutBtn');
   const resultBox = document.getElementById('result');
   const summaryContainer = document.getElementById('field-summary-container');

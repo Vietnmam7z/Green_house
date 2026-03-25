@@ -8,33 +8,32 @@
     <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
 <body>
-    <div style="display: none;">
-        <h3>Danh sách Field:</h3>
-        <ul id="field-list"></ul>
-        <pre id="telemetry-list"></pre>
-    </div>
+    <div class="navbar">
+        <div class="navbar-left">
+            <img src="/static/img/logo.png" alt="Logo" class="logo-img">
+            <span class="logo-text">SmartCare</span>
+        </div>
 
-    <nav class="navbar">
-        <div class="nav-logo">
-            <i class="fa-solid fa-leaf"></i> SmartCare
-        </div>
-        <div class="nav-actions">
-            <button id="logoutBtn" class="btn-logout">Log out</button>
-            <div class="nav-icons">
-                <i class="fa-regular fa-bell"></i>
-                <i class="fa-regular fa-user"></i>
-                <i class="fa-solid fa-gear" id="btn-settings" style="cursor: pointer;" title="Quản lý Hệ thống"></i>
-                <i class="fa-solid fa-bars"></i>
+        <div class="navbar-right">
+            <img src="/static/img/bell.png" alt="Notifications" class="nav-icon">
+            
+            <div class="user-profile">
+                <img src="/static/img/user.png" alt="User" class="nav-icon">
+                <div class="user-info">
+                    <span class="user-name" id="userName">ĐANG TẢI...</span>
+                    <span class="user-role" id="userRole">role</span>
+                </div>
             </div>
+
+            <img src="/static/img/menu.png" alt="Settings" id="btn-settings" class="nav-icon" style="cursor: pointer;" title="Quản lý Hệ thống">
+
+            <img src="/static/img/logout-icon.png" alt="Logout" id="logoutBtn" class="nav-icon" style="cursor: pointer;" title="Đăng xuất">
         </div>
-    </nav>
+    </div>
 
     <div class="main-container">
         
         <div class="dashboard-title">DASHBOARD</div>
-
-        <div class="tabs-container" id="field-tabs">
-            </div>
 
         <div class="action-bar">
             <button id= "goToDashboard" class = "btn-action btn-back">
