@@ -2,10 +2,10 @@
 // CẤU HÌNH GIAO DIỆN
 // ==========================================
 const telemetryConfig = {
-  "temperature": { label: "Nhiệt độ", unit: "°C", icon: "fa-temperature-half", color: "#e74c3c" },
-  "humidity": { label: "Độ ẩm khí", unit: "%", icon: "fa-droplet", color: "#3498db" },
-  "moisture": { label: "Độ ẩm đất", unit: "%", icon: "fa-water", color: "#8e44ad" },
-  "light": { label: "Ánh sáng", unit: "lx", icon: "fa-sun", color: "#f1c40f" }
+  "temperature": { label: "Air Temperature", unit: "°C", icon: "fa-temperature-half", color: "#e74c3c" },
+  "humidity": { label: "Air Humidity", unit: "%", icon: "fa-droplet", color: "#3498db" },
+  "moisture": { label: "Soil Moisture", unit: "%", icon: "fa-water", color: "#8e44ad" },
+  "light": { label: "Light Intensity", unit: "lx", icon: "fa-sun", color: "#f1c40f" }
 };
 
 function getConfig(key) {
@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function () {
         summaryDiv.innerHTML = `
           <div style="margin-bottom: 10px;">${miniPanelsHTML}</div>
           <div style="font-size: 0.85em; color: #4CAF50; text-align: right; margin-top: 12px; font-weight: 500;">
-            Vào bảng điều khiển &rarr;
+            Go to Dashboard &rarr;
           </div>
         `;
       }

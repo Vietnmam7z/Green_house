@@ -194,11 +194,24 @@ document.addEventListener("DOMContentLoaded", () => {
     setInterval(layDanhSachField, 10000); 
     setInterval(capNhatDuLieu, 5000); 
 });
+
+
 document.addEventListener("DOMContentLoaded", () => {
     const goToDashboard = document.getElementById('goToDashboard');
     const goToControl = document.getElementById('ControlBtn');
     const btnSettings = document.getElementById('btn-settings');
     const logoutBtn = document.getElementById('logoutBtn');
+
+    fetch('/api/current_user')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          document.getElementById('userName').innerText = data.username;
+          document.getElementById('userRole').innerText = data.role;
+        }
+      })
+      .catch(err => console.error("Lỗi lấy thông tin user:", err));
+      
     if (btnSettings) {
         btnSettings.addEventListener('click', () => {
             window.location.href = '/manage';

@@ -111,16 +111,20 @@ body {
     font-size: 28px;
     font-weight: 800;
     letter-spacing: 1px;
-    margin-top: 20px;
-    margin-bottom: 30px;
+    margin-top: 5px;
+    margin-bottom: 15px;
 }
 
 .action-bar {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
     margin-bottom: 40px;
 }
+
+.action-bar > :first-child { justify-self: start; }
+.action-bar > :nth-child(2) { justify-self: center; }
+.action-bar > :last-child { justify-self: end; }
 
 .btn-action {
     padding: 10px 24px;

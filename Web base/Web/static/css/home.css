@@ -1,6 +1,13 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
 body {
-  margin: 0;
-  font-family: Arial, sans-serif;
+    background-color: #f4f6f8; /* Đồng bộ màu nền xám nhạt tinh tế */
+    color: #333;
 }
 
 /* Thanh điều hướng */
@@ -38,20 +45,6 @@ body {
 .nav-icon {
   height: 24px;
   cursor: pointer;
-}
-
-.logout-btn {
-  background-color: #e74c3c;
-  color: white;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.logout-btn:hover {
-  background-color: #c0392b;
 }
 
 /* Nội dung */
