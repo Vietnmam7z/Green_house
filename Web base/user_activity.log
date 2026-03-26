@@ -285,3 +285,32 @@
 2026-03-18 17:04:36,356 - INFO - Đăng xuất: HNAT
 2026-03-18 17:06:48,787 - INFO - Đăng xuất: HNAT
 2026-03-18 17:21:38,975 - INFO - Đăng xuất: HNAT
+2026-03-19 10:58:57,165 - INFO - Đăng nhập: 1
+2026-03-25 09:24:07,654 - INFO - Đăng nhập: 1
+2026-03-25 09:24:28,192 - INFO - Đăng xuất: 1
+2026-03-25 09:24:45,363 - INFO - Đăng nhập: 1
+2026-03-25 09:29:47,696 - INFO - Đăng xuất: 1
+2026-03-25 09:33:22,065 - WARNING - Đặt lại mật khẩu: HNAT
+2026-03-25 09:33:48,166 - INFO - Đăng nhập: 1
+2026-03-25 09:45:29,160 - INFO - Đăng xuất: 1
+2026-03-25 09:45:50,616 - INFO - Đăng nhập: 1
+2026-03-25 09:45:58,480 - INFO - Đăng xuất: 1
+2026-03-25 09:46:15,029 - INFO - Đăng nhập: 1
+2026-03-25 10:01:00,783 - INFO - Đăng xuất: 1
+2026-03-25 10:01:08,186 - INFO - Đăng nhập: HNAT
+2026-03-25 10:10:09,824 - INFO - Đăng xuất: HNAT
+2026-03-25 10:10:12,296 - INFO - Đăng nhập: 1
+2026-03-25 10:10:24,500 - INFO - Đăng xuất: 1
+2026-03-25 10:10:37,779 - INFO - Đăng nhập: sybau
+2026-03-25 10:12:25,556 - INFO - Đăng xuất: sybau
+2026-03-25 10:12:52,478 - INFO - Đăng nhập: 1
+2026-03-25 10:13:17,143 - INFO - Đăng xuất: 1
+2026-03-25 10:14:47,942 - INFO - Đăng nhập: HNAT
+2026-03-25 10:15:23,486 - INFO - Đăng xuất: HNAT
+2026-03-25 10:15:25,232 - INFO - Đăng nhập: 1
+2026-03-25 10:34:49,442 - WARNING - Đổi tên ruộng field_1 thành Ruộng dâu
+2026-03-25 21:38:14,592 - INFO - Đăng nhập: 1
+2026-03-26 09:34:24,669 - INFO - Đăng nhập: 1
+2026-03-26 09:35:56,070 - WARNING - Đổi tên thiết bị Air Sensor 5 thành SI Outdoor Sensor 1
+2026-03-26 09:36:16,753 - WARNING - Đổi tên thiết bị SI Soil Moisture 8 thành SI Soil Moisture 1
+2026-03-26 09:36:24,647 - WARNING - Đổi tên thiết bị Humid Sensor 8 thành SI Soil Moisture 2
