@@ -45,6 +45,13 @@ document.addEventListener('DOMContentLoaded', function () {
   const resultBox = document.getElementById('result');
   const summaryContainer = document.getElementById('field-summary-container');
 
+  const btnSettings = document.getElementById('btn-settings');
+  if (btnSettings) {
+      btnSettings.addEventListener('click', () => {
+          window.location.href = '/manage';
+      });
+  }
+  
   if (summaryContainer) {
     loadFieldSummaries();
   }
