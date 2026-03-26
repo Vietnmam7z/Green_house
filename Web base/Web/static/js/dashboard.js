@@ -217,37 +217,36 @@ document.addEventListener("DOMContentLoaded", () => {
             window.location.href = '/manage';
         });
     }
+    
     if (goToDashboard) {
-    goToDashboard.addEventListener('click', function () {
-      window.location.href = '/';
-    });
+        goToDashboard.addEventListener('click', function () {
+            window.location.href = '/';
+        });
     }
+
     if (goToControl) {
-    goToControl.addEventListener('click', function () {
-      window.location.href = '/control';
-    });
+        goToControl.addEventListener('click', function () {
+            // Mang theo id của ruộng hiện tại đẩy sang trang Control
+            if (currentFieldId) {
+                window.location.href = `/control?field_id=${currentFieldId}`;
+            } else {
+                window.location.href = '/control';
+            }
+        });
     }
     if (logoutBtn) {
     logoutBtn.addEventListener('click', function (e) {
-      e.preventDefault();
-      fetch('/logout', { method: 'POST' })
+        e.preventDefault();
+        fetch('/logout', { method: 'POST' })
         .then(res => {
-          if (!res.ok) throw new Error("Server trả về lỗi");
-          return res.json();
+            if (!res.ok) throw new Error("Server trả về lỗi");
+            return res.json();
         })
         .then(data => {
-          if (data.success) { window.location.href = data.redirect || '/login'; } 
-          else { resultBox.innerText = data.message || "Không thể đăng xuất."; }
+            if (data.success) { window.location.href = data.redirect || '/login'; } 
+            else { resultBox.innerText = data.message || "Không thể đăng xuất."; }
         })
         .catch(error => { resultBox.innerText = "Lỗi kết nối!"; });
         });
     }
 });
-// document.addEventListener("DOMContentLoaded", () => {
-//     const goToControl = document.getElementById('goToControl');
-//     if (goToControl) {
-//     goToControl.addEventListener('click', function () {
-//       window.location.href = '/';
-//     });
-//   }
-// });

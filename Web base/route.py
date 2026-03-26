@@ -44,6 +44,37 @@ class Routes:
     def clear_reset_session(self):
         self.pop_reset_session()
         return ("", 204)
+    
+    def control_device(self):
+        # Yêu cầu phải đăng nhập mới được điều khiển
+        if 'username' not in session:
+            return jsonify({"success": False, "message": "Bạn chưa đăng nhập"}), 401
+            
+        username = session.get('username')
+        data = request.get_json()
+        
+        field_id = data.get('field_id')
+        device_name = data.get('device_name')
+        action = data.get('action') # 'ON' hoặc 'OFF'
+
+        # Kiểm tra xem User này có quyền điều khiển Field này không
+        if not self.field.find_username(field_id, username):
+            return jsonify({"success": False, "message": "Bạn không có quyền điều khiển ruộng này"}), 403
+
+        print(f"User {username} ra lệnh: {action} thiết bị {device_name} tại {field_id}")
+
+        # ==========================================================
+        # TODO: GỌI API CỦA COREIOT/THINGSBOARD TẠI ĐÂY ĐỂ ĐIỀU KHIỂN
+        # Ví dụ: self.sensor.send_rpc(device_name, action)
+        # ==========================================================
+
+        # Giả lập thành công (Bạn sẽ thay bằng kết quả thật từ IoT)
+        is_success = True 
+        
+        if is_success:
+            return jsonify({"success": True, "message": f"Đã {action} {device_name}"})
+        else:
+            return jsonify({"success": False, "message": "Thiết bị không phản hồi"})
 
 # HOME PAGE
 ################################################################################################################################        
@@ -500,6 +531,7 @@ server.add_route('/api/rename_device', routes.rename_device, methods=['POST'])
 server.add_route('/api/rename_field', routes.rename_field_name, methods=['POST'])
 server.add_route('/api/send_chart', routes.send_chart, methods=['POST'])
 server.add_route('/api/current_user', routes.get_current_user, methods=['GET'])
+server.add_route('/api/control_device', routes.control_device, methods=['POST'])
 scheduler.add_job(routes.update_status, 'interval', seconds=10)
 # scheduler.add_job(routes.update_out_date_status, 'interval', seconds=5)
 
