@@ -156,6 +156,42 @@ class Routes:
             conn.close()
             
         return jsonify({"success": success, "message": msg})
+    
+    # 1. Render trang HTML
+    def greenhouse_management_page(self):
+        resp = self.require_login()
+        if resp: return resp
+        role = self.auth.get_role(session.get('username'))
+        if role not in ['administrator', 'admin']: return redirect('/')
+        return render_template(config.greenhouse_management_page)
+
+    # 2. API lấy danh sách Field
+    def api_admin_greenhouses(self):
+        import sqlite3
+        conn = sqlite3.connect('field.db')
+        cur = conn.cursor()
+        
+        # LEFT JOIN bảng field với bảng field_user để tìm chủ nhân
+        cur.execute("""
+            SELECT f.field_id, f.field_name, fu.username 
+            FROM field f 
+            LEFT JOIN field_user fu ON f.field_id = fu.field_id
+        """)
+        rows = cur.fetchall()
+        conn.close()
+        
+        result_list = []
+        for row in rows:
+            field_name = row[1] if row[1] and str(row[1]).strip() != "" else "---"
+            username = row[2] if row[2] and str(row[2]).strip() != "" else "---"
+            
+            result_list.append({
+                "field_id": row[0],
+                "plant": field_name,
+                "username": username
+            })
+            
+        return jsonify(result_list)    
 
 # HOME PAGE
 ################################################################################################################################        
@@ -637,6 +673,8 @@ server.add_route('/admin_management', routes.management_page, methods=['GET'])
 server.add_route('/admin_management/users', routes.user_management_page, methods=['GET'])
 server.add_route('/api/admin/users', routes.api_admin_users, methods=['GET'])
 server.add_route('/api/admin/delete_users', routes.api_admin_delete_users, methods=['POST'])
+server.add_route('/admin_management/greenhouses', routes.greenhouse_management_page, methods=['GET'])
+server.add_route('/api/admin/greenhouses', routes.api_admin_greenhouses, methods=['GET'])
 
 scheduler.add_job(routes.update_status, 'interval', seconds=10)
 # scheduler.add_job(routes.update_out_date_status, 'interval', seconds=5)

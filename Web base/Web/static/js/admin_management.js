@@ -31,7 +31,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     document.getElementById('btn-greenhouse-management').addEventListener('click', () => {
-        // Tương lai: window.location.href = '/management/greenhouses';
-        alert("Sắp tới sẽ mở trang Quản lý Nhà kính");
+        window.location.href = '/admin_management/greenhouses';
     });
 });
