@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartCare - User Management</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/user_management.css">
+</head>
+<body>
+
+    <div class="navbar">
+        <div class="navbar-left">
+            <img src="/static/img/logo.png" alt="Logo" class="logo-img">
+            <span class="logo-text">SmartCare</span>
+        </div>
+        <div class="navbar-right">
+            <img src="/static/img/bell.png" alt="Notifications" class="nav-icon">
+            <div class="user-profile">
+                <img src="/static/img/user.png" alt="User" class="nav-icon">
+                <div class="user-info">
+                    <span class="user-name" id="userName">ĐANG TẢI...</span>
+                    <span class="user-role" id="userRole">administrator</span>
+                </div>
+            </div>
+            <img src="/static/img/logout-icon.png" alt="Logout" id="logoutBtn" class="nav-icon" style="cursor: pointer;" title="Đăng xuất">
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="admin-card">
+            
+            <div class="card-header">
+                <div class="toolbar-left">
+                    <button id="btn-back" class="btn-back">
+                        <i class="fa-solid fa-rotate-left"></i> Back
+                    </button>
+                </div>
+                
+                <h2 class="page-title">User Management</h2>
+                
+                <div class="toolbar-right">
+                    <img src="/static/img/bin.png" alt="Delete" id="btn-delete-selected" class="action-icon hidden" title="Xóa tài khoản đã chọn">
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table id="userTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;"><input type="checkbox" id="selectAll"></th>
+                            <th style="width: 80px;">ID</th>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th style="text-align: center;">Number of Fields</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody">
+                        </tbody>
+                </table>
+            </div>
+
+            <div class="pagination" id="paginationContainer">
+                </div>
+
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="deleteModal">
+        <div class="modal-box">
+            <h3>Xác nhận xóa</h3>
+            <p>Bạn có chắc chắn muốn xóa <span id="deleteCount" style="font-weight:bold; color:red;">0</span> tài khoản đã chọn?</p>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="btn-cancel-delete">Hủy</button>
+                <button class="btn-confirm-delete" id="btn-confirm-delete">Xóa</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="fieldModal">
+        <div class="modal-box field-modal">
+            <div class="modal-header">
+                <h3>List of Fields</h3>
+                <i class="fa-solid fa-xmark close-modal" id="closeFieldModal"></i>
+            </div>
+            <p class="field-label">FIELD ID</p>
+            <p id="fieldListContent" class="field-values">001, 002, 003, 005, 006, 007</p>
+        </div>
+    </div>
+
+    <script src="/static/js/user_management.js"></script>
+</body>
+</html>
