@@ -1,8 +1,15 @@
 let allFields = [];      
 let currentPage = 1;    
 const rowsPerPage = 10; 
+let isSelectAllIndeterminate = false;
 
 document.addEventListener("DOMContentLoaded", () => {
+    const btnBack = document.getElementById('btn-back');
+    if (btnBack) {
+        btnBack.addEventListener('click', () => {
+            window.location.href = '/admin_management';
+        });
+    }
     // Tải thông tin Admin
     fetch('/api/current_user')
       .then(res => res.json())
@@ -20,18 +27,81 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // CHỨC NĂNG XỬ LÝ CHECKBOX (MỚI)
+    // CHỨC NĂNG XỬ LÝ THANH TOOLBAR MỚI (UPDATE)
     // 1. Nút "Select All"
-    document.getElementById('selectAll').addEventListener('change', function() {
+    document.getElementById('selectAll').addEventListener('click', function(e) {
+        // Nếu trước đó đang có dấu trừ (-), ép nó thành rỗng!
+        if (isSelectAllIndeterminate) {
+            this.checked = false;
+        }
+        
+        // Cập nhật trạng thái xuống các ô con
         const isChecked = this.checked;
         const checkboxes = document.querySelectorAll('.field-checkbox');
         checkboxes.forEach(cb => cb.checked = isChecked);
-        toggleBinIcon();
+        
+        updateToolbar();
     });
 
-    // Tạm thời ẩn 3 nút green khi chưa có code xử lý, để UI gọn
-    // document.querySelector('.action-buttons').classList.add('hidden');
+    // 2. Chức năng Clear icon (Deselect all)
+    document.getElementById('btn-clear-icon').addEventListener('click', () => {
+        const checkboxes = document.querySelectorAll('.field-checkbox');
+        checkboxes.forEach(cb => cb.checked = false);
+        const selectAllCheckbox = document.getElementById('selectAll');
+        if (selectAllCheckbox) selectAllCheckbox.checked = false;
+        updateToolbar();
+    });
+    
+    // placeholder click handlers for add, edit, delete
+    document.getElementById('btn-add-icon').addEventListener('click', () => alert('Add new field logic goes here'));
+    document.getElementById('btn-edit-icon').addEventListener('click', () => alert('Edit selected field logic goes here'));
+    document.getElementById('btn-delete-icon').addEventListener('click', () => alert('Delete selected field(s) logic goes here'));
+    
+    // Khởi tạo trạng thái ban đầu
+    updateToolbar(); 
 });
+
+// Function mới để cập nhật trạng thái toolbar
+// Function mới để cập nhật trạng thái toolbar
+function updateToolbar() {
+    const checkedBoxes = document.querySelectorAll('.field-checkbox:checked');
+    const totalBoxes = document.querySelectorAll('.field-checkbox');
+    const checkedCount = checkedBoxes.length;
+    
+    const addIcon = document.getElementById('btn-add-icon');
+    const editIcon = document.getElementById('btn-edit-icon');
+    const deleteIcon = document.getElementById('btn-delete-icon');
+    const clearIcon = document.getElementById('btn-clear-icon');
+
+    // Ẩn tất cả trước
+    [addIcon, editIcon, deleteIcon, clearIcon].forEach(icon => icon.classList.add('hidden'));
+
+    if (checkedCount === 0) {
+        addIcon.classList.remove('hidden');
+    } else if (checkedCount === 1) {
+        [addIcon, editIcon, deleteIcon, clearIcon].forEach(icon => icon.classList.remove('hidden'));
+    } else if (checkedCount >= 2) {
+        [deleteIcon, clearIcon].forEach(icon => icon.classList.remove('hidden'));
+    }
+    
+    // CẬP NHẬT TRẠNG THÁI CHECKBOX TỔNG: (Trống) / (Dấu trừ) / (Tích V)
+    const selectAllCheckbox = document.getElementById('selectAll');
+    if (selectAllCheckbox) {
+        if (checkedCount === 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+            isSelectAllIndeterminate = false;
+        } else if (checkedCount === totalBoxes.length && totalBoxes.length > 0) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+            isSelectAllIndeterminate = false;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true; // HIỆN DẤU TRỪ (-) Ở ĐÂY
+            isSelectAllIndeterminate = true;
+        }
+    }
+}
 
 async function loadFields() {
     try {
@@ -72,25 +142,14 @@ function renderTable() {
 
         // Gắn sự kiện click checkbox con để hiện/ẩn thùng rác
         const checkbox = tr.querySelector('.field-checkbox');
-        checkbox.addEventListener('change', () => toggleBinIcon());
+        checkbox.addEventListener('change', () => updateToolbar()); // Cập nhật toggleBinIcon() cũ
 
         tbody.appendChild(tr);
     });
 
     // Reset nút "Select All" khi chuyển trang
     document.getElementById('selectAll').checked = false;
-    toggleBinIcon();
-}
-
-// Hàm kiểm tra xem có hiện thùng rác đỏ không
-function toggleBinIcon() {
-    const checkedBoxes = document.querySelectorAll('.field-checkbox:checked');
-    const btnBin = document.getElementById('btn-delete-selected');
-    if (checkedBoxes.length > 0) {
-        btnBin.classList.remove('hidden');
-    } else {
-        btnBin.classList.add('hidden');
-    }
+    updateToolbar(); // Cập nhật toggleBinIcon() cũ
 }
 
 // Phân trang (Giữ nguyên)

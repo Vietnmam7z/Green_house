@@ -32,15 +32,19 @@
             
             <div class="card-header">
                 <div class="toolbar-left">
-                    <img src="/static/img/bin.png" alt="Delete" id="btn-delete-selected" class="action-icon hidden" title="Xóa các ruộng đã chọn">
+                    <button id="btn-back" class="btn-back">
+                        <i class="fa-solid fa-rotate-left"></i> Back
+                    </button>
                 </div>
 
                 <h2 class="page-title">Greenhouse Management</h2>
                 
-                <div class="action-buttons">
-                    <button class="btn-action btn-edit">Edit field</button>
-                    <button class="btn-action btn-add">Add field</button>
-                    <button class="btn-action btn-delete">Delete field</button>
+                <div class="toolbar-right">
+                    <img src="/static/img/add.png" alt="Add" id="btn-add-icon" class="action-icon" title="Add new field">
+                    
+                    <img src="/static/img/edit.png" alt="Edit" id="btn-edit-icon" class="action-icon hidden" title="Edit selected field">
+                    <img src="/static/img/bin.png" alt="Delete" id="btn-delete-icon" class="action-icon hidden" title="Delete selected field(s)">
+                    <img src="/static/img/clear.png" alt="Clear" id="btn-clear-icon" class="action-icon hidden" title="Deselect all">
                 </div>
             </div>
 

@@ -1,6 +1,7 @@
 let allUsers = [];      // Chứa toàn bộ user lấy từ DB
 let currentPage = 1;    // Trang hiện tại đang xem
 const rowsPerPage = 10; // Giới hạn 10 user / 1 trang
+let isSelectAllIndeterminate = false;
 
 document.addEventListener("DOMContentLoaded", () => {
     // Tải thông tin Admin
@@ -58,9 +59,15 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("Lỗi khi xóa: " + result.message);
         }
     });
+    
 
-    // Xử lý nút Select All
-    document.getElementById('selectAll').addEventListener('change', function() {
+    // Xử lý nút Select All (Đổi từ 'change' sang 'click' để ép buộc Hủy chọn)
+    document.getElementById('selectAll').addEventListener('click', function(e) {
+        // Nếu đang ở trạng thái dấu trừ (-), ép nó thành bỏ chọn tất cả
+        if (isSelectAllIndeterminate) {
+            this.checked = false;
+        }
+        
         const isChecked = this.checked;
         const checkboxes = document.querySelectorAll('.user-checkbox');
         checkboxes.forEach(cb => cb.checked = isChecked);
@@ -182,10 +189,29 @@ function updateView() {
 
 function toggleBinIcon() {
     const checkedBoxes = document.querySelectorAll('.user-checkbox:checked');
+    const totalBoxes = document.querySelectorAll('.user-checkbox');
     const btnDelete = document.getElementById('btn-delete-selected');
+    const selectAll = document.getElementById('selectAll');
+
+    // Hiện/ẩn thùng rác
     if (checkedBoxes.length > 0) {
         btnDelete.classList.remove('hidden');
     } else {
         btnDelete.classList.add('hidden');
+    }
+
+    // Xử lý trạng thái Checkbox Tổng (Trống / Dấu trừ / Tích V)
+    if (checkedBoxes.length === 0) {
+        selectAll.checked = false;
+        selectAll.indeterminate = false;
+        isSelectAllIndeterminate = false;
+    } else if (checkedBoxes.length === totalBoxes.length && totalBoxes.length > 0) {
+        selectAll.checked = true;
+        selectAll.indeterminate = false;
+        isSelectAllIndeterminate = false;
+    } else {
+        selectAll.checked = false;
+        selectAll.indeterminate = true; // Hiện dấu trừ (-)
+        isSelectAllIndeterminate = true;
     }
 }
