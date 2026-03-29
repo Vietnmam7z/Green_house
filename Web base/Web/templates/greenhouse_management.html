@@ -44,7 +44,7 @@
                     
                     <img src="/static/img/edit.png" alt="Edit" id="btn-edit-icon" class="action-icon hidden" title="Edit selected field">
                     <img src="/static/img/bin.png" alt="Delete" id="btn-delete-icon" class="action-icon hidden" title="Delete selected field(s)">
-                    <img src="/static/img/clear.png" alt="Clear" id="btn-clear-icon" class="action-icon hidden" title="Deselect all">
+                    <img src="/static/img/clear.png" alt="Clear" id="btn-clear-icon" class="action-icon hidden" title="Clear selected field(s)">
                 </div>
             </div>
 
@@ -67,6 +67,61 @@
             <div class="pagination" id="paginationContainer">
                 </div>
 
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="addFieldModal">
+        <div class="modal-box field-modal">
+            <div class="modal-header">
+                <h3 style="font-size: 28px; font-weight: 900; color: #000;">Add Field</h3>
+                <i class="fa-solid fa-xmark close-modal" id="closeAddFieldModal" style="font-size: 24px;"></i>
+            </div>
+            
+            <div class="input-group" style="margin-top: 25px; text-align: left;">
+                <label style="font-size: 13px; color: #333; font-weight: 600; text-transform: uppercase; letter-spacing: 2px;">Field ID</label>
+                <input type="text" id="newFieldId" placeholder="Text field data" autocomplete="off">
+            </div>
+            
+            <div class="modal-actions" style="justify-content: flex-end; margin-top: 40px;">
+                <button class="btn-submit-green" id="btn-submit-add-field">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="editFieldModal">
+        <div class="modal-box field-modal">
+            <div class="modal-header">
+                <h3 style="font-size: 28px; font-weight: 900; color: #000;">Edit Field</h3>
+                <i class="fa-solid fa-xmark close-modal" id="closeEditFieldModal" style="font-size: 24px;"></i>
+            </div>
+            
+            <div class="input-group" style="margin-top: 25px; text-align: left;">
+                <label style="font-size: 13px; color: #333; font-weight: 600; text-transform: uppercase; letter-spacing: 2px;">Field ID</label>
+                <select id="editFieldId" class="modal-select">
+                    <option value="">Choose the field</option>
+                    </select>
+            </div>
+
+            <div class="input-group" style="margin-top: 15px; text-align: left;">
+                <label style="font-size: 13px; color: #333; font-weight: 600; text-transform: uppercase; letter-spacing: 2px;">Username</label>
+                <select id="editUsername" class="modal-select">
+                    <option value="">Choose username</option>
+                    </select>
+            </div>
+
+            <div class="input-group" style="margin-top: 15px; text-align: left;">
+                <label style="font-size: 13px; color: #333; font-weight: 600; text-transform: uppercase; letter-spacing: 2px;">Plant</label>
+                <input type="text" id="editPlant" list="plantOptions" placeholder="Type the plant name" class="modal-input" autocomplete="off">
+                <datalist id="plantOptions">
+                    <option value="Strawberry">
+                    <option value="Ruộng dâu">
+                    <option value="Ruộng ngô">
+                </datalist>
+            </div>
+            
+            <div class="modal-actions" style="justify-content: flex-end; margin-top: 35px;">
+                <button class="btn-submit-green" id="btn-submit-edit-field">Submit</button>
+            </div>
         </div>
     </div>
 

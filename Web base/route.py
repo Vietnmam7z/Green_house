@@ -193,6 +193,137 @@ class Routes:
             
         return jsonify(result_list)    
 
+    # API THÊM FIELD MỚI (GREENHOUSE)
+    def api_admin_add_greenhouse(self):
+        data = request.get_json()
+        field_id = data.get('field_id', '').strip()
+
+        if not field_id:
+            return jsonify({"success": False, "message": "Field ID không hợp lệ"})
+
+        import sqlite3
+        conn = sqlite3.connect('field.db')
+        cur = conn.cursor()
+
+        try:
+            # Chỉ thêm vào bảng field, field_name = NULL để tự động hiện "---" trên web
+            cur.execute("INSERT INTO field (field_id, field_name) VALUES (?, ?)", (field_id, None))
+            conn.commit()
+            success = True
+            msg = "Thêm thành công"
+        except sqlite3.IntegrityError:
+            conn.rollback()
+            success = False
+            msg = f"Field ID '{field_id}' đã tồn tại trong hệ thống!"
+        except Exception as e:
+            conn.rollback()
+            success = False
+            msg = str(e)
+        finally:
+            conn.close()
+
+        return jsonify({"success": success, "message": msg})
+    
+    # API DỌN DẸP DỮ LIỆU FIELD (CLEAR)
+    def api_admin_clear_fields(self):
+        data = request.get_json()
+        field_ids = data.get('field_ids', [])
+
+        if not field_ids:
+            return jsonify({"success": False, "message": "Không có field nào được chọn"})
+
+        import sqlite3
+        conn = sqlite3.connect('field.db')
+        cur = conn.cursor()
+
+        try:
+            for fid in field_ids:
+                # 1. Cập nhật bảng field: Xóa tên Plant (Gán thành NULL)
+                cur.execute("UPDATE field SET field_name = NULL WHERE field_id = ?", (fid,))
+                
+                # 2. Xóa liên kết người dùng trong bảng field_user
+                cur.execute("DELETE FROM field_user WHERE field_id = ?", (fid,))
+            
+            conn.commit()
+            success = True
+            msg = "Đã dọn dẹp thành công"
+        except Exception as e:
+            conn.rollback()
+            success = False
+            msg = str(e)
+        finally:
+            conn.close()
+
+        return jsonify({"success": success, "message": msg})
+    
+    # API CẬP NHẬT FIELD (EDIT GREENHOUSE)
+    def api_admin_edit_greenhouse(self):
+        data = request.get_json()
+        field_id = data.get('field_id', '').strip()
+        username = data.get('username', '').strip()
+        plant = data.get('plant', '').strip()
+
+        if not field_id:
+            return jsonify({"success": False, "message": "Field ID không hợp lệ"})
+
+        import sqlite3
+        conn = sqlite3.connect('field.db')
+        cur = conn.cursor()
+
+        try:
+            # 1. Cập nhật bảng field (Tên Plant)
+            plant_val = plant if plant else None
+            cur.execute("UPDATE field SET field_name = ? WHERE field_id = ?", (plant_val, field_id))
+
+            # 2. Cập nhật bảng field_user (Username)
+            # Xóa liên kết cũ trước để làm sạch
+            cur.execute("DELETE FROM field_user WHERE field_id = ?", (field_id,))
+            
+            # Nếu admin chọn 1 user, thì thêm liên kết mới vào
+            if username:
+                cur.execute("INSERT INTO field_user (field_id, username) VALUES (?, ?)", (field_id, username))
+
+            conn.commit()
+            success = True
+            msg = "Cập nhật thành công"
+        except Exception as e:
+            conn.rollback()
+            success = False
+            msg = str(e)
+        finally:
+            conn.close()
+
+        return jsonify({"success": success, "message": msg})
+    
+    # API XÓA HOÀN TOÀN FIELD (DELETE GREENHOUSE)
+    def api_admin_delete_greenhouse_fields(self):
+        data = request.get_json()
+        field_ids = data.get('field_ids', [])
+
+        if not field_ids:
+            return jsonify({"success": False, "message": "Không có field nào được chọn"})
+
+        import sqlite3
+        conn = sqlite3.connect('field.db')
+        cur = conn.cursor()
+
+        try:
+            for fid in field_ids:
+                # Nhờ ON DELETE CASCADE, chỉ cần xóa ở bảng gốc 'field' là đủ
+                cur.execute("DELETE FROM field WHERE field_id = ?", (fid,))
+            
+            conn.commit()
+            success = True
+            msg = "Đã xóa field thành công"
+        except Exception as e:
+            conn.rollback()
+            success = False
+            msg = str(e)
+        finally:
+            conn.close()
+
+        return jsonify({"success": success, "message": msg})
+
 # HOME PAGE
 ################################################################################################################################        
  
@@ -675,6 +806,10 @@ server.add_route('/api/admin/users', routes.api_admin_users, methods=['GET'])
 server.add_route('/api/admin/delete_users', routes.api_admin_delete_users, methods=['POST'])
 server.add_route('/admin_management/greenhouses', routes.greenhouse_management_page, methods=['GET'])
 server.add_route('/api/admin/greenhouses', routes.api_admin_greenhouses, methods=['GET'])
+server.add_route('/api/admin/add_greenhouse', routes.api_admin_add_greenhouse, methods=['POST'])
+server.add_route('/api/admin/clear_fields', routes.api_admin_clear_fields, methods=['POST'])
+server.add_route('/api/admin/edit_greenhouse', routes.api_admin_edit_greenhouse, methods=['POST'])
+server.add_route('/api/admin/delete_greenhouse_fields', routes.api_admin_delete_greenhouse_fields, methods=['POST'])
 
 scheduler.add_job(routes.update_status, 'interval', seconds=10)
 # scheduler.add_job(routes.update_out_date_status, 'interval', seconds=5)
