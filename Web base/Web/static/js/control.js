@@ -4,10 +4,33 @@ let currentIndex = 0;
 let currentFieldId = null;
 
 // ======================================================================
-// 1. KHỞI TẠO BỘ NHỚ LƯU TRẠNG THÁI CÔNG TẮC (Dùng localStorage để chống mất khi F5)
-// Cấu trúc: { "field_1": { "Light": true, "Vent": false }, "field_2": {...} }
+// 1. HÀM ĐỒNG BỘ TRẠNG THÁI TỪ DATABASE (Thay thế cho localStorage cũ)
 // ======================================================================
-let deviceStates = JSON.parse(localStorage.getItem('smartcare_device_states')) || {};
+function syncControlStates() {
+    if (!currentFieldId) return;
+
+    fetch(`/api/get_control_status?field_id=${currentFieldId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && data.states) {
+                // Quét tất cả các công tắc trên giao diện
+                const toggles = document.querySelectorAll('.device-toggle');
+                
+                toggles.forEach(toggle => {
+                    const deviceName = toggle.getAttribute('data-device');
+                    // Lấy trạng thái từ DB, nếu 'ON' thì là true, ngược lại là false
+                    const stateFromDB = data.states[deviceName];
+                    const isChecked = (stateFromDB === 'ON');
+                    
+                    // Chỉ cập nhật nếu trạng thái trên UI khác với DB (tránh chớp nháy)
+                    if (toggle.checked !== isChecked) {
+                        toggle.checked = isChecked;
+                    }
+                });
+            }
+        })
+        .catch(err => console.error("Lỗi đồng bộ Control:", err));
+}
 
 // Hàm cập nhật màn hình khi chuyển ruộng
 function capNhatHienThiField() {
@@ -19,33 +42,19 @@ function capNhatHienThiField() {
     const nameLabel = document.getElementById('current-field-name');
     if (nameLabel) nameLabel.textContent = currentField.field_name;
 
-    // Cập nhật nút Back
-    const btnBack = document.getElementById('goToDashboard');
+    // Cập nhật URL cho nút Back để lùi về đúng Dashboard của ruộng hiện tại
+    const btnBack = document.getElementById('goToDashboard') || document.getElementById('btn-back');
     if (btnBack) {
-        btnBack.onclick = () => {
+        btnBack.onclick = (e) => {
+            e.preventDefault();
             window.location.href = `/dashboard?field_id=${currentFieldId}`;
         };
     }
 
-    // 2. GỌI HÀM CẬP NHẬT CÔNG TẮC CHO RUỘNG MỚI NÀY
-    capNhatGiaoDienCongTac();
+    // Gọi đồng bộ ngay lập tức khi vừa chuyển sang ruộng mới
+    syncControlStates();
 }
 
-// Hàm load trạng thái từ bộ nhớ ra giao diện công tắc
-function capNhatGiaoDienCongTac() {
-    const toggles = document.querySelectorAll('.device-toggle');
-
-    // Nếu ruộng này chưa từng được lưu trạng thái, tạo mặc định một danh sách rỗng
-    if (!deviceStates[currentFieldId]) {
-        deviceStates[currentFieldId] = {};
-    }
-
-    toggles.forEach(toggle => {
-        const deviceName = toggle.getAttribute('data-device');
-        // Đọc trạng thái từ bộ nhớ, nếu chưa có thì cho mặc định là TẮT (false)
-        toggle.checked = deviceStates[currentFieldId][deviceName] || false;
-    });
-}
 
 // Hàm tải danh sách ruộng từ Server
 async function layDanhSachField() {
@@ -74,15 +83,23 @@ async function layDanhSachField() {
     }
 }
 
+// ======================================================================
 // KHỞI CHẠY KHI TRANG TẢI XONG
+// ======================================================================
 document.addEventListener("DOMContentLoaded", () => {
-    // Tải thông tin người dùng lên Navbar
+    // 2. LẤY THÔNG TIN USER (Đã fix hiển thị administrator)
     fetch('/api/current_user')
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          document.getElementById('userName').innerText = data.username;
-          document.getElementById('userRole').innerText = data.role;
+            document.getElementById('userName').innerText = data.username;
+            
+            // XỬ LÝ ĐỔI TÊN ROLE TỪ "admin" THÀNH "administrator"
+            let displayRole = data.role;
+            if (displayRole === 'admin') displayRole = 'administrator';
+            
+            const userRoleEl = document.getElementById('userRole');
+            if (userRoleEl) userRoleEl.innerText = displayRole;
         }
       })
       .catch(err => console.error("Lỗi lấy thông tin user:", err));
@@ -136,7 +153,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ======================================================================
-    // 3. BẮT SỰ KIỆN VÀ LƯU VÀO BỘ NHỚ KHI NGƯỜI DÙNG GẠT CÔNG TẮC
+    // 3. GỬI LỆNH LÊN SERVER KHI NGƯỜI DÙNG GẠT CÔNG TẮC
     // ======================================================================
     const toggles = document.querySelectorAll('.device-toggle');
     toggles.forEach(toggle => {
@@ -151,7 +168,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             try {
-                // Báo cáo lên Server Python
+                // Báo cáo lệnh điều khiển lên Server (Đồng thời server sẽ lưu vào DB)
                 const response = await fetch('/api/control_device', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -166,18 +183,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 if (data.success) {
                     console.log(`Đã ${isTurnedOn ? 'BẬT' : 'TẮT'} ${deviceName} tại ${currentFieldId}`);
-                    
-                    // --- CẬP NHẬT VÀ LƯU VÀO LOCAL STORAGE MỚI NHẤT ---
-                    if (!deviceStates[currentFieldId]) {
-                        deviceStates[currentFieldId] = {};
-                    }
-                    deviceStates[currentFieldId][deviceName] = isTurnedOn;
-                    localStorage.setItem('smartcare_device_states', JSON.stringify(deviceStates));
-                    // --------------------------------------------------
-
+                    // (Đã xóa phần lưu localStorage ở đây vì Server đã lo việc nhớ trạng thái)
                 } else {
                     alert("Lỗi: " + data.message);
-                    this.checked = !isTurnedOn; // Thất bại thì bật/tắt lại như cũ
+                    this.checked = !isTurnedOn; // Thất bại thì giật công tắc về lại như cũ
                 }
             } catch (error) {
                 console.error("Lỗi gửi lệnh điều khiển:", error);
@@ -187,6 +196,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // Bắt đầu lấy dữ liệu
+    // Bắt đầu chu trình lấy dữ liệu
     layDanhSachField();
+
+    // Thiết lập vòng lặp hỏi thăm Server mỗi 2 giây để đồng bộ tự động
+    setInterval(syncControlStates, 2000);
 });

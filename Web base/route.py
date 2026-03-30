@@ -26,7 +26,14 @@ class Routes:
         
     def redirect_if_logged_in(self):
         if 'username' in session:
-            return redirect('/')   
+            username = session.get('username')
+            role = self.auth.get_role(username) # Lấy role để kiểm tra
+            
+            # Phân luồng: Admin về trang quản lý, User về trang chủ
+            if role in ['administrator', 'admin']:
+                return redirect('/admin_management')
+            else:
+                return redirect('/')
 
     def reset_password_page(self):
         username = session.get('username')
@@ -46,35 +53,86 @@ class Routes:
         return ("", 204)
     
     def control_device(self):
-        # Yêu cầu phải đăng nhập mới được điều khiển
+        # Yêu cầu phải đăng nhập
         if 'username' not in session:
             return jsonify({"success": False, "message": "Bạn chưa đăng nhập"}), 401
             
         username = session.get('username')
+        role = self.auth.get_role(username)
         data = request.get_json()
         
         field_id = data.get('field_id')
         device_name = data.get('device_name')
         action = data.get('action') # 'ON' hoặc 'OFF'
 
-        # Kiểm tra xem User này có quyền điều khiển Field này không
-        if not self.field.find_username(field_id, username):
-            return jsonify({"success": False, "message": "Bạn không có quyền điều khiển ruộng này"}), 403
+        # 1. KIỂM TRA QUYỀN: Admin được phép, User thường phải check quyền sở hữu
+        if role not in ['administrator', 'admin']:
+            if not self.field.find_username(field_id, username):
+                return jsonify({"success": False, "message": "Bạn không có quyền điều khiển ruộng này"}), 403
 
-        print(f"User {username} ra lệnh: {action} thiết bị {device_name} tại {field_id}")
+        print(f"User {username} ({role}) ra lệnh: {action} thiết bị {device_name} tại {field_id}")
+
+        # 2. LƯU TRẠNG THÁI VÀO DATABASE ĐỂ ĐỒNG BỘ
+        import sqlite3
+        import json
+        conn = sqlite3.connect('field.db')
+        cur = conn.cursor()
+        
+        # Lấy trạng thái hiện tại (nếu có)
+        cur.execute("SELECT status FROM field_status WHERE field_id = ?", (field_id,))
+        row = cur.fetchone()
+
+        states = {}
+        if row and row[0]:
+            try:
+                states = json.loads(row[0])
+            except json.JSONDecodeError:
+                pass
+
+        # Cập nhật trạng thái của thiết bị vừa được bấm
+        states[device_name] = action
+
+        # Lưu ngược lại vào database
+        if row is not None:
+            cur.execute("UPDATE field_status SET status = ? WHERE field_id = ?", (json.dumps(states), field_id))
+        else:
+            cur.execute("INSERT INTO field_status (field_id, status) VALUES (?, ?)", (field_id, json.dumps(states)))
+            
+        conn.commit()
+        conn.close()
 
         # ==========================================================
         # TODO: GỌI API CỦA COREIOT/THINGSBOARD TẠI ĐÂY ĐỂ ĐIỀU KHIỂN
-        # Ví dụ: self.sensor.send_rpc(device_name, action)
         # ==========================================================
-
-        # Giả lập thành công (Bạn sẽ thay bằng kết quả thật từ IoT)
         is_success = True 
         
         if is_success:
             return jsonify({"success": True, "message": f"Đã {action} {device_name}"})
         else:
             return jsonify({"success": False, "message": "Thiết bị không phản hồi"})
+    
+    # API LẤY TRẠNG THÁI ĐỒNG BỘ CHO TRANG CONTROL
+    def get_control_status(self):
+        field_id = request.args.get('field_id')
+        if not field_id:
+            return jsonify({"success": False, "message": "Thiếu field_id"})
+
+        import sqlite3
+        import json
+        conn = sqlite3.connect('field.db')
+        cur = conn.cursor()
+        cur.execute("SELECT status FROM field_status WHERE field_id = ?", (field_id,))
+        row = cur.fetchone()
+        conn.close()
+
+        states = {}
+        if row and row[0]:
+            try:
+                states = json.loads(row[0])
+            except json.JSONDecodeError:
+                pass
+
+        return jsonify({"success": True, "states": states})
         
     def management_page(self):
         resp = self.require_login()
@@ -329,12 +387,20 @@ class Routes:
  
  # HOME PAGE  
      
+    # HOME PAGE  
     def home_page(self):
         resp = self.require_login()
-        if resp:  # Nếu require_login trả về một response (redirect hoặc render)
+        if resp:  # Nếu chưa đăng nhập thì văng ra /login
             return resp
 
         username = session.get('username')
+        role = self.auth.get_role(username)
+
+        # Nếu là Admin vô tình vào trang "/", tự động đẩy về "/admin_management"
+        if role in ['administrator', 'admin']:
+            return redirect('/admin_management')
+
+        # Nếu là User thường thì cho vào trang Home giám sát
         return render_template(config.home_page, username=username)
 
     def logout(self):
@@ -373,6 +439,8 @@ class Routes:
         result = self.auth.login_user(username, password)
 
         if result['success']:
+            session.permanent = True
+
             session['username'] = username
             
             # --- KIỂM TRA ROLE ĐỂ PHÂN LUỒNG CHUYỂN TRANG ---
@@ -554,8 +622,30 @@ class Routes:
 
     def get_field(self):
         username = session.get('username')
-        print(self.field.get_fields(username))
-        return jsonify(self.field.get_fields(username))
+        role = self.auth.get_role(username)
+
+        # Nếu là ADMIN: Lấy toàn bộ danh sách ruộng từ Database
+        if role in ['administrator', 'admin']:
+            import sqlite3
+            conn = sqlite3.connect('field.db')
+            cur = conn.cursor()
+            cur.execute("SELECT field_id, field_name FROM field")
+            rows = cur.fetchall()
+            conn.close()
+
+            result = []
+            for row in rows:
+                # Tránh trường hợp field_name bị NULL gây lỗi giao diện
+                f_name = row[1] if row[1] else f"Field {row[0]}"
+                result.append({
+                    "field_id": row[0],
+                    "field_name": f_name
+                })
+            return jsonify(result)
+
+        # Nếu là USER THƯỜNG: Gọi hàm cũ (chỉ lấy ruộng được phân công)
+        else:
+            return jsonify(self.field.get_fields(username))
     
     def delete_field(self):
         field_id = request.get_json().get("field_id")
@@ -799,6 +889,7 @@ server.add_route('/api/rename_field', routes.rename_field_name, methods=['POST']
 server.add_route('/api/send_chart', routes.send_chart, methods=['POST'])
 server.add_route('/api/current_user', routes.get_current_user, methods=['GET'])
 server.add_route('/api/control_device', routes.control_device, methods=['POST'])
+server.add_route('/api/get_control_status', routes.get_control_status, methods=['GET'])
 
 server.add_route('/admin_management', routes.management_page, methods=['GET'])
 server.add_route('/admin_management/users', routes.user_management_page, methods=['GET'])

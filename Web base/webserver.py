@@ -2,11 +2,12 @@
 from datetime import timedelta
 import socket
 import config 
+import os
 
 class FlaskServer:
     def __init__(self):
         self.app = Flask(__name__, template_folder=config.template_folder, static_folder=config.static_folder)
-        self.app.secret_key = 'secret_key'  
+        self.app.secret_key = os.urandom(24)
         self.app.permanent_session_lifetime = timedelta(days=1)
         self.routes = []
 

@@ -331,16 +331,24 @@ function renderTable() {
     paginatedFields.forEach((field) => {
         const tr = document.createElement('tr');
         
-        // Đã cập nhật để chèn cột checkbox trước
         tr.innerHTML = `
             <td><input type="checkbox" class="field-checkbox" value="${field.field_id}"></td>
-            <td>${field.field_id}</td> <td>${field.plant}</td>
-            <td>${field.username}</td>
+            <td>${field.field_id}</td> 
+            <td style="text-align: center;">${field.plant}</td>
+            <td style="text-align: right;">${field.username}</td>
         `;
 
-        // Gắn sự kiện click checkbox con để hiện/ẩn thùng rác
+        // 1. Xử lý sự kiện cho checkbox (Chặn click lan ra hàng)
         const checkbox = tr.querySelector('.field-checkbox');
-        checkbox.addEventListener('change', () => updateToolbar()); // Cập nhật toggleBinIcon() cũ
+        checkbox.addEventListener('click', (e) => e.stopPropagation()); // NGĂN CHẶN click lan ra ngoài thẻ tr
+        checkbox.addEventListener('change', () => updateToolbar()); 
+
+        // 2. THÊM MỚI: Click vào bất kỳ đâu trên hàng sẽ chuyển sang Dashboard
+        tr.style.cursor = 'pointer'; // Đổi con trỏ chuột thành hình bàn tay
+        tr.addEventListener('click', () => {
+            // Chuyển hướng mang theo tham số field_id
+            window.location.href = `/dashboard?field_id=${field.field_id}`;
+        });
 
         tbody.appendChild(tr);
     });
