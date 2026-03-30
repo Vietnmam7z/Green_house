@@ -38,9 +38,13 @@ function capNhatHienThiField() {
     const currentField = fieldsList[currentIndex];
     currentFieldId = currentField.field_id;
 
-    // Cập nhật tên ruộng
+    // Cập nhật Field Name
     const nameLabel = document.getElementById('current-field-name');
     if (nameLabel) nameLabel.textContent = currentField.field_name;
+
+    // Cập nhật Field ID (MỚI THÊM)
+    const idLabel = document.getElementById('current-field-id');
+    if (idLabel) idLabel.textContent = currentField.field_id;
 
     // Cập nhật URL cho nút Back để lùi về đúng Dashboard của ruộng hiện tại
     const btnBack = document.getElementById('goToDashboard') || document.getElementById('btn-back');
@@ -54,7 +58,6 @@ function capNhatHienThiField() {
     // Gọi đồng bộ ngay lập tức khi vừa chuyển sang ruộng mới
     syncControlStates();
 }
-
 
 // Hàm tải danh sách ruộng từ Server
 async function layDanhSachField() {

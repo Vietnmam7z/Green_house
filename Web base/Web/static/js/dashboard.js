@@ -16,20 +16,22 @@ function getConfig(key) {
     return { label: key, unit: "", icon: "fa-microchip", color: "color-default" };
 }
 
-
 let fieldsList = []; 
 let currentIndex = 0; 
 let currentFieldId = null; 
-
-
 
 function capNhatHienThiField() {
     if (fieldsList.length === 0) return;
     const currentField = fieldsList[currentIndex];
     currentFieldId = currentField.field_id; 
     
+    // Cập nhật Field Name
     const nameLabel = document.getElementById('current-field-name');
     if (nameLabel) nameLabel.textContent = currentField.field_name;
+
+    // Cập nhật Field ID (MỚI THÊM)
+    const idLabel = document.getElementById('current-field-id');
+    if (idLabel) idLabel.textContent = currentField.field_id;
     
     capNhatDuLieu(); 
 }
