@@ -593,13 +593,6 @@ class Routes:
         resp = self.require_login()
         if resp:
             return resp
-            
-        # --- CHẶN USER THƯỜNG TRUY CẬP TRANG ADMIN ---
-        username = session.get('username')
-        role = self.auth.get_role(username)
-        if role != 'administrator' and role != 'admin':
-            return redirect('/') # Nếu không phải admin, đá về trang Home
-        # ---------------------------------------------
 
         return render_template(config.manage_page)
     def add_field(self):

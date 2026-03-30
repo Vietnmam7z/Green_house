@@ -5,7 +5,14 @@ document.addEventListener("DOMContentLoaded", () => {
       .then(data => {
         if (data.success) {
           document.getElementById('userName').innerText = data.username;
-          document.getElementById('userRole').innerText = data.role;
+          
+          // XỬ LÝ ĐỔI TÊN ROLE TỪ "admin" THÀNH "administrator"
+          let displayRole = data.role;
+          if (displayRole === 'admin') {
+              displayRole = 'administrator';
+          }
+          document.getElementById('userRole').innerText = displayRole;
+
         } else {
           window.location.href = '/login';
         }
