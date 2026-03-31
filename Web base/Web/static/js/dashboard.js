@@ -115,6 +115,10 @@ async function capNhatDuLieu() {
                         if (teleData && teleData.value !== undefined) {
                             const val = parseFloat(teleData.value);
                             const config = getConfig(teleKey);
+                            
+                            // Tạo ID duy nhất cho thẻ HTML chứa kết quả AI
+                            const safeDeviceName = deviceName.replace(/\s+/g, '_');
+                            const aiElementId = `ai-${safeDeviceName}-${teleKey}`;
 
                             // Sinh HTML cho từng panel thông số
                             const panelHTML = `
@@ -127,10 +131,18 @@ async function capNhatDuLieu() {
                                         <span class="data-value">${isNaN(val) ? "--" : val}
                                             <span class="data-unit">${config.unit}</span>
                                         </span>
+                                        <div id="${aiElementId}" style="margin-top: 8px; font-size: 0.85rem; color: #00bcd4; font-weight: bold;">
+                                            <i class="fa-solid fa-robot"></i> AI: Đang phân tích...
+                                        </div>
                                     </div>
                                 </div>
                             `;
                             gridContainer.insertAdjacentHTML('beforeend', panelHTML);
+                            
+                            // GỌI HÀM AI NGAY LẬP TỨC CHO THÔNG SỐ NÀY
+                            if (!isNaN(val)) {
+                                fetchAIPrediction(`${safeDeviceName}_${teleKey}`, val, aiElementId, config.unit);
+                            }
                         }
                     }
                 }
@@ -229,6 +241,41 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 });
+async function fetchAIPrediction(sensorId, currentValue, elementId, unit) {
+    try {
+        const response = await fetch('http://127.0.0.1:8000/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                sensor_id: sensorId, 
+                val: currentValue 
+            })
+        });
+
+        if (!response.ok) throw new Error("AI Server Error");
+
+        const data = await response.json();
+        const aiContainer = document.getElementById(elementId);
+
+        if (aiContainer) {
+            if (data.status === "success") {
+                aiContainer.innerHTML = `<i class="fa-solid fa-robot" style="color: #4CAF50;"></i> Next: ${data.predicted_next_val} ${unit}`;
+                aiContainer.style.color = "#4CAF50"; // Màu xanh lá khi dự đoán thành công
+            } else if (data.status === "waiting") {
+                // ĐÃ THAY ĐỔI Ở ĐÂY: Hiển thị tiến độ thu thập dữ liệu
+                aiContainer.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang thu thập: ${data.current_step}/${data.total_steps} dữ liệu`;
+                aiContainer.style.color = "#FF9800"; // Màu cam khi đang chờ
+            }
+        }
+    } catch (err) {
+        console.error(`Lỗi dự đoán cho ${sensorId}:`, err);
+        const aiContainer = document.getElementById(elementId);
+        if (aiContainer) {
+            aiContainer.innerHTML = `<i class="fa-solid fa-robot" style="color: #F44336;"></i> AI offline`;
+            aiContainer.style.color = "#F44336";
+        }
+    }
+}
 // document.addEventListener("DOMContentLoaded", () => {
 //     const goToControl = document.getElementById('goToControl');
 //     if (goToControl) {
