@@ -11,7 +11,8 @@ import config
 import pandas as pd
 import random
 import read_value
-
+import subprocess
+import sys
 class Routes:
     def __init__(self, auth: Authentication, otp: OTPManager, sensor: Sensor_API, field: FieldDB, logger: UserLogger):
         self.auth = auth
@@ -682,5 +683,13 @@ scheduler.add_job(routes.update_status, 'interval', seconds=10)
 
 if __name__ == '__main__':
     scheduler.start()
+    print("Đang khởi động Server AI ngầm...")
+    try:
+        ai_process = subprocess.Popen(
+            [sys.executable, "-m", "uvicorn", "LSTM_AI:app", "--host", "0.0.0.0", "--port", "8000"]
+        )
+        print("Đã bật Server AI tại cổng 8000!")
+    except Exception as e:
+        print(f"Lỗi không thể khởi động Server AI: {e}")
     server.run()
 
