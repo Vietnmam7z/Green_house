@@ -147,7 +147,7 @@ manager = UserManager()
 log = UserLogger()
 otp = OTPManager(manager)
 auth = Authentication(manager, log, otp)
-result = auth.delete_user("alice")
+result = auth.delete_user(1)
 print(result)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -363,7 +363,7 @@ Code tìm user dựa trên field chạy ở field_manager
 
 db = FieldDB()
 
-if db.find_username("field_001", "admin"):
+if db.find_user_id("field_001", 1):
     print("✅ Người dùng tồn tại trong field.")
 else:
     print("⛔ Không tìm thấy người dùng trong field.")
@@ -496,3 +496,221 @@ if __name__ == '__main__':
     server.run()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test chạy lấy anomoly_score_low chạy trong field_manager.py
+db = FieldDB()
+field_id = "001"  # field_id có trong cơ sở dữ liệu
+print("anomoly_score_low:", db.get_anomoly_score_low(field_id))
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test chạy lấy anomoly_score_high chạy trong field_manager.py
+
+db = FieldDB()
+field_id = "001"  # field_id có trong cơ sở dữ liệu
+print("anomoly_score_high:", db.get_anomoly_score_high(field_id))
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test chạy lấy step chạy trong field_manager.py
+
+db = FieldDB()
+field_id = "001"  # field_id có trong cơ sở dữ liệu
+print("step:", db.get_step(field_id))
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test chạy lấy anomoly_status chạy trong field_manager.py
+
+db = FieldDB()
+field_id = "001"  # field_id có trong cơ sở dữ liệu
+print("anomoly_status:", db.get_anomoly_status(field_id))
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test chạy lấy get_prediction_status chạy trong field_manager.py
+
+db = FieldDB()
+field_id = "001"  # field_id có trong cơ sở dữ liệu
+print("prediction_status:", db.get_prediction_status(field_id))
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test chạy lấy anomoly_prediction_status chạy trong field_manager.py
+
+db = FieldDB()
+field_id = "001"  # field_id có trong cơ sở dữ liệu
+print("anomoly_prediction_status:", db.get_anomoly_prediction_status(field_id))
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test đổi anomoly_score_low chạy trong field_manager.py
+
+db = FieldDB()
+field_id = "001"  # field_id có trong cơ sở dữ liệu
+db.set_anomoly_score_low(field_id, 0.25)
+print("Đã cập nhật dữ liệu cho field_id =", field_id)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test đổi anomoly_score_high chạy trong field_manager.py
+
+db = FieldDB()
+field_id = "001"  # field_id có trong cơ sở dữ liệu
+db.set_anomoly_score_high(field_id, 0.85)
+print("Đã cập nhật dữ liệu cho field_id =", field_id)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test đổi step chạy trong field_manager.py
+db = FieldDB()
+field_id = "001"  # field_id có trong cơ sở dữ liệu
+db.set_step(field_id, 5)
+print("Đã cập nhật dữ liệu cho field_id =", field_id)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test đổi anomoly_status chạy trong field_manager.py
+db = FieldDB()
+field_id = "001"  # field_id có trong cơ sở dữ liệu
+db.set_anomoly_status(field_id, "ON")
+print("Đã cập nhật dữ liệu cho field_id =", field_id)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test đổi prediction_status chạy trong field_manager.py
+db = FieldDB()
+field_id = "001"  # field_id có trong cơ sở dữ liệu
+db.set_prediction_status(field_id, "OFF")
+print("Đã cập nhật dữ liệu cho field_id =", field_id)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test lấy telemetry để AI lấy mẫu chạy trong field_manager.py
+Số mẫu không đủ sẽ lấy nhiều nhất có thể
+
+db = FieldDB()
+result = db.get_AI_telemetry_sample("SI Soil Moisture 8", 3)
+print(result)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test đổi anomoly_prediction_status chạy trong field_manager.py
+db = FieldDB()
+field_id = "001"  # field_id có trong cơ sở dữ liệu
+db.set_anomoly_prediction_status(field_id, "ON")
+print("Đã cập nhật dữ liệu cho field_id =", field_id)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test lấy thông tin của tất cả user chạy trên authentication.py và user_manager.py
+
+manager = UserManager()
+print(manager.get_all_user_information())
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test lấy tất cả field id của user field_manager.py
+
+db = FieldDB()
+test_user = 1 
+print(db.get_field_ids(test_user))
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test lấy username bằng user-id chạy trong user_manager.py
+
+manager = UserManager()
+print(manager.get_username(2))
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test hàm api_admin_greenhouses field_manager.py
+
+db = FieldDB()
+print(db.api_admin_greenhouses())
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test hàm tạo record cho thông báo lần đầu field_manager.py
+
+db = FieldDB()
+print(db.create_notification_management("1"))
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test hàm tạo record cho AI_management lần đầu field_manager.py
+
+db = FieldDB()
+print(db.create_AI_management_record("001"))
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test kiểm tra trạng thái bật thông báo field_manager.py
+
+db = FieldDB()
+print(db.get_notification_status("1"))
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test kiểm tra trạng thái bật thông báo field_manager.py
+
+db = FieldDB()
+print(db.set_notification_status("1", "ON"))
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+db = FieldDB()
+print(db.insert_notification("WARNING", "001", 1234567890, "1"))
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Code test cập nhật thêm AI và user_management. Code chạy trên route.py
+pip install joblib
+pip install fastapi
+pip install tensorflow
+pip install scikit-learn
+Chạy pip install apscheduler
+Chạy pip install flask
+Chạy pip install requests
+Chạy pip install pandas
+
+from webserver import FlaskServer
+from user_manager import UserManager
+from logger import UserLogger
+from email_otp import OTPManager
+from sensor_API import Sensor_API
+from field_manager import FieldDB
+from logger import UserLogger
+from apscheduler.schedulers.background import BackgroundScheduler
+
+manager = UserManager()
+log = UserLogger()
+otp = OTPManager(manager)
+auth = Authentication(manager,log,otp)
+server = FlaskServer()
+sensor = Sensor_API()
+field = FieldDB()
+log = UserLogger()
+routes = Routes(auth,otp,sensor,field,log)
+scheduler = BackgroundScheduler()
+
+server.add_route('/', routes.home_page, methods=['GET'])
+server.add_route('/login', routes.login_page, methods=['GET'])
+server.add_route('/login', routes.login, methods=['POST'])
+server.add_route('/logout', routes.logout, methods=['POST'])
+server.add_route('/signup', routes.signup_page, methods=['GET'])
+server.add_route('/signup', routes.signup, methods=['POST'])
+server.add_route('/forgot-password', routes.forgot_password_page, methods=['GET'])
+server.add_route('/forgot-password', routes.send_otp, methods=['POST'])
+server.add_route('/verify-otp', routes.verify_otp, methods=['POST'])
+# server.add_route('/resend-otp', routes.resend_otp, methods=['POST'])
+server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
+server.add_route('/reset-password', routes.reset_password, methods=['POST'])
+
+scheduler.add_job(routes.update_status, 'interval', seconds=5)
+scheduler.add_job(routes.update_out_date_status, 'interval', seconds=5)
+
+if __name__ == '__main__':
+    scheduler.start()
+    server.run()

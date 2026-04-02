@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartCare Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    <div class="navbar">
+        <div class="navbar-left">
+            <img src="../static/img/logo.png" alt="Logo" class="logo-img">
+            <span class="logo-text">SmartCare</span>
+        </div>
+
+        <div class="navbar-right">
+            <img src="../static/img/bell.png" alt="Notifications" class="nav-icon" style="cursor: pointer;" title="Thông báo">
+            
+            <div class="user-profile">
+                <img src="../static/img/user.png" alt="User" class="nav-icon">
+                <div class="user-info">
+                    <span class="user-name" id="userName">ĐANG TẢI...</span>
+                    <span class="user-role" id="userRole">role</span>
+                </div>
+            </div>
+
+            <img src="../static/img/settings.png" alt="Settings" id="btn-settings" class="nav-icon" style="cursor: pointer;" title="Quản lý Hệ thống">
+
+            <img src="../static/img/logout-icon.png" alt="Logout" id="logoutBtn" class="nav-icon" style="cursor: pointer;" title="Đăng xuất">
+        </div>
+    </div>
+
+    <div class="main-container">
+        
+        <div class="dashboard-title">DASHBOARD</div>
+
+        <div class="action-bar">
+            <button id= "goToDashboard" class = "btn-action btn-back">
+                <i class="fa-solid fa-rotate-left"></i> Back
+            </button>
+            
+            <div class="info-pill" style="display: flex; align-items: center; gap: 15px;">
+                <span style="border-right: 2px solid #ccc; padding-right: 15px; margin-right: -5px;">
+                    Field ID: <strong id="current-field-id" style="color: #2e7d32;">---</strong>
+                </span>
+                
+                <button id="btn-prev-field" class="btn-nav"><i class="fa-solid fa-chevron-left"></i></button>
+                <span>Field Name: <strong id="current-field-name">Đang tải...</strong></span>
+                <button id="btn-next-field" class="btn-nav"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+
+            <button id ="ControlBtn" class="btn-action btn-control">
+                <i class="fa-solid fa-wifi"></i> Control
+            </button>
+        </div>
+
+        <div id="dynamic-devices-container"></div>
+
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

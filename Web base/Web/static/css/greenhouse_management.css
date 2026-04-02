@@ -52,9 +52,7 @@ body { background-color: #e5e5e5; color: #333; height: 100vh; display: flex; fle
     transform: scale(1.1); 
     opacity: 0.8; 
 }
-.action-icon.hidden { 
-    display: none !important; 
-}
+
 
 /* Bảng dữ liệu (Giữ nguyên, trừ Cột Field ID nằm thẳng lề trái) */
 .table-container { flex: 1; overflow-y: auto; padding-right: 10px; }
@@ -77,3 +75,49 @@ input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-colo
 .page-btn:hover { background: #e0e0e0; }
 .page-btn.active { background: #651fff; color: white; }
 .page-dots { color: #999; font-weight: bold; }
+
+
+/* Modals (Popups) */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+.modal-box { background: white; padding: 40px; border-radius: 20px; width: 450px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); text-align: center; position: relative; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; }
+.close-modal { cursor: pointer; color: #111; transition: 0.2s; }
+.close-modal:hover { color: #f44336; transform: scale(1.1); }
+
+/* Input Field */
+input[type="text"] { width: 100%; padding: 12px 15px; margin-top: 10px; border: 1px solid #b0b0b0; border-radius: 6px; font-size: 16px; outline: none; transition: border-color 0.2s; color: #333; }
+input[type="text"]::placeholder { color: #9e9e9e; }
+input[type="text"]:focus { border-color: #4CAF50; }
+
+/* Nút Submit Xanh lá */
+.modal-actions { display: flex; gap: 15px; }
+.btn-submit-green {
+    background-color: #4CAF50; 
+    color: white;
+    border: 2px solid #2e7d32; /* Viền xanh lá đậm như hình */
+    padding: 12px 35px;
+    border-radius: 25px;
+    font-size: 18px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.btn-submit-green:hover { background-color: #43a047; }
+.hidden { display: none !important; }
+
+
+/* Styling cho các ô Select và Input trong Modal Edit */
+.modal-select, .modal-input {
+    width: 100%;
+    padding: 12px 15px;
+    margin-top: 8px;
+    border: 1px solid #b0b0b0;
+    border-radius: 6px;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s;
+    color: #333;
+    background-color: white;
+}
+.modal-select:focus, .modal-input:focus { border-color: #4CAF50; }
+.modal-select { cursor: pointer; }

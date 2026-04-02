@@ -33,7 +33,7 @@ class UserManager:
             return cur.fetchone() is not None
 
     def get_password(self, username: str):
-        return self._get_field(username, "password")
+        return self.get_field(username, "password")
     
     def set_password(self, username, hashed_password):
         conn = sqlite3.connect(self.user_db_path)
@@ -43,7 +43,7 @@ class UserManager:
         conn.close()
             
     def get_role(self, username: str):
-        return self._get_field(username, "role")
+        return self.get_field(username, "role")
 
     def get_status(self, username: str, is_online=True):
         status = self._get_field(username, "is_online")
@@ -83,7 +83,7 @@ class UserManager:
             cur.execute("UPDATE user_data SET email = ? WHERE email = ?", (new_email, old_email))
             conn.commit()
 
-    def _get_field(self, username: str, field):
+    def get_field(self, username: str, field):
         with self.connect() as conn:
             cur = conn.cursor()
             cur.execute(f"SELECT {field} FROM user_data WHERE username = ?", (username,))
@@ -147,5 +147,29 @@ class UserManager:
             result = cur.fetchone()
 
         return result[0] if result else None
+
+    def get_all_user_information(self):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT id, username, email, role FROM user_data")
+            rows = cur.fetchall()
+
+        # Trả về danh sách dict để dễ dùng hơn
+        return [
+            {
+                "user_id": row[0],
+                "username": row[1],
+                "email": row[2],
+            }
+            for row in rows
+        ]
+    
+    def get_username(self, user_id: int):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT username FROM user_data WHERE id = ?", (user_id,))
+            result = cur.fetchone()
+        return result[0] if result else None
+    
 
 

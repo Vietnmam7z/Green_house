@@ -13,6 +13,7 @@ import random
 import read_value
 import subprocess
 import sys
+
 class Routes:
     def __init__(self, auth: Authentication, otp: OTPManager, sensor: Sensor_API, field: FieldDB, logger: UserLogger):
         self.auth = auth
@@ -27,7 +28,14 @@ class Routes:
         
     def redirect_if_logged_in(self):
         if 'username' in session:
-            return redirect('/')   
+            username = session.get('username')
+            role = self.auth.get_role(username) # Lấy role để kiểm tra
+            
+            # Phân luồng: Admin về trang quản lý, User về trang chủ
+            if role in ['administrator', 'admin']:
+                return redirect('/admin_management')
+            else:            
+                return redirect('/')   
 
     def reset_password_page(self):
         username = session.get('username')
@@ -52,17 +60,47 @@ class Routes:
             return jsonify({"success": False, "message": "Bạn chưa đăng nhập"}), 401
             
         username = session.get('username')
+        role = self.auth.get_role(username)
         data = request.get_json()
         
         field_id = data.get('field_id')
         device_name = data.get('device_name')
         action = data.get('action') # 'ON' hoặc 'OFF'
 
+		
+        # 1. KIỂM TRA QUYỀN: Admin được phép, User thường phải check quyền sở hữu
         # Kiểm tra xem User này có quyền điều khiển Field này không
-        if not self.field.find_username(field_id, username):
-            return jsonify({"success": False, "message": "Bạn không có quyền điều khiển ruộng này"}), 403
+        if role not in ['administrator', 'admin']:
+            if not self.field.find_username(field_id, username):
+                return jsonify({"success": False, "message": "Bạn không có quyền điều khiển ruộng này"}), 403
 
         print(f"User {username} ra lệnh: {action} thiết bị {device_name} tại {field_id}")
+
+        # 2. LƯU TRẠNG THÁI VÀO DATABASE ĐỂ ĐỒNG BỘ
+        import sqlite3
+        import json
+        conn = sqlite3.connect('field.db')
+        cur = conn.cursor()
+        
+        # Lấy trạng thái hiện tại (nếu có)
+        cur.execute("SELECT status FROM field_status WHERE field_id = ?", (field_id,))
+        row = cur.fetchone()
+        states = {}
+        if row and row[0]:
+            try:
+                states = json.loads(row[0])
+            except json.JSONDecodeError:
+                pass
+        # Cập nhật trạng thái của thiết bị vừa được bấm
+        states[device_name] = action
+        # Lưu ngược lại vào database
+        if row is not None:
+            cur.execute("UPDATE field_status SET status = ? WHERE field_id = ?", (json.dumps(states), field_id))
+        else:
+            cur.execute("INSERT INTO field_status (field_id, status) VALUES (?, ?)", (field_id, json.dumps(states)))
+            
+        conn.commit()
+        conn.close()
 
         # ==========================================================
         # TODO: GỌI API CỦA COREIOT/THINGSBOARD TẠI ĐÂY ĐỂ ĐIỀU KHIỂN
@@ -76,7 +114,27 @@ class Routes:
             return jsonify({"success": True, "message": f"Đã {action} {device_name}"})
         else:
             return jsonify({"success": False, "message": "Thiết bị không phản hồi"})
-        
+	
+    # API LẤY TRẠNG THÁI ĐỒNG BỘ CHO TRANG CONTROL
+    def get_control_status(self):
+        field_id = request.args.get('field_id')
+        if not field_id:
+            return jsonify({"success": False, "message": "Thiếu field_id"})
+        import sqlite3
+        import json
+        conn = sqlite3.connect('field.db')
+        cur = conn.cursor()
+        cur.execute("SELECT status FROM field_status WHERE field_id = ?", (field_id,))
+        row = cur.fetchone()
+        conn.close()
+        states = {}
+        if row and row[0]:
+            try:
+                states = json.loads(row[0])
+            except json.JSONDecodeError:
+                pass
+        return jsonify({"success": True, "states": states})
+            
     def management_page(self):
         resp = self.require_login()
         if resp:
@@ -102,61 +160,38 @@ class Routes:
 
     # 2. API LẤY DANH SÁCH USER VÀ RUỘNG
     def api_admin_users(self):
-        import sqlite3
-        # Lấy danh sách user từ userdata.db
-        conn_user = sqlite3.connect('userdata.db')
-        cur_user = conn_user.cursor()
-        cur_user.execute("SELECT id, username, email FROM user_data WHERE role='user'")
-        users = cur_user.fetchall()
-        conn_user.close()
-
-        # Lấy danh sách field từ field.db
-        conn_field = sqlite3.connect('field.db')
-        cur_field = conn_field.cursor()
-        
+        users = self.auth.get_all_user_information()
         result_list = []
         for u in users:
-            user_id = u[0]
-            username = u[1]
-            email = u[2]
-            
-            # Tìm các field_id thuộc về username này
-            cur_field.execute("SELECT field_id FROM field_user WHERE username=?", (username,))
-            fields = [row[0] for row in cur_field.fetchall()]
-            
+            user_id = u["user_id"]
+            username = u["username"]
+            email = u["email"]
+
+            # get_fields trả về list dict => lấy ra danh sách field_id
+            fields_data = self.field.get_fields(username)   # [{'field_id': '001', 'field_name': 'Plant A'}, ...]
+            field_ids = [f["field_id"] for f in fields_data]
+
+            fields = self.field.get_field_ids(field_ids)
+
             result_list.append({
                 "id": user_id,
                 "username": username,
                 "email": email,
                 "fields": fields
             })
-            
-        conn_field.close()
+        
         return jsonify(result_list)
 
     # 3. API XÓA USER
     def api_admin_delete_users(self):
         data = request.get_json()
         user_ids = data.get('user_ids', [])
-        
-        import sqlite3
-        conn = sqlite3.connect('userdata.db')
-        cur = conn.cursor()
-        
-        try:
-            for uid in user_ids:
-                cur.execute("DELETE FROM user_data WHERE id=?", (uid,))
-            conn.commit()
-            success = True
-            msg = "Đã xóa thành công"
-        except Exception as e:
-            conn.rollback()
-            success = False
-            msg = str(e)
-        finally:
-            conn.close()
-            
-        return jsonify({"success": success, "message": msg})
+        for user_id in user_ids:
+            username = self.auth.get_username(user_id)
+            self.auth.delete_user(username)
+            self.field.delete_user(username)
+            self.logger.log_delete_user(username)
+        return jsonify({"success": True, "message": "Người dùng đã được xóa thành công"})
     
     # 1. Render trang HTML
     def greenhouse_management_page(self):
@@ -168,31 +203,65 @@ class Routes:
 
     # 2. API lấy danh sách Field
     def api_admin_greenhouses(self):
-        import sqlite3
-        conn = sqlite3.connect('field.db')
-        cur = conn.cursor()
-        
-        # LEFT JOIN bảng field với bảng field_user để tìm chủ nhân
-        cur.execute("""
-            SELECT f.field_id, f.field_name, fu.username 
-            FROM field f 
-            LEFT JOIN field_user fu ON f.field_id = fu.field_id
-        """)
-        rows = cur.fetchall()
-        conn.close()
-        
+        rows = self.field.api_admin_greenhouses();
         result_list = []
-        for row in rows:
-            field_name = row[1] if row[1] and str(row[1]).strip() != "" else "---"
-            username = row[2] if row[2] and str(row[2]).strip() != "" else "---"
-            
+        for field_id, field_name, username in rows:
+            field_name = field_name if field_name and str(field_name).strip() != "" else "---"
+            username = username if username else "---"
+
             result_list.append({
-                "field_id": row[0],
+                "field_id": field_id,
                 "plant": field_name,
                 "username": username
             })
+
+        return jsonify(result_list)
             
-        return jsonify(result_list)    
+    # API THÊM FIELD MỚI (GREENHOUSE)
+    def api_admin_add_greenhouse(self):
+        data = request.get_json()
+        field_id = data.get('field_id', '').strip()
+        result = field.add_field(field_id, None, None)
+        self.logger.log_add_field(field_id)
+        return jsonify(result)
+
+    # API DỌN DẸP DỮ LIỆU FIELD (CLEAR)
+    def api_admin_clear_fields(self):
+        data = request.get_json()
+        field_ids = data.get('field_ids', [])
+        for field_id in field_ids:
+            result = self.field.clear_field(field_id)
+            self.logger.log_clear_field(field_id)
+        return jsonify(result)
+
+    # API CẬP NHẬT FIELD (EDIT GREENHOUSE)
+    def api_admin_edit_greenhouse(self):
+        data = request.get_json()
+        field_id = data.get('field_id', '').strip()
+        username = data.get('username', '').strip()
+        plant = data.get('plant', '').strip()
+
+        if not field_id:
+            return jsonify({"success": False, "message": "Field ID không hợp lệ"})
+
+        self.field.rename_field_name(field_id, plant if plant else None)
+        if username:
+            self.field.add_user_to_field(field_id, username)
+            self.logger.log_add_user_to_field(field_id, username)
+
+        return jsonify({"success": True, "message": "Cập nhật thành công"})
+    
+    # API XÓA HOÀN TOÀN FIELD (DELETE GREENHOUSE)
+    def api_admin_delete_greenhouse_fields(self):
+        data = request.get_json()
+        field_ids = data.get('field_ids', [])
+
+        if not field_ids:
+            return jsonify({"success": False, "message": "Không có field nào được chọn"})
+        for field_id in field_ids:
+            self.field.delete_field(field_id)
+            self.logger.log_delete_field(field_id)
+        return jsonify({"success": True, "message": "Đã xóa field thành công"})          
 
 # HOME PAGE
 ################################################################################################################################        
@@ -205,6 +274,11 @@ class Routes:
             return resp
 
         username = session.get('username')
+        role = self.auth.get_role(username)
+        # Nếu là Admin vô tình vào trang "/", tự động đẩy về "/admin_management"
+        if role in ['administrator', 'admin']:
+            return redirect('/admin_management')
+        # Nếu là User thường thì cho vào trang Home giám sát
         return render_template(config.home_page, username=username)
 
     def logout(self):
@@ -243,6 +317,7 @@ class Routes:
         result = self.auth.login_user(username, password)
 
         if result['success']:
+            session.permanent = True
             session['username'] = username
             
             # --- KIỂM TRA ROLE ĐỂ PHÂN LUỒNG CHUYỂN TRANG ---
@@ -286,6 +361,7 @@ class Routes:
         result = self.auth.register_user(username, password, email)
 
         if result['success']:
+            self.field.create_notification_management(username)
             return jsonify({
                 "success": result['success'],
                 "message": result['message'],
@@ -386,24 +462,19 @@ class Routes:
         if resp:
             return resp
         return render_template(config.dashboard_page)
+    
     def control_page(self):
         resp = self.require_login()
         if resp:
             return resp
         return render_template(config.control_page)
+    
     def manage_page(self):
         resp = self.require_login()
         if resp:
             return resp
-            
-        # --- CHẶN USER THƯỜNG TRUY CẬP TRANG ADMIN ---
-        username = session.get('username')
-        role = self.auth.get_role(username)
-        if role != 'administrator' and role != 'admin':
-            return redirect('/') # Nếu không phải admin, đá về trang Home
-        # ---------------------------------------------
-
         return render_template(config.manage_page)
+    
     def add_field(self):
         field_id =  request.form.get("field_id")
         field_name =  request.form.get("field_name")
@@ -424,7 +495,6 @@ class Routes:
 
     def get_field(self):
         username = session.get('username')
-        print(self.field.get_fields(username))
         return jsonify(self.field.get_fields(username))
     
     def delete_field(self):
@@ -669,6 +739,7 @@ server.add_route('/api/rename_field', routes.rename_field_name, methods=['POST']
 server.add_route('/api/send_chart', routes.send_chart, methods=['POST'])
 server.add_route('/api/current_user', routes.get_current_user, methods=['GET'])
 server.add_route('/api/control_device', routes.control_device, methods=['POST'])
+server.add_route('/api/get_control_status', routes.get_control_status, methods=['GET'])
 
 server.add_route('/admin_management', routes.management_page, methods=['GET'])
 server.add_route('/admin_management/users', routes.user_management_page, methods=['GET'])
@@ -676,6 +747,10 @@ server.add_route('/api/admin/users', routes.api_admin_users, methods=['GET'])
 server.add_route('/api/admin/delete_users', routes.api_admin_delete_users, methods=['POST'])
 server.add_route('/admin_management/greenhouses', routes.greenhouse_management_page, methods=['GET'])
 server.add_route('/api/admin/greenhouses', routes.api_admin_greenhouses, methods=['GET'])
+server.add_route('/api/admin/add_greenhouse', routes.api_admin_add_greenhouse, methods=['POST'])
+server.add_route('/api/admin/clear_fields', routes.api_admin_clear_fields, methods=['POST'])
+server.add_route('/api/admin/edit_greenhouse', routes.api_admin_edit_greenhouse, methods=['POST'])
+server.add_route('/api/admin/delete_greenhouse_fields', routes.api_admin_delete_greenhouse_fields, methods=['POST'])
 
 scheduler.add_job(routes.update_status, 'interval', seconds=10)
 # scheduler.add_job(routes.update_out_date_status, 'interval', seconds=5)

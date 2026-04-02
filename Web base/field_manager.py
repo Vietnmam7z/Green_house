@@ -46,7 +46,21 @@ class FieldDB:
                 WHERE fu.username = ?
             """, (username,))
             return [{"field_id": row[0], "field_name": row[1]} for row in cursor.fetchall()]
+        
+    def get_field_ids(self, field_ids: list):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            # Tạo chuỗi placeholder theo số lượng phần tử
+            placeholders = ','.join(['?'] * len(field_ids))
+            cursor.execute(f"""
+                SELECT field_id
+                FROM field
+                WHERE field_id IN ({placeholders})
+            """, field_ids)
+            rows = cursor.fetchall()
+            return [r[0] for r in rows]
 
+        
     def delete_field(self, field_id: str):
         with self.connect() as conn:
             cursor = conn.cursor()
@@ -138,7 +152,7 @@ class FieldDB:
             conn.commit()
             return {"success": True, "message": "Đổi tên thiết bị thành công."}
         
-    def find_username(self, field_id: str, username: str):
+    def find_user_id(self, field_id: str, username: str):
         with self.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
@@ -146,7 +160,7 @@ class FieldDB:
                 WHERE field_id = ? AND username = ?
             """, (field_id, username))
             return cursor.fetchone() is not None
-        
+
     def add_user_to_field(self, field_id: str, username: str):
         with self.connect() as conn:
             cursor = conn.cursor()
@@ -263,5 +277,308 @@ class FieldDB:
                 (cutoff_ms,)
             )
             conn.commit()
+
+    def get_anomoly_score_low(self, field_id: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT anomoly_score_low
+                FROM AI_management
+                WHERE field_id = ?
+            """, (field_id,))
+            return [row[0] for row in cursor.fetchall()]
+
+    def get_anomoly_score_high(self, field_id: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT anomoly_score_high
+                FROM AI_management
+                WHERE field_id = ?
+            """, (field_id,))
+            return [row[0] for row in cursor.fetchall()]
+
+    def get_step(self, field_id: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT step
+                FROM AI_management
+                WHERE field_id = ?
+            """, (field_id,))
+            return [row[0] for row in cursor.fetchall()]
+
+    def get_anomoly_status(self, field_id: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT anomoly_status
+                FROM AI_management
+                WHERE field_id = ?
+            """, (field_id,))
+            return [row[0] for row in cursor.fetchall()]
+
+    def get_prediction_status(self, field_id: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT prediction_status
+                FROM AI_management
+                WHERE field_id = ?
+            """, (field_id,))
+            return [row[0] for row in cursor.fetchall()]
+
+    def get_anomoly_prediction_status(self, field_id: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT anomoly_prediction_status
+                FROM AI_management
+                WHERE field_id = ?
+            """, (field_id,))
+            return [row[0] for row in cursor.fetchall()]
+
+    def set_anomoly_score_low(self, field_id: str, value: float):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE AI_management
+                SET anomoly_score_low = ?
+                WHERE field_id = ?
+            """, (value, field_id))
+            conn.commit()
+
+    def set_anomoly_score_high(self, field_id: str, value: float):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE AI_management
+                SET anomoly_score_high = ?
+                WHERE field_id = ?
+            """, (value, field_id))
+            conn.commit()
+
+    def set_step(self, field_id: str, value: int):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE AI_management
+                SET step = ?
+                WHERE field_id = ?
+            """, (value, field_id))
+            conn.commit()
+
+    def set_anomoly_status(self, field_id: str, value: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE AI_management
+                SET anomoly_status = ?
+                WHERE field_id = ?
+            """, (value, field_id))
+            conn.commit()
+
+    def set_prediction_status(self, field_id: str, value: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE AI_management
+                SET prediction_status = ?
+                WHERE field_id = ?
+            """, (value, field_id))
+            conn.commit()
+
+    def set_anomoly_prediction_status(self, field_id: str, value: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE AI_management
+                SET anomoly_prediction_status = ?
+                WHERE field_id = ?
+            """, (value, field_id))
+            conn.commit()
+
+    def get_AI_telemetry_sample(self, device_id: str, sample: int):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT t.ts, t.value
+                FROM telemetry t
+                JOIN device d ON t.device_id = d.device_id
+                WHERE d.device_id = ?
+                AND t.name = 'status'
+                ORDER BY t.ts DESC
+                """,
+                (device_id,)
+            )
+
+            rows = cursor.fetchall()
+
+            limited_rows = rows[:sample]
+
+            telemetry_list = [{"ts": ts, "value": value} for ts, value in limited_rows]
+            return {device_id: telemetry_list}
+
+    def delete_user(self, username: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                DELETE FROM field_user
+                WHERE username = ?
+                """,
+                (username,)
+            )
+
+            cursor.execute(
+                """
+                DELETE FROM notification_management
+                WHERE username = ?
+                """,
+                (username,)
+            )
+
+            cursor.execute(
+                """
+                DELETE FROM notification
+                WHERE username = ?
+                """,
+                (username,)
+            )
+
+            conn.commit()
+
+    def api_admin_greenhouses(self):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT f.field_id, f.field_name, fu.username
+                FROM field f
+                LEFT JOIN field_user fu ON f.field_id = fu.field_id
+            """)
+            result = cursor.fetchall()
+            return result
+
+    def clear_field(self, field_id: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                # 1. Reset tên field (gán NULL)
+                cursor.execute(
+                    """
+                    UPDATE field
+                    SET field_name = NULL
+                    WHERE field_id = ?
+                    """,
+                    (field_id,)
+                )
+
+                # 2. Xoá liên kết user trong bảng field_user
+                cursor.execute(
+                    """
+                    DELETE FROM field_user
+                    WHERE field_id = ?
+                    """,
+                    (field_id,)
+                )
+
+                conn.commit()
+                return {"success": True, "message": f"Đã dọn dẹp field {field_id} thành công"}
+            except Exception as e:
+                conn.rollback()
+                return {"success": False, "message": str(e)}
+
+
+    def create_AI_management_record(self, field_id: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    INSERT INTO AI_management (
+                        field_id,
+                        anomoly_score_low,
+                        anomoly_score_high,
+                        step,
+                        anomoly_status,
+                        prediction_status,
+                        anomoly_prediction_status
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    field_id,
+                    0,          
+                    100,        
+                    5,          
+                    "OFF",      
+                    "OFF",      
+                    "OFF"       
+                ))
+                conn.commit()
+                return {"success": True, "message": "Tạo record AI_management thành công"}
+            except Exception as e:
+                conn.rollback()
+                return {"success": False, "message": str(e)}
+
+    def create_notification_management(self, username: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    INSERT INTO notification_management (status, username)
+                    VALUES (?, ?)
+                """, ("OFF", username))
+                conn.commit()
+                return {"success": True, "message": "Tạo notification_management thành công"}
+            except Exception as e:
+                conn.rollback()
+                return {"success": False, "message": str(e)}
+    
+    def get_notification_status(self, username: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    SELECT status
+                    FROM notification_management
+                    WHERE username = ?
+                """, (username,))
+                row = cursor.fetchone()
+                
+                if row:
+                    return {"status": row[0]}
+
+            except Exception as e:
+                return {"success": False, "message": str(e)}
+
+    def set_notification_status(self, username: str, status: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    UPDATE notification_management
+                    SET status = ?
+                    WHERE username = ?
+                """, (status, username))
+                conn.commit()
+                return {"success": True, "message": f"Đã cập nhật status = {status} cho {username}"}
+            except Exception as e:
+                conn.rollback()
+                return {"success": False, "message": str(e)}
+
+    def insert_notification(self, status: str, device_id: str, ts: int, username: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    INSERT INTO notification (status, device_id, ts, username)
+                    VALUES (?, ?, ?, ?)
+                """, (status, device_id, ts, username))
+                conn.commit()
+                return {"success": True, "message": "Thêm notification thành công"}
+            except Exception as e:
+                conn.rollback()
+                return {"success": False, "message": str(e)}
 
 

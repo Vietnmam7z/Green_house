@@ -31,6 +31,10 @@ function capNhatHienThiField() {
     const nameLabel = document.getElementById('current-field-name');
     if (nameLabel) nameLabel.textContent = currentField.field_name;
     
+        // Cập nhật Field ID (MỚI THÊM)
+    const idLabel = document.getElementById('current-field-id');
+    if (idLabel) idLabel.textContent = currentField.field_id;
+    
     capNhatDuLieu(); 
 }
 
@@ -116,6 +120,10 @@ async function capNhatDuLieu() {
                         if (teleData && teleData.value !== undefined) {
                             const val = parseFloat(teleData.value);
                             const config = getConfig(teleKey);
+                            
+                            // Tạo ID duy nhất cho thẻ HTML chứa kết quả AI
+                            const safeDeviceName = deviceName.replace(/\s+/g, '_');
+                            const aiElementId = `ai-${safeDeviceName}-${teleKey}`;
 
                             // Sinh HTML cho từng panel thông số
                             const panelHTML = `
@@ -128,10 +136,18 @@ async function capNhatDuLieu() {
                                         <span class="data-value">${isNaN(val) ? "--" : val}
                                             <span class="data-unit">${config.unit}</span>
                                         </span>
+                                        <div id="${aiElementId}" style="margin-top: 8px; font-size: 0.85rem; color: #00bcd4; font-weight: bold;">
+                                            <i class="fa-solid fa-robot"></i> AI: Đang phân tích...
+                                        </div>
                                     </div>
                                 </div>
                             `;
                             gridContainer.insertAdjacentHTML('beforeend', panelHTML);
+                            
+                            // GỌI HÀM AI NGAY LẬP TỨC CHO THÔNG SỐ NÀY
+                            if (!isNaN(val)) {
+                                fetchAIPrediction(`${safeDeviceName}_${teleKey}`, val, aiElementId, config.unit);
+                            }
                         }
                     }
                 }
@@ -197,7 +213,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 document.addEventListener("DOMContentLoaded", () => {
-    const goToDashboard = document.getElementById('goToDashboard');
+    // Đã gộp chung bắt ID để dùng đúng cho nút Back của bạn
+    const btnBack = document.getElementById('goToDashboard') || document.getElementById('btn-back'); 
     const goToControl = document.getElementById('ControlBtn');
     const btnSettings = document.getElementById('btn-settings');
     const logoutBtn = document.getElementById('logoutBtn');
@@ -207,7 +224,22 @@ document.addEventListener("DOMContentLoaded", () => {
       .then(data => {
         if (data.success) {
           document.getElementById('userName').innerText = data.username;
-          document.getElementById('userRole').innerText = data.role;
+          
+        // XỬ LÝ LỖI HIỂN THỊ ROLE: Biến "admin" thành "administrator"
+        let displayRole = data.role;
+        if (displayRole === 'admin') displayRole = 'administrator';
+        const userRoleEl = document.getElementById('userRole');
+            if (userRoleEl) userRoleEl.innerText = displayRole;
+            // Kiểm tra xem có phải Admin không
+            const isAdmin = (data.role === 'administrator' || data.role === 'admin');
+            // Ghi đè sự kiện nút Back (ĐÃ SỬA LẠI ĐƯỜNG DẪN TẠI ĐÂY)
+            if (btnBack) {
+                btnBack.onclick = (e) => {
+                    e.preventDefault();
+                    // Admin -> Quản lý Nhà kính | User -> Trang chủ
+                    window.location.href = isAdmin ? '/admin_management/greenhouses' : '/';
+                };
+            }        
         }
       })
       .catch(err => console.error("Lỗi lấy thông tin user:", err));
@@ -218,15 +250,10 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
     
-    if (goToDashboard) {
-        goToDashboard.addEventListener('click', function () {
-            window.location.href = '/';
-        });
-    }
 
     if (goToControl) {
         goToControl.addEventListener('click', function () {
-            // Mang theo id của ruộng hiện tại đẩy sang trang Control
+
             if (currentFieldId) {
                 window.location.href = `/control?field_id=${currentFieldId}`;
             } else {
@@ -235,18 +262,62 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
     if (logoutBtn) {
-    logoutBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        fetch('/logout', { method: 'POST' })
-        .then(res => {
-            if (!res.ok) throw new Error("Server trả về lỗi");
-            return res.json();
-        })
-        .then(data => {
-            if (data.success) { window.location.href = data.redirect || '/login'; } 
-            else { resultBox.innerText = data.message || "Không thể đăng xuất."; }
-        })
-        .catch(error => { resultBox.innerText = "Lỗi kết nối!"; });
-        });
+        logoutBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            fetch('/logout', { method: 'POST' })
+            .then(res => {
+                if (!res.ok) throw new Error("Server trả về lỗi");
+                return res.json();
+            })
+            .then(data => {
+                if (data.success) { window.location.href = data.redirect || '/login'; } 
+                else { resultBox.innerText = data.message || "Không thể đăng xuất."; }
+            })
+            .catch(error => { resultBox.innerText = "Lỗi kết nối!"; });
+            });
     }
 });
+// document.addEventListener("DOMContentLoaded", () => {
+//     const goToControl = document.getElementById('goToControl');
+//     if (goToControl) {
+//     goToControl.addEventListener('click', function () {
+//       window.location.href = '/';
+//     });
+//   }
+// });
+
+async function fetchAIPrediction(sensorId, currentValue, elementId, unit) {
+    try {
+        const response = await fetch('http://127.0.0.1:8000/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                sensor_id: sensorId, 
+                val: currentValue 
+            })
+        });
+
+        if (!response.ok) throw new Error("AI Server Error");
+
+        const data = await response.json();
+        const aiContainer = document.getElementById(elementId);
+
+        if (aiContainer) {
+            if (data.status === "success") {
+                aiContainer.innerHTML = `<i class="fa-solid fa-robot" style="color: #4CAF50;"></i> Next: ${data.predicted_next_val} ${unit}`;
+                aiContainer.style.color = "#4CAF50"; // Màu xanh lá khi dự đoán thành công
+            } else if (data.status === "waiting") {
+                // ĐÃ THAY ĐỔI Ở ĐÂY: Hiển thị tiến độ thu thập dữ liệu
+                aiContainer.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang thu thập: ${data.current_step}/${data.total_steps} dữ liệu`;
+                aiContainer.style.color = "#FF9800"; // Màu cam khi đang chờ
+            }
+        }
+    } catch (err) {
+        console.error(`Lỗi dự đoán cho ${sensorId}:`, err);
+        const aiContainer = document.getElementById(elementId);
+        if (aiContainer) {
+            aiContainer.innerHTML = `<i class="fa-solid fa-robot" style="color: #F44336;"></i> AI offline`;
+            aiContainer.style.color = "#F44336";
+        }
+    }
+}

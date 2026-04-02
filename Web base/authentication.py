@@ -68,7 +68,6 @@ class Authentication:
     def delete_user(self, username: str):
         self.user_manager.delete_user(username)
         self.logger.log_delete_user(username)
-        return self.user_manager.get_all_usernames()
 
     def offline_user(self, username: str):
         self.logger.log_offline(username)
@@ -107,3 +106,13 @@ class Authentication:
         
     def confirm_otp(self, otp: str):
         return self.email_otp.confirm_otp(otp)
+
+    def get_username(self, user_id: int):
+        return self.user_manager.get_username(user_id)
+
+    def get_all_user_information(self):
+        return self.user_manager.get_all_user_information()
+        
+
+
+    

@@ -47,6 +47,8 @@ def predict_soil(data: SensorData):
     if len(current_buffer) < TIME_STEP:
         return {
             "status": "waiting",
+            "current_step": len(current_buffer),
+            "total_steps": TIME_STEP,
             "message": f"Chờ thêm dữ liệu ({len(current_buffer)}/{TIME_STEP})"
         }
     
