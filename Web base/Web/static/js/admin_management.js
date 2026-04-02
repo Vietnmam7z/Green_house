@@ -1,0 +1,36 @@
+document.addEventListener("DOMContentLoaded", () => {
+    // 1. Tải thông tin Admin
+    fetch('/api/current_user')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          document.getElementById('userName').innerText = data.username;
+          document.getElementById('userRole').innerText = data.role;
+        } else {
+          window.location.href = '/login';
+        }
+      })
+      .catch(err => console.error("Lỗi lấy thông tin user:", err));
+
+    // 2. Chức năng Đăng xuất
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            fetch('/logout', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) { window.location.href = '/login'; }
+            });
+        });
+    }
+
+    // 3. Chức năng chuyển trang của 2 nút vuông
+    document.getElementById('btn-user-management').addEventListener('click', () => {
+        window.location.href = '/admin_management/users';
+    });
+
+    document.getElementById('btn-greenhouse-management').addEventListener('click', () => {
+        window.location.href = '/admin_management/greenhouses';
+    });
+});

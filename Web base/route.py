@@ -44,6 +44,154 @@ class Routes:
     def clear_reset_session(self):
         self.pop_reset_session()
         return ("", 204)
+    
+    def control_device(self):
+        # Yêu cầu phải đăng nhập mới được điều khiển
+        if 'username' not in session:
+            return jsonify({"success": False, "message": "Bạn chưa đăng nhập"}), 401
+            
+        username = session.get('username')
+        data = request.get_json()
+        
+        field_id = data.get('field_id')
+        device_name = data.get('device_name')
+        action = data.get('action') # 'ON' hoặc 'OFF'
+
+        # Kiểm tra xem User này có quyền điều khiển Field này không
+        if not self.field.find_username(field_id, username):
+            return jsonify({"success": False, "message": "Bạn không có quyền điều khiển ruộng này"}), 403
+
+        print(f"User {username} ra lệnh: {action} thiết bị {device_name} tại {field_id}")
+
+        # ==========================================================
+        # TODO: GỌI API CỦA COREIOT/THINGSBOARD TẠI ĐÂY ĐỂ ĐIỀU KHIỂN
+        # Ví dụ: self.sensor.send_rpc(device_name, action)
+        # ==========================================================
+
+        # Giả lập thành công (Bạn sẽ thay bằng kết quả thật từ IoT)
+        is_success = True 
+        
+        if is_success:
+            return jsonify({"success": True, "message": f"Đã {action} {device_name}"})
+        else:
+            return jsonify({"success": False, "message": "Thiết bị không phản hồi"})
+        
+    def management_page(self):
+        resp = self.require_login()
+        if resp:
+            return resp
+            
+        # Kiểm tra, chặn user thường truy cập
+        username = session.get('username')
+        role = self.auth.get_role(username)
+        if role != 'administrator' and role != 'admin':
+            return redirect('/') 
+
+        return render_template('admin_management.html')
+    
+    # 1. TRANG RENDER HTML
+    def user_management_page(self):
+        resp = self.require_login()
+        if resp: return resp
+        role = self.auth.get_role(session.get('username'))
+        if role not in ['administrator', 'admin']: return redirect('/')
+        
+        # Đã gọi qua file config
+        return render_template(config.user_management_page)
+
+    # 2. API LẤY DANH SÁCH USER VÀ RUỘNG
+    def api_admin_users(self):
+        import sqlite3
+        # Lấy danh sách user từ userdata.db
+        conn_user = sqlite3.connect('userdata.db')
+        cur_user = conn_user.cursor()
+        cur_user.execute("SELECT id, username, email FROM user_data WHERE role='user'")
+        users = cur_user.fetchall()
+        conn_user.close()
+
+        # Lấy danh sách field từ field.db
+        conn_field = sqlite3.connect('field.db')
+        cur_field = conn_field.cursor()
+        
+        result_list = []
+        for u in users:
+            user_id = u[0]
+            username = u[1]
+            email = u[2]
+            
+            # Tìm các field_id thuộc về username này
+            cur_field.execute("SELECT field_id FROM field_user WHERE username=?", (username,))
+            fields = [row[0] for row in cur_field.fetchall()]
+            
+            result_list.append({
+                "id": user_id,
+                "username": username,
+                "email": email,
+                "fields": fields
+            })
+            
+        conn_field.close()
+        return jsonify(result_list)
+
+    # 3. API XÓA USER
+    def api_admin_delete_users(self):
+        data = request.get_json()
+        user_ids = data.get('user_ids', [])
+        
+        import sqlite3
+        conn = sqlite3.connect('userdata.db')
+        cur = conn.cursor()
+        
+        try:
+            for uid in user_ids:
+                cur.execute("DELETE FROM user_data WHERE id=?", (uid,))
+            conn.commit()
+            success = True
+            msg = "Đã xóa thành công"
+        except Exception as e:
+            conn.rollback()
+            success = False
+            msg = str(e)
+        finally:
+            conn.close()
+            
+        return jsonify({"success": success, "message": msg})
+    
+    # 1. Render trang HTML
+    def greenhouse_management_page(self):
+        resp = self.require_login()
+        if resp: return resp
+        role = self.auth.get_role(session.get('username'))
+        if role not in ['administrator', 'admin']: return redirect('/')
+        return render_template(config.greenhouse_management_page)
+
+    # 2. API lấy danh sách Field
+    def api_admin_greenhouses(self):
+        import sqlite3
+        conn = sqlite3.connect('field.db')
+        cur = conn.cursor()
+        
+        # LEFT JOIN bảng field với bảng field_user để tìm chủ nhân
+        cur.execute("""
+            SELECT f.field_id, f.field_name, fu.username 
+            FROM field f 
+            LEFT JOIN field_user fu ON f.field_id = fu.field_id
+        """)
+        rows = cur.fetchall()
+        conn.close()
+        
+        result_list = []
+        for row in rows:
+            field_name = row[1] if row[1] and str(row[1]).strip() != "" else "---"
+            username = row[2] if row[2] and str(row[2]).strip() != "" else "---"
+            
+            result_list.append({
+                "field_id": row[0],
+                "plant": field_name,
+                "username": username
+            })
+            
+        return jsonify(result_list)    
 
 # HOME PAGE
 ################################################################################################################################        
@@ -95,11 +243,22 @@ class Routes:
 
         if result['success']:
             session['username'] = username
+            
+            # --- KIỂM TRA ROLE ĐỂ PHÂN LUỒNG CHUYỂN TRANG ---
+            role = self.auth.get_role(username)
+            
+            # Kiểm tra nếu là admin (tuỳ vào chữ bạn lưu trong DB là admin hay administrator)
+            if role == 'admin':
+                redirect_url = "/admin_management"  # Đẩy Admin vào thẳng trang Quản lý
+            else:
+                redirect_url = "/"        # Đẩy User thường vào trang Home giám sát
+            # ------------------------------------------------
+
             return jsonify({
                 "success": result['success'],
                 "message": result['message'],
-                "role": self.auth.get_role(username),
-                "redirect": "/"
+                "role": role,
+                "redirect": redirect_url
             })
     
         else:
@@ -235,6 +394,14 @@ class Routes:
         resp = self.require_login()
         if resp:
             return resp
+            
+        # --- CHẶN USER THƯỜNG TRUY CẬP TRANG ADMIN ---
+        username = session.get('username')
+        role = self.auth.get_role(username)
+        if role != 'administrator' and role != 'admin':
+            return redirect('/') # Nếu không phải admin, đá về trang Home
+        # ---------------------------------------------
+
         return render_template(config.manage_page)
     def add_field(self):
         field_id =  request.form.get("field_id")
@@ -449,7 +616,14 @@ class Routes:
     #         "moisture": soil_moisture
     # })
 
-
+    def get_current_user(self):
+        # Kiểm tra xem user có trong session (đã đăng nhập) chưa
+        if 'username' in session:
+            username = session['username']
+            role = self.auth.get_role(username) # Gọi hàm lấy role từ Authentication
+            return jsonify({"success": True, "username": username, "role": role})
+        else:
+            return jsonify({"success": False, "message": "Chưa đăng nhập"}), 401
 #################################################################################################################################
 
 
@@ -492,6 +666,16 @@ server.add_route('/api/fields', routes.get_field, methods=['POST','GET'])
 server.add_route('/api/rename_device', routes.rename_device, methods=['POST'])
 server.add_route('/api/rename_field', routes.rename_field_name, methods=['POST'])
 server.add_route('/api/send_chart', routes.send_chart, methods=['POST'])
+server.add_route('/api/current_user', routes.get_current_user, methods=['GET'])
+server.add_route('/api/control_device', routes.control_device, methods=['POST'])
+
+server.add_route('/admin_management', routes.management_page, methods=['GET'])
+server.add_route('/admin_management/users', routes.user_management_page, methods=['GET'])
+server.add_route('/api/admin/users', routes.api_admin_users, methods=['GET'])
+server.add_route('/api/admin/delete_users', routes.api_admin_delete_users, methods=['POST'])
+server.add_route('/admin_management/greenhouses', routes.greenhouse_management_page, methods=['GET'])
+server.add_route('/api/admin/greenhouses', routes.api_admin_greenhouses, methods=['GET'])
+
 scheduler.add_job(routes.update_status, 'interval', seconds=10)
 # scheduler.add_job(routes.update_out_date_status, 'interval', seconds=5)
 

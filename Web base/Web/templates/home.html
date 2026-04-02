@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>SmartCare - Home</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="../static/css/home.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -18,10 +19,18 @@
 
     <!-- Vùng phải -->
     <div class="navbar-right">
-      <img src="../static/img/bell.png" alt="Notifications" class="nav-icon">
-      <img src="../static/img/user.png" alt="User" class="nav-icon">
-      <img src="../static/img/menu.png" alt="Menu" class="nav-icon">
-      <button id="logoutBtn" class="logout-btn">Log out</button>
+      <img src="/static/img/bell.png" alt="Notifications" class="nav-icon">
+      
+      <div class="user-profile">
+        <img src="/static/img/user.png" alt="User" class="nav-icon">
+        <div class="user-info">
+          <span class="user-name" id="userName">Loading...</span>
+          <span class="user-role" id="userRole">role</span>
+        </div>
+      </div>
+
+      <img src="/static/img/settings.png" alt="Settings" id="btn-settings" class="nav-icon" style="cursor: pointer;" title="Quản lý Hệ thống">
+      <img src="/static/img/logout-icon.png" alt="Logout" id="logoutBtn" class="nav-icon" style="cursor: pointer;" title="Log out">
     </div>
   </div>
 

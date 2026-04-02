@@ -1,0 +1,237 @@
+:root {
+    --primary-green: #66bb6a;
+    --dark-green: #388e3c;
+    --primary-blue: #4fc3f7;
+    --bg-color: #f4f6f8;
+    --card-bg: #ffffff;
+    --text-color: #333;
+    --gray-bg: #e0e0e0;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Khóa chiều cao toàn trang, loại bỏ thanh cuộn chuột */
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    height: 100vh;
+    overflow: hidden; 
+    display: flex;
+    flex-direction: column;
+}
+
+/* =========================================
+   ĐỒNG BỘ NAVBAR VỚI HOME & DASHBOARD
+========================================= */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: white;
+  padding: 10px 20px;
+  border-bottom: 1px solid #ddd;
+}
+.navbar-left { display: flex; align-items: center; }
+.logo-img { height: 40px; margin-right: 10px; }
+.logo-text { font-size: 24px; font-weight: bold; color: #333; }
+.navbar-right { display: flex; align-items: center; gap: 15px; }
+.nav-icon { height: 24px; cursor: pointer; }
+.user-profile { display: flex; align-items: center; gap: 8px; margin-right: 15px; }
+.user-info { display: flex; flex-direction: column; justify-content: center; line-height: 1.1; }
+.user-name { font-family: Arial, sans-serif; font-weight: 900; font-size: 16px; color: #000; text-transform: uppercase; }
+.user-role { font-family: Arial, sans-serif; font-size: 15px; color: #333; text-transform: lowercase; }
+
+/* =========================================
+   MAIN CONTENT (Đã chỉnh sửa lấp đầy 100vh)
+========================================= */
+.container {
+    max-width: 1250px; /* Căn chỉnh nút Back bằng đúng Dashboard */
+    width: 100%;
+    margin: 0 auto;
+    padding: 10px 30px 20px 30px;
+    flex: 1; /* Ép thẻ container chiếm toàn bộ không gian còn lại dưới Navbar */
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Ngăn chặn bị tràn layout */
+}
+
+h1.page-title {
+    text-align: center;
+    color: #7cb342;
+    font-weight: 800;
+    font-size: 28px; /* Đồng bộ kích thước chuẩn của Dashboard */
+    letter-spacing: 1px; /* Tạo khoảng cách chữ giống Dashboard */
+    margin-top: 10px;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    flex-shrink: 0; 
+}
+
+/* Navigation Bar */
+.action-bar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr; /* Chia 3 cột: 2 bên co giãn, giữa tự động ôm nội dung */
+    align-items: center;
+    margin-bottom: 25px;
+    flex-shrink: 0;
+}
+
+.action-bar > :first-child { 
+    justify-self: start; 
+}
+
+/* Ép khung Ruộng nằm chính giữa tuyệt đối */
+.action-bar > :nth-child(2) { 
+    justify-self: center; 
+}
+
+/* Ép thẻ div ẩn (hoặc nút bên phải) nằm sát lề phải */
+.action-bar > :last-child { 
+    justify-self: end; 
+}
+
+.btn-action {
+    padding: 10px 24px;
+    border-radius: 25px;
+    border: none;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-back { background-color: var(--primary-blue); } 
+
+.info-pill {
+    background-color: var(--gray-bg);
+    padding: 10px 30px;
+    border-radius: 25px;
+    font-size: 13px;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-weight: 500;
+}
+
+/* Nút mũi tên chuyển ruộng */
+.btn-nav {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    color: #666;
+    padding: 5px;
+    transition: color 0.3s ease, transform 0.2s ease;
+}
+
+.btn-nav:hover {
+    color: #4CAF50;
+    transform: scale(1.2);
+}
+
+.btn-nav:active {
+    transform: scale(0.9); 
+}
+
+/* Control Layout (Tự động co dãn) */
+.control-layout {
+    display: flex;
+    gap: 40px;
+    flex: 1; /* Chiếm hết chiều cao còn lại của .container */
+    min-height: 0; /* Bắt buộc để cắt phần bị tràn */
+}
+
+/* Khung 8 thẻ điều khiển thiết bị */
+.control-panel {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(4, 1fr); /* Chia đều chính xác thành 4 hàng ngang */
+    gap: 15px;
+    min-height: 0;
+}
+
+.control-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    height: 100%; /* Căng đều thẻ lấp đầy khoảng trống grid */
+}
+
+.control-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: bold;
+}
+
+/* Khung 2 Camera */
+.video-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    min-height: 0;
+}
+
+.video-panel h2 {
+    flex-shrink: 0; /* Không cho tiêu đề video bị ép lại */
+}
+
+.video-container {
+    width: 100%;
+    flex: 1; /* 2 camera tự động chia đôi chiều cao 50/50 */
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.video-container img {
+    width: 100%;
+    height: 100%; /* Ép ảnh cao bằng thẻ cha */
+    object-fit: cover; /* Cắt mép ảnh để lấp đầy khung mà không bị méo tỷ lệ */
+    border-radius: 15px;
+    display: block;
+    flex: 1;
+    min-height: 0;
+}
+
+.video-label {
+    text-align: center;
+    margin-top: 5px;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+/* Toggle Switch (Giữ nguyên) */
+.switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+.slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+input:checked + .slider { background-color: #2196F3; }
+input:checked + .slider:before { transform: translateX(26px); }
+
+/* Responsive cho điện thoại */
+@media (max-width: 768px) {
+    body {
+        height: auto; /* Trả lại thanh cuộn trên mobile */
+        overflow: auto;
+    }
+    .control-layout { flex-direction: column; }
+    .nav-bar { flex-direction: column; align-items: stretch; }
+    .info-bar { flex-direction: column; gap: 5px; text-align: center; }
+    .video-container img { height: 250px; flex: none; } /* Set cứng chiều cao ảnh trên mobile */
+}

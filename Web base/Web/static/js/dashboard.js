@@ -12,6 +12,7 @@ function getConfig(key) {
     for (let prop in telemetryConfig) {
         if (lowerKey.includes(prop)) return telemetryConfig[prop];
     }
+    // Trả về một object đầy đủ các thuộc tính nếu không tìm thấy key
     return { label: key, unit: "", icon: "fa-microchip", color: "color-default" };
 }
 
@@ -193,47 +194,59 @@ document.addEventListener("DOMContentLoaded", () => {
     setInterval(layDanhSachField, 10000); 
     setInterval(capNhatDuLieu, 5000); 
 });
+
+
 document.addEventListener("DOMContentLoaded", () => {
     const goToDashboard = document.getElementById('goToDashboard');
     const goToControl = document.getElementById('ControlBtn');
     const btnSettings = document.getElementById('btn-settings');
     const logoutBtn = document.getElementById('logoutBtn');
+
+    fetch('/api/current_user')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          document.getElementById('userName').innerText = data.username;
+          document.getElementById('userRole').innerText = data.role;
+        }
+      })
+      .catch(err => console.error("Lỗi lấy thông tin user:", err));
+      
     if (btnSettings) {
         btnSettings.addEventListener('click', () => {
             window.location.href = '/manage';
         });
     }
+    
     if (goToDashboard) {
-    goToDashboard.addEventListener('click', function () {
-      window.location.href = '/';
-    });
+        goToDashboard.addEventListener('click', function () {
+            window.location.href = '/';
+        });
     }
+
     if (goToControl) {
-    goToControl.addEventListener('click', function () {
-      window.location.href = '/control';
-    });
+        goToControl.addEventListener('click', function () {
+            // Mang theo id của ruộng hiện tại đẩy sang trang Control
+            if (currentFieldId) {
+                window.location.href = `/control?field_id=${currentFieldId}`;
+            } else {
+                window.location.href = '/control';
+            }
+        });
     }
     if (logoutBtn) {
     logoutBtn.addEventListener('click', function (e) {
-      e.preventDefault();
-      fetch('/logout', { method: 'POST' })
+        e.preventDefault();
+        fetch('/logout', { method: 'POST' })
         .then(res => {
-          if (!res.ok) throw new Error("Server trả về lỗi");
-          return res.json();
+            if (!res.ok) throw new Error("Server trả về lỗi");
+            return res.json();
         })
         .then(data => {
-          if (data.success) { window.location.href = data.redirect || '/login'; } 
-          else { resultBox.innerText = data.message || "Không thể đăng xuất."; }
+            if (data.success) { window.location.href = data.redirect || '/login'; } 
+            else { resultBox.innerText = data.message || "Không thể đăng xuất."; }
         })
         .catch(error => { resultBox.innerText = "Lỗi kết nối!"; });
         });
     }
 });
-// document.addEventListener("DOMContentLoaded", () => {
-//     const goToControl = document.getElementById('goToControl');
-//     if (goToControl) {
-//     goToControl.addEventListener('click', function () {
-//       window.location.href = '/';
-//     });
-//   }
-// });

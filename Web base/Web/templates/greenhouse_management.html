@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartCare - Greenhouse Management</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/greenhouse_management.css">
+</head>
+<body>
+
+    <div class="navbar">
+        <div class="navbar-left">
+            <img src="/static/img/logo.png" alt="Logo" class="logo-img">
+            <span class="logo-text">SmartCare</span>
+        </div>
+        <div class="navbar-right">
+            <img src="/static/img/bell.png" alt="Notifications" class="nav-icon">
+            <div class="user-profile">
+                <img src="/static/img/user.png" alt="User" class="nav-icon">
+                <div class="user-info">
+                    <span class="user-name" id="userName">ĐANG TẢI...</span>
+                    <span class="user-role" id="userRole">administrator</span>
+                </div>
+            </div>
+            <img src="/static/img/logout-icon.png" alt="Logout" id="logoutBtn" class="nav-icon" style="cursor: pointer;" title="Đăng xuất">
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="admin-card">
+            
+            <div class="card-header">
+                <div class="toolbar-left">
+                    <button id="btn-back" class="btn-back">
+                        <i class="fa-solid fa-rotate-left"></i> Back
+                    </button>
+                </div>
+
+                <h2 class="page-title">Greenhouse Management</h2>
+                
+                <div class="toolbar-right">
+                    <img src="/static/img/add.png" alt="Add" id="btn-add-icon" class="action-icon" title="Add new field">
+                    
+                    <img src="/static/img/edit.png" alt="Edit" id="btn-edit-icon" class="action-icon hidden" title="Edit selected field">
+                    <img src="/static/img/bin.png" alt="Delete" id="btn-delete-icon" class="action-icon hidden" title="Delete selected field(s)">
+                    <img src="/static/img/clear.png" alt="Clear" id="btn-clear-icon" class="action-icon hidden" title="Deselect all">
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table id="fieldTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;"><input type="checkbox" id="selectAll"></th>
+                            
+                            <th style="width: 20%; text-align: left;">Field ID</th>
+                            <th style="width: 40%; text-align: center;">Plant</th>
+                            <th style="width: 40%; text-align: right;">Username</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fieldTableBody">
+                        </tbody>
+                </table>
+            </div>
+
+            <div class="pagination" id="paginationContainer">
+                </div>
+
+        </div>
+    </div>
+
+    <script src="/static/js/greenhouse_management.js"></script>
+</body>
+</html>
