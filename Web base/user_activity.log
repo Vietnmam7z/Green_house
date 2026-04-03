@@ -372,3 +372,92 @@
 2026-04-03 07:32:01,190 - WARNING - Tạo ruộng: 005
 2026-04-03 07:32:38,489 - WARNING - Thêm user admin01 vào ruộng 004
 2026-04-03 07:32:54,371 - WARNING - Thêm user lice vào ruộng 004
+2026-04-03 16:15:22,688 - INFO - Đăng nhập: admin01
+2026-04-03 16:15:49,882 - WARNING - Xóa tài khoản: sybau
+2026-04-03 16:15:49,883 - WARNING - Xóa tài khoản: sybau
+2026-04-03 16:28:43,740 - INFO - Đăng xuất: admin01
+2026-04-03 16:29:09,840 - INFO - Đăng nhập: admin01
+2026-04-03 16:29:47,380 - INFO - Đăng xuất: admin01
+2026-04-03 16:36:55,060 - INFO - Đăng nhập: admin
+2026-04-03 16:40:29,647 - INFO - Đăng nhập: admin
+2026-04-03 16:44:02,927 - INFO - Đăng nhập: admin
+2026-04-03 16:44:55,446 - INFO - Đăng xuất: admin
+2026-04-03 16:44:58,131 - INFO - Đăng nhập: admin
+2026-04-03 16:46:23,404 - INFO - Đăng xuất: admin
+2026-04-03 16:46:27,123 - INFO - Đăng nhập: admin
+2026-04-03 16:46:52,664 - INFO - Đăng ký: a
+2026-04-03 16:48:43,076 - INFO - Đăng ký: b
+2026-04-03 16:48:46,662 - INFO - Đăng ký: c
+2026-04-03 16:48:50,156 - INFO - Đăng ký: d
+2026-04-03 16:48:55,152 - INFO - Đăng ký: e
+2026-04-03 16:49:00,610 - INFO - Đăng ký: f
+2026-04-03 16:49:03,603 - INFO - Đăng ký: g
+2026-04-03 16:51:51,774 - INFO - Đăng xuất: admin
+2026-04-03 16:51:54,693 - INFO - Đăng nhập: admin
+2026-04-03 16:52:43,179 - WARNING - Tạo ruộng: 005
+2026-04-03 16:52:47,832 - WARNING - Tạo ruộng: 006
+2026-04-03 16:52:54,443 - WARNING - Tạo ruộng: 007
+2026-04-03 16:55:45,894 - WARNING - Xóa ruộng: 001
+2026-04-03 16:55:45,896 - WARNING - Xóa ruộng: 001
+2026-04-03 16:55:45,903 - WARNING - Xóa ruộng: 004
+2026-04-03 16:55:45,903 - WARNING - Xóa ruộng: 004
+2026-04-03 16:56:00,800 - WARNING - Xóa ruộng: 006
+2026-04-03 16:56:00,810 - WARNING - Xóa ruộng: 007
+2026-04-03 16:56:22,770 - WARNING - Xóa ruộng: 002
+2026-04-03 16:56:22,779 - WARNING - Xóa ruộng: 003
+2026-04-03 16:56:22,785 - WARNING - Xóa ruộng: 005
+2026-04-03 16:56:26,710 - WARNING - Tạo ruộng: 001
+2026-04-03 16:56:29,868 - WARNING - Tạo ruộng: 001
+2026-04-03 16:56:33,034 - WARNING - Tạo ruộng: 002
+2026-04-03 16:56:36,272 - WARNING - Tạo ruộng: 003
+2026-04-03 16:56:39,177 - WARNING - Tạo ruộng: 004
+2026-04-03 16:56:42,464 - WARNING - Tạo ruộng: 005
+2026-04-03 16:56:47,213 - WARNING - Tạo ruộng: 006
+2026-04-03 16:56:52,099 - WARNING - Tạo ruộng: 007
+2026-04-03 16:56:54,848 - WARNING - Tạo ruộng: 008
+2026-04-03 16:56:59,636 - WARNING - Tạo ruộng: 009
+2026-04-03 16:57:04,362 - WARNING - Tạo ruộng: 010
+2026-04-03 16:58:32,170 - WARNING - Thêm user 1 vào ruộng 001
+2026-04-03 17:02:20,501 - WARNING - Thêm user HNAT vào ruộng 002
+2026-04-03 17:05:27,626 - WARNING - Dọn dẹp dữ liệu ruộng 001
+2026-04-03 17:05:27,632 - WARNING - Dọn dẹp dữ liệu ruộng 002
+2026-04-03 17:05:52,867 - INFO - Đăng nhập: admin
+2026-04-03 17:06:13,717 - INFO - Đăng xuất: admin
+2026-04-03 17:06:35,754 - INFO - Đăng nhập: admin
+2026-04-03 17:08:59,428 - INFO - Đăng nhập: admin
+2026-04-03 17:09:06,426 - WARNING - Thêm user 1 vào ruộng 001
+2026-04-03 17:09:15,508 - WARNING - Thêm user HNAT vào ruộng 002
+2026-04-03 17:09:31,347 - WARNING - Thêm user slice vào ruộng 003
+2026-04-03 17:09:49,320 - WARNING - Dọn dẹp dữ liệu ruộng 003
+2026-04-03 17:12:43,865 - INFO - Đăng nhập: admin
+2026-04-03 17:12:52,423 - WARNING - Dọn dẹp dữ liệu ruộng 002
+2026-04-03 17:13:02,416 - WARNING - Thêm user HNAT vào ruộng 003
+2026-04-03 17:13:08,486 - WARNING - Dọn dẹp dữ liệu ruộng 003
+2026-04-03 17:22:03,962 - INFO - Đăng nhập: 1
+2026-04-03 17:22:18,287 - INFO - Đăng nhập: admin
+2026-04-03 17:26:21,404 - INFO - Đăng nhập: admin
+2026-04-03 17:26:41,186 - INFO - Đăng nhập: 1
+2026-04-03 20:17:28,426 - INFO - Đăng nhập: admin
+2026-04-03 20:20:21,697 - INFO - Đăng nhập: admin
+2026-04-03 20:20:35,543 - INFO - Đăng nhập: 1
+2026-04-03 20:25:03,886 - INFO - Đăng nhập: admin
+2026-04-03 20:25:15,388 - INFO - Đăng nhập: 1
+2026-04-03 20:26:33,346 - INFO - Đăng nhập: 1
+2026-04-03 20:29:46,816 - INFO - Đăng nhập: admin
+2026-04-03 20:30:00,759 - INFO - Đăng nhập: 1
+2026-04-03 20:30:51,001 - INFO - Đăng xuất: 1
+2026-04-03 20:30:52,616 - INFO - Đăng nhập: 1
+2026-04-03 20:34:11,459 - INFO - Đăng nhập: admin
+2026-04-03 20:34:21,282 - INFO - Đăng nhập: 1
+2026-04-03 21:20:26,957 - INFO - Đăng nhập: admin
+2026-04-03 21:20:39,403 - INFO - Đăng nhập: 1
+2026-04-03 21:27:39,323 - INFO - Đăng nhập: 1
+2026-04-03 21:27:47,031 - INFO - Đăng nhập: admin
+2026-04-03 21:28:45,959 - WARNING - Đổi tên ruộng 001 thành Strawberry
+2026-04-03 21:30:04,509 - INFO - Đăng nhập: admin
+2026-04-03 21:30:32,699 - INFO - Đăng nhập: 1
+2026-04-03 21:35:24,085 - INFO - Đăng nhập: 1
+2026-04-03 21:35:30,225 - INFO - Đăng nhập: admin
+2026-04-03 21:39:58,620 - INFO - Đăng nhập: 1
+2026-04-03 21:40:03,752 - INFO - Đăng nhập: admin
+2026-04-03 21:40:38,882 - INFO - Đăng nhập: 1

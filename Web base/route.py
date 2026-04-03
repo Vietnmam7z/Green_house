@@ -13,6 +13,8 @@ import random
 import read_value
 import subprocess
 import sys
+import sqlite3
+import json
 
 class Routes:
     def __init__(self, auth: Authentication, otp: OTPManager, sensor: Sensor_API, field: FieldDB, logger: UserLogger):
@@ -67,47 +69,57 @@ class Routes:
         device_name = data.get('device_name')
         action = data.get('action') # 'ON' hoặc 'OFF'
 
-		
-        # 1. KIỂM TRA QUYỀN: Admin được phép, User thường phải check quyền sở hữu
-        # Kiểm tra xem User này có quyền điều khiển Field này không
+        # 1. KIỂM TRA QUYỀN
         if role not in ['administrator', 'admin']:
-            if not self.field.find_username(field_id, username):
+            if not self.field.find_user_id(field_id, username):
                 return jsonify({"success": False, "message": "Bạn không có quyền điều khiển ruộng này"}), 403
 
         print(f"User {username} ra lệnh: {action} thiết bị {device_name} tại {field_id}")
 
         # 2. LƯU TRẠNG THÁI VÀO DATABASE ĐỂ ĐỒNG BỘ
-        import sqlite3
-        import json
-        conn = sqlite3.connect('field.db')
-        cur = conn.cursor()
-        
-        # Lấy trạng thái hiện tại (nếu có)
-        cur.execute("SELECT status FROM field_status WHERE field_id = ?", (field_id,))
-        row = cur.fetchone()
-        states = {}
-        if row and row[0]:
-            try:
-                states = json.loads(row[0])
-            except json.JSONDecodeError:
-                pass
-        # Cập nhật trạng thái của thiết bị vừa được bấm
-        states[device_name] = action
-        # Lưu ngược lại vào database
-        if row is not None:
-            cur.execute("UPDATE field_status SET status = ? WHERE field_id = ?", (json.dumps(states), field_id))
-        else:
-            cur.execute("INSERT INTO field_status (field_id, status) VALUES (?, ?)", (field_id, json.dumps(states)))
+        try:
+            # Thêm timeout=5.0 để nếu DB bị khóa, nó sẽ chờ tối đa 5 giây thay vì báo lỗi ngay
+            conn = sqlite3.connect('field.db', timeout=5.0)
+            cur = conn.cursor()
             
-        conn.commit()
-        conn.close()
+            # KHÓA ĐỘC QUYỀN (EXCLUSIVE LOCK): Ngăn luồng khác đọc/ghi xen ngang
+            cur.execute("BEGIN EXCLUSIVE")
+            
+            # Lấy trạng thái hiện tại (nếu có)
+            cur.execute("SELECT status FROM field_status WHERE field_id = ?", (field_id,))
+            row = cur.fetchone()
+
+            states = {}
+            if row and row[0]:
+                try:
+                    states = json.loads(row[0])
+                except json.JSONDecodeError:
+                    pass
+
+            # Cập nhật trạng thái của thiết bị vừa được bấm
+            states[device_name] = action
+
+            # Lưu ngược lại vào database
+            if row is not None:
+                cur.execute("UPDATE field_status SET status = ? WHERE field_id = ?", (json.dumps(states), field_id))
+            else:
+                cur.execute("INSERT INTO field_status (field_id, status) VALUES (?, ?)", (field_id, json.dumps(states)))
+                
+            conn.commit()
+            conn.close()
+            
+        except sqlite3.OperationalError as e:
+            # Nếu 2 người bấm thật sự cùng lúc và timeout không cứu được, báo cho Web biết
+            print(f"Lỗi khóa DB: {e}")
+            return jsonify({"success": False, "message": "Hệ thống đang bận xử lý lệnh khác, vui lòng thử lại!"}), 503
+        except Exception as e:
+            print(f"Lỗi Database trong control_device: {e}")
+            return jsonify({"success": False, "message": f"Lỗi server: {e}"}), 500
 
         # ==========================================================
-        # TODO: GỌI API CỦA COREIOT/THINGSBOARD TẠI ĐÂY ĐỂ ĐIỀU KHIỂN
-        # Ví dụ: self.sensor.send_rpc(device_name, action)
+        # 3. TRẢ VỀ KẾT QUẢ CHO FRONTEND
+        # CHÚ Ý: Các dòng dưới đây phải thẳng hàng với chữ 'try' phía trên
         # ==========================================================
-
-        # Giả lập thành công (Bạn sẽ thay bằng kết quả thật từ IoT)
         is_success = True 
         
         if is_success:
@@ -167,6 +179,9 @@ class Routes:
             username = u["username"]
             email = u["email"]
 
+            # BỔ SUNG 1: Lấy role của user hiện tại
+            role = self.auth.get_role(username)
+
             # get_fields trả về list dict => lấy ra danh sách field_id
             fields_data = self.field.get_fields(username)   # [{'field_id': '001', 'field_name': 'Plant A'}, ...]
             field_ids = [f["field_id"] for f in fields_data]
@@ -177,7 +192,8 @@ class Routes:
                 "id": user_id,
                 "username": username,
                 "email": email,
-                "fields": fields
+                "fields": fields,
+                "role": role  # BỔ SUNG 2: Thêm role vào JSON gửi về Frontend
             })
         
         return jsonify(result_list)
@@ -496,7 +512,16 @@ class Routes:
 
     def get_field(self):
         username = session.get('username')
-        return jsonify(self.field.get_fields(username))
+        role = self.auth.get_role(username) # Lấy quyền của người dùng hiện tại
+        
+        # Nếu là Admin -> Lấy toàn bộ ruộng
+        if role in ['administrator', 'admin']:
+            fields = self.field.get_all_fields()
+        # Nếu là User thường -> Chỉ lấy ruộng của mình
+        else:
+            fields = self.field.get_fields(username)
+            
+        return jsonify(fields)
     
     def delete_field(self):
         field_id = request.get_json().get("field_id")
@@ -758,14 +783,44 @@ scheduler.add_job(routes.update_status, 'interval', seconds=10)
 
 
 if __name__ == '__main__':
-    scheduler.start()
-    print("Đang khởi động Server AI ngầm...")
+    import os
+    import sys
+    import subprocess
+    
+    # Khởi tạo biến lưu tiến trình AI để dễ dàng quản lý
+    ai_process = None
+    
+    # TRẠM KIỂM SOÁT: Chỉ khởi động AI và Scheduler nếu đây là tiến trình con của Reloader
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        scheduler.start()
+        print("Đang khởi động Server AI ngầm...")
+        try:
+            ai_process = subprocess.Popen(
+                [sys.executable, "-m", "uvicorn", "LSTM_AI:app", "--host", "0.0.0.0", "--port", "8000"]
+            )
+            print("Đã bật Server AI tại cổng 8000!")
+        except Exception as e:
+            print(f"Lỗi không thể khởi động Server AI: {e}")
+            
     try:
-        ai_process = subprocess.Popen(
-            [sys.executable, "-m", "uvicorn", "LSTM_AI:app", "--host", "0.0.0.0", "--port", "8000"]
-        )
-        print("Đã bật Server AI tại cổng 8000!")
-    except Exception as e:
-        print(f"Lỗi không thể khởi động Server AI: {e}")
-    server.run()
+        # Lệnh chạy Web Server
+        server.run()
+    except KeyboardInterrupt:
+        # Bắt sự kiện khi bạn nhấn Ctrl + C
+        print("\n[HỆ THỐNG] Nhận lệnh tắt từ người dùng...")
+    finally:
+        # 1. Dọn dẹp Scheduler (Tắt các tiến trình cập nhật ngầm)
+        try:
+            if scheduler.running:
+                scheduler.shutdown(wait=False)
+                print("[HỆ THỐNG] Đã tắt Scheduler an toàn.")
+        except Exception:
+            pass # Bỏ qua nếu scheduler chưa kịp chạy
 
+        # 2. Dọn dẹp sạch sẽ tiến trình Server AI
+        if ai_process is not None:
+            ai_process.terminate()
+            ai_process.wait() # Chờ tiến trình AI tắt hẳn
+            print("[HỆ THỐNG] Đã đóng Server AI (cổng 8000) an toàn.")
+            
+        print("[HỆ THỐNG] Tạm biệt!")

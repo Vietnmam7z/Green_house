@@ -1,6 +1,6 @@
 let allFields = [];      
 let currentPage = 1;    
-const rowsPerPage = 10; 
+const rowsPerPage = 8; 
 let isSelectAllIndeterminate = false;
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -306,6 +306,38 @@ async function loadFields() {
         const response = await fetch('/api/admin/greenhouses');
         let fields = await response.json();
         
+        // --- BỘ LỌC GỘP DỮ LIỆU FRONTEND (CHỐNG NHÂN BẢN) ---
+        const fieldDict = {};
+        
+        fields.forEach(f => {
+            if (!fieldDict[f.field_id]) {
+                // Lần đầu gặp Field ID này -> Tạo mới trong từ điển
+                fieldDict[f.field_id] = { ...f };
+            } else {
+                // Đã tồn tại (Bị trùng lặp) -> Tiến hành gộp dữ liệu
+                const existing = fieldDict[f.field_id];
+                
+                // Ưu tiên giữ lại tên Plant thực tế (khác '---')
+                if (existing.plant === '---' && f.plant !== '---') {
+                    existing.plant = f.plant;
+                }
+                
+                // Ưu tiên giữ lại Username thực tế (khác '---')
+                if (existing.username === '---' && f.username !== '---') {
+                    existing.username = f.username;
+                } else if (existing.username !== '---' && f.username !== '---') {
+                    // Nếu ruộng có nhiều người quản lý, nối tên cách nhau bằng dấu phẩy
+                    if (!existing.username.includes(f.username)) {
+                        existing.username += `, ${f.username}`;
+                    }
+                }
+            }
+        });
+        
+        // Chuyển lại từ điển đã lọc thành mảng để xử lý tiếp
+        fields = Object.values(fieldDict);
+        // ---------------------------------------------------
+
         // Sắp xếp Field ID từ nhỏ đến lớn
         fields.sort((a, b) => a.field_id.localeCompare(b.field_id, undefined, {numeric: true}));
         
