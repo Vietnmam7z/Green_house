@@ -490,7 +490,6 @@ class FieldDB:
                 conn.rollback()
                 return {"success": False, "message": str(e)}
 
-
     def create_AI_management_record(self, field_id: str):
         with self.connect() as conn:
             cursor = conn.cursor()

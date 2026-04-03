@@ -223,6 +223,7 @@ class Routes:
         field_id = data.get('field_id', '').strip()
         result = field.add_field(field_id, None, None)
         self.logger.log_add_field(field_id)
+        self.field.create_AI_management_record(field_id)
         return jsonify(result)
 
     # API DỌN DẸP DỮ LIỆU FIELD (CLEAR)

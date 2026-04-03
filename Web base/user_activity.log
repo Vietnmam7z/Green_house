@@ -359,3 +359,16 @@
 2026-04-02 16:29:58,798 - WARNING - Dọn dẹp dữ liệu ruộng 002
 2026-04-02 16:30:16,155 - WARNING - Dọn dẹp dữ liệu ruộng 002
 2026-04-02 16:33:53,214 - WARNING - Dọn dẹp dữ liệu ruộng 002
+2026-04-03 07:22:16,351 - INFO - Đăng xuất: admin01
+2026-04-03 07:22:20,303 - INFO - Đăng nhập: 1
+2026-04-03 07:24:40,115 - INFO - Đăng xuất: 1
+2026-04-03 07:24:44,707 - INFO - Đăng nhập: admin01
+2026-04-03 07:25:25,744 - WARNING - Tạo ruộng: 004
+2026-04-03 07:26:05,621 - WARNING - Thêm user sybau vào ruộng 004
+2026-04-03 07:27:14,304 - WARNING - Xóa ruộng: 004
+2026-04-03 07:27:22,463 - WARNING - Thêm user admin01 vào ruộng 003
+2026-04-03 07:27:32,858 - WARNING - Dọn dẹp dữ liệu ruộng 003
+2026-04-03 07:29:38,128 - WARNING - Tạo ruộng: 004
+2026-04-03 07:32:01,190 - WARNING - Tạo ruộng: 005
+2026-04-03 07:32:38,489 - WARNING - Thêm user admin01 vào ruộng 004
+2026-04-03 07:32:54,371 - WARNING - Thêm user lice vào ruộng 004
