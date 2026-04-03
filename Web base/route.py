@@ -167,6 +167,9 @@ class Routes:
             username = u["username"]
             email = u["email"]
 
+            # BỔ SUNG 1: Lấy role của user hiện tại
+            role = self.auth.get_role(username)
+
             # get_fields trả về list dict => lấy ra danh sách field_id
             fields_data = self.field.get_fields(username)   # [{'field_id': '001', 'field_name': 'Plant A'}, ...]
             field_ids = [f["field_id"] for f in fields_data]
@@ -177,7 +180,8 @@ class Routes:
                 "id": user_id,
                 "username": username,
                 "email": email,
-                "fields": fields
+                "fields": fields,
+                "role": role  # BỔ SUNG 2: Thêm role vào JSON gửi về Frontend
             })
         
         return jsonify(result_list)
@@ -758,14 +762,19 @@ scheduler.add_job(routes.update_status, 'interval', seconds=10)
 
 
 if __name__ == '__main__':
-    scheduler.start()
-    print("Đang khởi động Server AI ngầm...")
-    try:
-        ai_process = subprocess.Popen(
-            [sys.executable, "-m", "uvicorn", "LSTM_AI:app", "--host", "0.0.0.0", "--port", "8000"]
-        )
-        print("Đã bật Server AI tại cổng 8000!")
-    except Exception as e:
-        print(f"Lỗi không thể khởi động Server AI: {e}")
+    import os
+    
+    # TRẠM KIỂM SOÁT: Chỉ khởi động AI và Scheduler nếu đây là tiến trình con của Reloader
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        scheduler.start()
+        print("Đang khởi động Server AI ngầm...")
+        try:
+            ai_process = subprocess.Popen(
+                [sys.executable, "-m", "uvicorn", "LSTM_AI:app", "--host", "0.0.0.0", "--port", "8000"]
+            )
+            print("Đã bật Server AI tại cổng 8000!")
+        except Exception as e:
+            print(f"Lỗi không thể khởi động Server AI: {e}")
+            
+    # Lệnh chạy Web Server vẫn nằm ngoài cùng
     server.run()
-

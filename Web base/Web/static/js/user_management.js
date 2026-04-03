@@ -73,6 +73,29 @@ document.addEventListener("DOMContentLoaded", () => {
         checkboxes.forEach(cb => cb.checked = isChecked);
         toggleBinIcon();
     });
+
+    // ==========================================
+    // Chức năng Đăng xuất
+    // ==========================================
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            
+            // Gọi API logout ở Backend
+            fetch('/logout', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) { 
+                    // Chuyển hướng về trang đăng nhập
+                    window.location.href = data.redirect || '/login'; 
+                } else {
+                    alert("Có lỗi xảy ra khi đăng xuất!");
+                }
+            })
+            .catch(error => console.error("Lỗi kết nối khi đăng xuất!", error));
+        });
+    }
 });
 
 // Hàm lấy dữ liệu và khởi tạo phân trang
@@ -81,10 +104,15 @@ async function loadUsers() {
         const response = await fetch('/api/admin/users');
         let users = await response.json();
         
+        // BỘ LỌC MỚI: Chỉ giữ lại những tài khoản KHÔNG phải là admin
+        // Lưu ý: Đảm bảo API của bạn có trả về trường 'role' cho mỗi user
+        users = users.filter(user => user.role !== 'admin' && user.role !== 'administrator');
+        
         // YÊU CẦU 1: Sắp xếp theo bảng chữ cái A-Z (theo username)
         users.sort((a, b) => a.username.localeCompare(b.username));
         
         allUsers = users;
+        
         // Nếu trang hiện tại bị quá đà do xóa user, lùi lại 1 trang
         const maxPage = Math.ceil(allUsers.length / rowsPerPage) || 1;
         if (currentPage > maxPage) currentPage = maxPage;

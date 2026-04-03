@@ -164,10 +164,18 @@ class FieldDB:
     def add_user_to_field(self, field_id: str, username: str):
         with self.connect() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO field_user (field_id, username)
-                VALUES (?, ?)
-            """, (field_id, username))
+            
+            # 1. Kiểm tra xem có dòng trống (NULL) nào cho field_id này không
+            cursor.execute("SELECT * FROM field_user WHERE field_id = ? AND username IS NULL", (field_id,))
+            empty_row = cursor.fetchone()
+
+            if empty_row:
+                # 2. Nếu có dòng NULL -> Cập nhật (UPDATE) chèn tên user vào chỗ trống
+                cursor.execute("UPDATE field_user SET username = ? WHERE field_id = ? AND username IS NULL", (username, field_id))
+            else:
+                # 3. Nếu không có dòng NULL -> Thêm mới (INSERT)
+                cursor.execute("INSERT INTO field_user (field_id, username) VALUES (?, ?)", (field_id, username))
+                
             conn.commit()
         
     def get_device_names(self, field_id: str):
@@ -475,10 +483,11 @@ class FieldDB:
                     (field_id,)
                 )
 
-                # 2. Xoá liên kết user trong bảng field_user
+                # 2. Xóa liên kết user bằng cách cập nhật thành NULL (thay vì xóa nguyên dòng)
                 cursor.execute(
                     """
-                    DELETE FROM field_user
+                    UPDATE field_user
+                    SET username = NULL
                     WHERE field_id = ?
                     """,
                     (field_id,)
