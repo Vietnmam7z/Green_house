@@ -2,6 +2,7 @@
 import json
 import config 
 from datetime import datetime, timedelta
+from flask import session, jsonify
 
 class FieldDB:
     def __init__(self, field_db_path = config.field_db_path):
@@ -35,7 +36,8 @@ class FieldDB:
 
             conn.commit()
             return {"success": True, "message": "Thêm ruộng thành công."}
-                            
+        
+    # 1. Hàm lấy ruộng cho User thường (Đã khôi phục)
     def get_fields(self, username: str):
         with self.connect() as conn:
             cursor = conn.cursor()
@@ -45,7 +47,14 @@ class FieldDB:
                 JOIN field f ON fu.field_id = f.field_id
                 WHERE fu.username = ?
             """, (username,))
-            return [{"field_id": row[0], "field_name": row[1]} for row in cursor.fetchall()]
+            return [{"field_id": row[0], "field_name": row[1] if row[1] else "---"} for row in cursor.fetchall()]
+
+    # 2. Hàm lấy toàn bộ ruộng cho Admin (Giữ nguyên)
+    def get_all_fields(self):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT field_id, field_name FROM field")
+            return [{"field_id": row[0], "field_name": row[1] if row[1] else "---"} for row in cursor.fetchall()]
         
     def get_field_ids(self, field_ids: list):
         with self.connect() as conn:

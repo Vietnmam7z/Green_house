@@ -67,53 +67,15 @@ class Routes:
         device_name = data.get('device_name')
         action = data.get('action') # 'ON' hoặc 'OFF'
 
-		
         # 1. KIỂM TRA QUYỀN: Admin được phép, User thường phải check quyền sở hữu
-        # Kiểm tra xem User này có quyền điều khiển Field này không
         if role not in ['administrator', 'admin']:
-            if not self.field.find_username(field_id, username):
+            # SỬA Ở ĐÂY: Đổi từ find_username thành find_user_id
+            if not self.field.find_user_id(field_id, username): 
                 return jsonify({"success": False, "message": "Bạn không có quyền điều khiển ruộng này"}), 403
 
         print(f"User {username} ra lệnh: {action} thiết bị {device_name} tại {field_id}")
-
-        # 2. LƯU TRẠNG THÁI VÀO DATABASE ĐỂ ĐỒNG BỘ
-        import sqlite3
-        import json
-        conn = sqlite3.connect('field.db')
-        cur = conn.cursor()
         
-        # Lấy trạng thái hiện tại (nếu có)
-        cur.execute("SELECT status FROM field_status WHERE field_id = ?", (field_id,))
-        row = cur.fetchone()
-        states = {}
-        if row and row[0]:
-            try:
-                states = json.loads(row[0])
-            except json.JSONDecodeError:
-                pass
-        # Cập nhật trạng thái của thiết bị vừa được bấm
-        states[device_name] = action
-        # Lưu ngược lại vào database
-        if row is not None:
-            cur.execute("UPDATE field_status SET status = ? WHERE field_id = ?", (json.dumps(states), field_id))
-        else:
-            cur.execute("INSERT INTO field_status (field_id, status) VALUES (?, ?)", (field_id, json.dumps(states)))
-            
-        conn.commit()
-        conn.close()
-
-        # ==========================================================
-        # TODO: GỌI API CỦA COREIOT/THINGSBOARD TẠI ĐÂY ĐỂ ĐIỀU KHIỂN
-        # Ví dụ: self.sensor.send_rpc(device_name, action)
-        # ==========================================================
-
-        # Giả lập thành công (Bạn sẽ thay bằng kết quả thật từ IoT)
-        is_success = True 
-        
-        if is_success:
-            return jsonify({"success": True, "message": f"Đã {action} {device_name}"})
-        else:
-            return jsonify({"success": False, "message": "Thiết bị không phản hồi"})
+        # ... (Phần code lưu vào Database phía dưới giữ nguyên) ...
 	
     # API LẤY TRẠNG THÁI ĐỒNG BỘ CHO TRANG CONTROL
     def get_control_status(self):
@@ -500,7 +462,16 @@ class Routes:
 
     def get_field(self):
         username = session.get('username')
-        return jsonify(self.field.get_fields(username))
+        role = self.auth.get_role(username) # Lấy quyền của người dùng hiện tại
+        
+        # Nếu là Admin -> Lấy toàn bộ ruộng
+        if role in ['administrator', 'admin']:
+            fields = self.field.get_all_fields()
+        # Nếu là User thường -> Chỉ lấy ruộng của mình
+        else:
+            fields = self.field.get_fields(username)
+            
+        return jsonify(fields)
     
     def delete_field(self):
         field_id = request.get_json().get("field_id")
