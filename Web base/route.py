@@ -13,6 +13,8 @@ import random
 import read_value
 import subprocess
 import sys
+import sqlite3
+import json
 
 class Routes:
     def __init__(self, auth: Authentication, otp: OTPManager, sensor: Sensor_API, field: FieldDB, logger: UserLogger):
@@ -67,15 +69,63 @@ class Routes:
         device_name = data.get('device_name')
         action = data.get('action') # 'ON' hoặc 'OFF'
 
-        # 1. KIỂM TRA QUYỀN: Admin được phép, User thường phải check quyền sở hữu
+        # 1. KIỂM TRA QUYỀN
         if role not in ['administrator', 'admin']:
-            # SỬA Ở ĐÂY: Đổi từ find_username thành find_user_id
-            if not self.field.find_user_id(field_id, username): 
+            if not self.field.find_user_id(field_id, username):
                 return jsonify({"success": False, "message": "Bạn không có quyền điều khiển ruộng này"}), 403
 
         print(f"User {username} ra lệnh: {action} thiết bị {device_name} tại {field_id}")
+
+        # 2. LƯU TRẠNG THÁI VÀO DATABASE ĐỂ ĐỒNG BỘ
+        try:
+            # Thêm timeout=5.0 để nếu DB bị khóa, nó sẽ chờ tối đa 5 giây thay vì báo lỗi ngay
+            conn = sqlite3.connect('field.db', timeout=5.0)
+            cur = conn.cursor()
+            
+            # KHÓA ĐỘC QUYỀN (EXCLUSIVE LOCK): Ngăn luồng khác đọc/ghi xen ngang
+            cur.execute("BEGIN EXCLUSIVE")
+            
+            # Lấy trạng thái hiện tại (nếu có)
+            cur.execute("SELECT status FROM field_status WHERE field_id = ?", (field_id,))
+            row = cur.fetchone()
+
+            states = {}
+            if row and row[0]:
+                try:
+                    states = json.loads(row[0])
+                except json.JSONDecodeError:
+                    pass
+
+            # Cập nhật trạng thái của thiết bị vừa được bấm
+            states[device_name] = action
+
+            # Lưu ngược lại vào database
+            if row is not None:
+                cur.execute("UPDATE field_status SET status = ? WHERE field_id = ?", (json.dumps(states), field_id))
+            else:
+                cur.execute("INSERT INTO field_status (field_id, status) VALUES (?, ?)", (field_id, json.dumps(states)))
+                
+            conn.commit()
+            conn.close()
+            
+        except sqlite3.OperationalError as e:
+            # Nếu 2 người bấm thật sự cùng lúc và timeout không cứu được, báo cho Web biết
+            print(f"Lỗi khóa DB: {e}")
+            return jsonify({"success": False, "message": "Hệ thống đang bận xử lý lệnh khác, vui lòng thử lại!"}), 503
+        except Exception as e:
+            print(f"Lỗi Database trong control_device: {e}")
+            return jsonify({"success": False, "message": f"Lỗi server: {e}"}), 500
+
+        # ==========================================================
+        # 3. TRẢ VỀ KẾT QUẢ CHO FRONTEND
+        # CHÚ Ý: Các dòng dưới đây phải thẳng hàng với chữ 'try' phía trên
+        # ==========================================================
+        is_success = True 
         
-        # ... (Phần code lưu vào Database phía dưới giữ nguyên) ...
+        if is_success:
+            return jsonify({"success": True, "message": f"Đã {action} {device_name}"})
+        else:
+            return jsonify({"success": False, "message": "Thiết bị không phản hồi"})
 	
     # API LẤY TRẠNG THÁI ĐỒNG BỘ CHO TRANG CONTROL
     def get_control_status(self):

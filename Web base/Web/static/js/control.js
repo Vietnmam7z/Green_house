@@ -170,8 +170,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
+            // BỘ KHÓA UI: Làm mờ (disable) công tắc trong lúc chờ Server
+            this.disabled = true;
+
             try {
-                // Báo cáo lệnh điều khiển lên Server (Đồng thời server sẽ lưu vào DB)
+                // Báo cáo lệnh điều khiển lên Server
                 const response = await fetch('/api/control_device', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -186,7 +189,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 if (data.success) {
                     console.log(`Đã ${isTurnedOn ? 'BẬT' : 'TẮT'} ${deviceName} tại ${currentFieldId}`);
-                    // (Đã xóa phần lưu localStorage ở đây vì Server đã lo việc nhớ trạng thái)
                 } else {
                     alert("Lỗi: " + data.message);
                     this.checked = !isTurnedOn; // Thất bại thì giật công tắc về lại như cũ
@@ -195,6 +197,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.error("Lỗi gửi lệnh điều khiển:", error);
                 alert("Lỗi kết nối đến máy chủ!");
                 this.checked = !isTurnedOn; 
+            } finally {
+                // MỞ KHÓA UI: Dù thành công hay thất bại cũng cho phép bấm lại
+                this.disabled = false;
             }
         });
     });
