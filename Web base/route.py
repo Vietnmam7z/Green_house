@@ -784,6 +784,11 @@ scheduler.add_job(routes.update_status, 'interval', seconds=10)
 
 if __name__ == '__main__':
     import os
+    import sys
+    import subprocess
+    
+    # Khởi tạo biến lưu tiến trình AI để dễ dàng quản lý
+    ai_process = None
     
     # TRẠM KIỂM SOÁT: Chỉ khởi động AI và Scheduler nếu đây là tiến trình con của Reloader
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
@@ -797,5 +802,25 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"Lỗi không thể khởi động Server AI: {e}")
             
-    # Lệnh chạy Web Server vẫn nằm ngoài cùng
-    server.run()
+    try:
+        # Lệnh chạy Web Server
+        server.run()
+    except KeyboardInterrupt:
+        # Bắt sự kiện khi bạn nhấn Ctrl + C
+        print("\n[HỆ THỐNG] Nhận lệnh tắt từ người dùng...")
+    finally:
+        # 1. Dọn dẹp Scheduler (Tắt các tiến trình cập nhật ngầm)
+        try:
+            if scheduler.running:
+                scheduler.shutdown(wait=False)
+                print("[HỆ THỐNG] Đã tắt Scheduler an toàn.")
+        except Exception:
+            pass # Bỏ qua nếu scheduler chưa kịp chạy
+
+        # 2. Dọn dẹp sạch sẽ tiến trình Server AI
+        if ai_process is not None:
+            ai_process.terminate()
+            ai_process.wait() # Chờ tiến trình AI tắt hẳn
+            print("[HỆ THỐNG] Đã đóng Server AI (cổng 8000) an toàn.")
+            
+        print("[HỆ THỐNG] Tạm biệt!")
