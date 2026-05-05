@@ -585,7 +585,7 @@ class Routes:
                 "success": result['success'],
                 "message": result['message'],
             })
-        
+    
     def delete_device(self):
         device_id = request.get_json().get("device_id")
         field_id = request.get_json().get("field_id")
@@ -609,6 +609,54 @@ class Routes:
                 "success": result['success'],
                 "message": result['message'],
             })
+   
+    def get_ai_settings(self):
+        field_id = request.args.get('field_id')
+        if not field_id:
+            return jsonify({"success": False, "message": "Missing field_id"}), 400
+            
+        try:
+            return jsonify({
+                "success": True, 
+                "data": {
+                    "anomoly_score_low": self.field.get_anomoly_score_low(field_id)[0],
+                    "anomoly_score_high": self.field.get_anomoly_score_high(field_id)[0],
+                    "step": self.field.get_step(field_id)[0],
+                    "anomoly_status": self.field.get_anomoly_status(field_id)[0],
+                    "prediction_status": self.field.get_prediction_status(field_id)[0],
+                    "anomoly_prediction_status": self.field.get_anomoly_prediction_status(field_id)[0]
+                }
+            }), 200
+        except Exception as e:
+            print(f"Lỗi lấy cấu hình AI: {e}")
+            return jsonify({"success": False, "message": "Server error"}), 500    
+    
+    def update_ai_settings(self):
+        data = request.get_json()
+        field_id = data.get('field_id')
+        anomoly_score_low = float(data.get('anomoly_score_low', 0))
+        anomoly_score_high = float(data.get('anomoly_score_high', 100))
+        step = int(data.get('step', 5))
+        anomoly_status = data.get('anomoly_status', 'OFF')
+        prediction_status = data.get('prediction_status', 'OFF')
+        anomoly_prediction_status = data.get('anomoly_prediction_status', 'OFF')
+
+        # Kiểm tra field_id hợp lệ
+        if not field_id:
+            return jsonify({"success": False, "message": "Thiếu mã khu vực (field_id)."}), 400
+
+        self.field.set_anomoly_score_low(field_id, anomoly_score_low)
+        self.field.set_anomoly_score_high(field_id, anomoly_score_high)
+        self.field.set_step(field_id, step)
+        self.field.set_anomoly_status(field_id, anomoly_status)
+        self.field.set_prediction_status(field_id, prediction_status)
+        self.field.set_anomoly_prediction_status(field_id, anomoly_prediction_status)
+
+        return jsonify({
+            "success": True, 
+            "message": "Đã lưu cấu hình AI thành công!"
+        }), 200
+
        
     def add_user(self):
         username = session.get('username')
@@ -675,25 +723,30 @@ class Routes:
         return result
 
     def send_chart(self):
-        device_name = request.get_json().get("device_name")
-        telemetry = request.get_json().get("telemetry")
-        time_mode = request.get_json().get("time")
-        #device_name = "SI Soil Moisture 5"
-        #telemetry="temperature"
-        #time_mode = "7d"
-
-        freq_map = {
-            "1h": "10min",   
-            "1d": "1h",      
-            "7d": "6h",      
-            "30d": "1d"      
-        }
-
-        raw_data = self.field.get_all_telemetry_status(device_name, telemetry, time_mode)   
-
-        resampled = self.resample_mean(raw_data, freq=freq_map[time_mode])
-
-        return jsonify(resampled)
+        device_id = request.args.get('device_id')
+        name = request.args.get('name')
+        
+        # Kết nối Database
+        conn = sqlite3.connect('field.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT ts, value FROM (
+                SELECT ts, value FROM telemetry 
+                WHERE device_id = (SELECT device_id FROM device WHERE device_name = ? OR device_id = ?) 
+                  AND name = ? 
+                ORDER BY ts DESC 
+                LIMIT 30
+            ) ORDER BY ts ASC
+        """, (device_id, device_id, name))
+        
+        records = cursor.fetchall()
+        conn.close()
+        
+        # Format lại dữ liệu trả về cho Javascript
+        data_list = [{"ts": row[0], "value": row[1]} for row in records]
+        
+        return jsonify({"success": True, "data": data_list})
     
     # def get_data(self):
     #     fake_temp = round(random.uniform(10.0, 45.0), 1)
@@ -712,6 +765,49 @@ class Routes:
     #         "light": fake_light,
     #         "moisture": soil_moisture
     # })
+    def check_anomaly(self):
+        conn = sqlite3.connect('field.db')
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                telemetry.value, 
+                device.device_name, 
+                field.field_name
+            FROM telemetry
+            JOIN device ON telemetry.device_id = device.device_id
+            JOIN field ON device.field_id = field.field_id
+            WHERE telemetry.name = 'anomaly_score'
+            ORDER BY telemetry.ts DESC
+            LIMIT 1
+        """)
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result:
+            score, device_name, field_name = result
+            return jsonify({
+                "success": True,
+                "anomaly_score": score,
+                "device_name": device_name,
+                "field_name": field_name
+            })
+        return jsonify({"success": False})
+    def save_notification(self):
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "message": "Không nhận được dữ liệu"})
+
+        # Rút dữ liệu từ cục JSON mà Javascript gửi lên
+        status = data.get('status')
+        device_id = data.get('device_id')
+        ts = data.get('ts')
+        username = data.get('username')
+
+        # Gọi hàm insert_notification mà bạn vừa gửi
+        # Chú ý: Thay 'db' bằng tên biến khởi tạo Database của bạn (ví dụ: self.db, field_db, ...)
+        result = self.field.insert_notification(status, device_id, ts, username)
+        return jsonify(result)
 
     def get_current_user(self):
         # Kiểm tra xem user có trong session (đã đăng nhập) chưa
@@ -762,11 +858,14 @@ server.add_route('/api/data', routes.send_telemetry, methods=['POST','GET'])
 server.add_route('/api/fields', routes.get_field, methods=['POST','GET'])
 server.add_route('/api/rename_device', routes.rename_device, methods=['POST'])
 server.add_route('/api/rename_field', routes.rename_field_name, methods=['POST'])
-server.add_route('/api/send_chart', routes.send_chart, methods=['POST'])
+server.add_route('/api/send_chart', routes.send_chart, methods=['GET'])
 server.add_route('/api/current_user', routes.get_current_user, methods=['GET'])
 server.add_route('/api/control_device', routes.control_device, methods=['POST'])
 server.add_route('/api/get_control_status', routes.get_control_status, methods=['GET'])
-
+server.add_route('/api/save_notification', routes.save_notification, methods=['POST'])
+server.add_route('/api/update_ai_settings', routes.update_ai_settings, methods=['POST'])
+server.add_route('/api/get_ai_settings', routes.get_ai_settings, methods=['GET'])
+server.add_route('/api/check_anomaly', routes.check_anomaly, methods=['GET'])
 server.add_route('/admin_management', routes.management_page, methods=['GET'])
 server.add_route('/admin_management/users', routes.user_management_page, methods=['GET'])
 server.add_route('/api/admin/users', routes.api_admin_users, methods=['GET'])

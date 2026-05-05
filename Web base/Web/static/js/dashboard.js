@@ -1,106 +1,138 @@
-
 const telemetryConfig = {
     "temperature": { label: "Temperature", unit: "°C", icon: "fa-temperature-half", color: "color-temp" },
     "humidity": { label: "Humidity", unit: "%", icon: "fa-droplet", color: "color-humid" },
     "moisture": { label: "Soil Moisture", unit: "%", icon: "fa-water", color: "color-soil" },
-    "light": { label: "Ambient Light", unit: "lx", icon: "fa-sun", color: "color-light" }
+    "light": { label: "Ambient Light", unit: "lx", icon: "fa-sun", color: "color-light" },
+    "status": { label: "Status", unit: "", icon: "fa-microchip", color: "color-default" } // Thêm status dựa trên ảnh DB của bạn
 };
-
 
 function getConfig(key) {
     const lowerKey = key.toLowerCase();
     for (let prop in telemetryConfig) {
         if (lowerKey.includes(prop)) return telemetryConfig[prop];
     }
-    // Trả về một object đầy đủ các thuộc tính nếu không tìm thấy key
     return { label: key, unit: "", icon: "fa-microchip", color: "color-default" };
 }
-
 
 let fieldsList = []; 
 let currentIndex = 0; 
 let currentFieldId = null; 
+let isAIEnabled = true; 
 
+// QUẢN LÝ TÁCH THỜI GIAN
+let aiStepValue = 25; 
+let aiStatusDB = 'OFF';
+let aiResultsCache = {}; 
+let aiTimer = null;
 
+// QUẢN LÝ THÔNG BÁO VÀ DATABASE
+let anomolyPredictionStatusDB = 'OFF';
+let anomolyScoreLowDB = 0.25;
+let anomolyScoreHighDB = 0.85;
+let notificationsList = [];
+let currentLoggedUser = "Unknown";
 
-function capNhatHienThiField() {
-    if (fieldsList.length === 0) return;
-    const currentField = fieldsList[currentIndex];
-    currentFieldId = currentField.field_id; 
-    
-    const nameLabel = document.getElementById('current-field-name');
-    if (nameLabel) nameLabel.textContent = currentField.field_name;
-    
-        // Cập nhật Field ID (MỚI THÊM)
-    const idLabel = document.getElementById('current-field-id');
-    if (idLabel) idLabel.textContent = currentField.field_id;
-    
-    capNhatDuLieu(); 
+// ==========================================
+// 1. LOGIC AI ĐỘC LẬP
+// ==========================================
+async function updateAISettings() {
+    if (!currentFieldId) return;
+    try {
+        const response = await fetch(`/api/get_ai_settings?field_id=${currentFieldId}`);
+        const data = await response.json();
+        if (data.success && data.data) {
+            aiStepValue = parseInt(data.data.step) || 25;
+            aiStatusDB = data.data.prediction_status;
+            
+            anomolyPredictionStatusDB = data.data.anomoly_prediction_status || 'OFF';
+            anomolyScoreLowDB = parseFloat(data.data.anomoly_score_low) || 0.25;
+            anomolyScoreHighDB = parseFloat(data.data.anomoly_score_high) || 0.85;
+
+            if (aiTimer) clearInterval(aiTimer);
+            if (aiStatusDB === 'ON') {
+                aiTimer = setInterval(goiAiDuDoan, aiStepValue * 60 * 1000); 
+            }
+        }
+    } catch (err) { console.error("Lỗi AI settings:", err); }
 }
 
-async function layDanhSachField() {
-    try {
-        const response = await fetch('/api/fields', { method: 'GET' });
-        if (!response.ok) throw new Error("Lỗi HTTP: " + response.status);
-
-        fieldsList = await response.json();
+async function goiAiDuDoan() {
+    if (aiStatusDB !== 'ON' || !isAIEnabled) return;
+    const boxes = document.querySelectorAll('.ai-prediction-box');
+    boxes.forEach(box => {
+        // Lấy chính xác device_id và name từ HTML
+        const deviceId = box.getAttribute('data-device-id');
+        const telemetryName = box.getAttribute('data-telemetry-name');
+        const unit = box.getAttribute('data-unit');
         
-        if (fieldsList && fieldsList.length > 0) {
-            if (!currentFieldId) {
-                const urlParams = new URLSearchParams(window.location.search);
-                const targetFieldId = urlParams.get('field_id');
-
-                if (targetFieldId) {
-                    const foundIndex = fieldsList.findIndex(f => f.field_id === targetFieldId);
-                    if (foundIndex !== -1) {
-                        currentIndex = foundIndex;
-                    } else {
-                        currentIndex = 0; 
-                    }
-                } else {
-                    currentIndex = 0;
-                }
-                
-                capNhatHienThiField();
-            }
-        } else {
-            document.getElementById('current-field-name').textContent = "Không có dữ liệu";
+        if (deviceId && telemetryName) {
+            fetchAIPrediction(deviceId, telemetryName, box.id, unit);
         }
+    });
+}
+
+// HÀM GỬI DATA CHO SERVER AI
+async function fetchAIPrediction(deviceId, telemetryName, elementId, unit) {
+    try {
+        const response = await fetch('http://127.0.0.1:8000/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                device_id: deviceId,
+                name: telemetryName,    
+                step: aiStepValue
+            })
+        });
+        const data = await response.json();
+        const aiContainer = document.getElementById(elementId);
+        let content = "";
+
+        if (data.status === "success") {
+            content = `<i class="fa-solid fa-robot" style="color: #4CAF50;"></i> Next: ${data.predicted_next_val} ${unit}`;
+            
+            if (anomolyPredictionStatusDB === 'ON' && data.anomaly_score !== undefined) {
+                const score = parseFloat(data.anomaly_score);
+                const fieldName = document.getElementById('current-field-name').textContent;
+                const displayDeviceName = `${deviceId} (${telemetryName})`;
+
+                if (score >= anomolyScoreHighDB) {
+                    addNotificationToDBandUI("CRITICAL", deviceId, displayDeviceName, score, fieldName);
+                } else if (score >= anomolyScoreLowDB) {
+                    addNotificationToDBandUI("WARNING", deviceId, displayDeviceName, score, fieldName);
+                }
+            }
+        } else if (data.status === "waiting") {
+            const timeRemaining = (data.total_steps - data.current_step) * aiStepValue;
+            content = `<i class="fa-solid fa-spinner fa-spin"></i> Học: ${data.current_step}/${data.total_steps}`;
+        }
+        
+        aiResultsCache[elementId] = content; 
+        if (aiContainer) aiContainer.innerHTML = content;
     } catch (err) {
-        console.error("Lỗi lấy danh sách Field:", err);
+        aiResultsCache[elementId] = `<i class="fa-solid fa-robot" style="color: #F44336;"></i> AI offline`;
     }
 }
 
+// ==========================================
+// 2. CẬP NHẬT DỮ LIỆU CẢM BIẾN (5 GIÂY)
+// ==========================================
 async function capNhatDuLieu() {
     if (!currentFieldId) return; 
-
     try {
         const response = await fetch('/api/data', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ field_id: currentFieldId })
         });
-
-        if (!response.ok) throw new Error("Lỗi HTTP: " + response.status);
-
         const data = await response.json();
-        
-
         const container = document.getElementById("dynamic-devices-container");
         if (!container) return;
 
-        // Xóa sạch vùng chứa để chuẩn bị vẽ lại từ đầu
         container.innerHTML = "";
-
         if (Array.isArray(data)) {
-            // Bước 1: Lặp qua từng object thiết bị trong mảng
             data.forEach(deviceObj => {
-                
-                // Bước 2: Lấy tên thiết bị (VD: "SI Soil Moisture 8", "Moisture 5")
                 for (const deviceName in deviceObj) {
                     const telemetries = deviceObj[deviceName];
-
-                    // Tạo tiêu đề (tên thiết bị) và một vùng lưới (grid) chứa panel
                     const deviceSection = document.createElement("div");
                     deviceSection.innerHTML = `
                         <div class="section-title" style="margin-top: 25px;">
@@ -109,25 +141,20 @@ async function capNhatDuLieu() {
                         <div class="panel-grid" id="grid-${deviceName.replace(/\s+/g, '-')}"></div>
                     `;
                     container.appendChild(deviceSection);
-                    
                     const gridContainer = deviceSection.querySelector('.panel-grid');
 
-                    // Bước 3: Lặp qua các thông số của thiết bị này (VD: moisture, temperature)
-                    for (const teleKey in telemetries) {
+                    for (const teleKey in telemetries) {    
                         const teleData = telemetries[teleKey];
-                        
-                        // Kiểm tra xem cấu trúc có trường "value" hay không
                         if (teleData && teleData.value !== undefined) {
                             const val = parseFloat(teleData.value);
                             const config = getConfig(teleKey);
-                            
-                            // Tạo ID duy nhất cho thẻ HTML chứa kết quả AI
                             const safeDeviceName = deviceName.replace(/\s+/g, '_');
                             const aiElementId = `ai-${safeDeviceName}-${teleKey}`;
 
-                            // Sinh HTML cho từng panel thông số
+                            const currentAI = aiResultsCache[aiElementId] || `<i class="fa-solid fa-spinner fa-spin"></i> AI: Đang kết nối...`;
+
                             const panelHTML = `
-                                <div class="panel">
+                                <div class="panel" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openChartModal('${deviceName}', '${teleKey}', '${config.unit}', '${config.label}')">
                                     <div class="icon-box ${config.color || 'color-default'}">
                                         <i class="fa-solid ${config.icon}"></i>
                                     </div>
@@ -136,188 +163,300 @@ async function capNhatDuLieu() {
                                         <span class="data-value">${isNaN(val) ? "--" : val}
                                             <span class="data-unit">${config.unit}</span>
                                         </span>
-                                        <div id="${aiElementId}" style="margin-top: 8px; font-size: 0.85rem; color: #00bcd4; font-weight: bold;">
-                                            <i class="fa-solid fa-robot"></i> AI: Đang phân tích...
+                                        <!-- THIẾT LẬP data-device-id VÀ data-telemetry-name TRÙNG KHỚP DATABASE -->
+                                        <div id="${aiElementId}" class="ai-prediction-box" 
+                                             data-device-id="${deviceName}" 
+                                             data-telemetry-name="${teleKey}" 
+                                             data-unit="${config.unit}"
+                                             style="display: ${(aiStatusDB === 'ON' && isAIEnabled) ? 'block' : 'none'}; margin-top: 8px; font-size: 0.85rem; color: #00bcd4; font-weight: bold;">
+                                            ${currentAI}
                                         </div>
                                     </div>
                                 </div>
                             `;
                             gridContainer.insertAdjacentHTML('beforeend', panelHTML);
-                            
-                            // GỌI HÀM AI NGAY LẬP TỨC CHO THÔNG SỐ NÀY
-                            if (!isNaN(val)) {
-                                fetchAIPrediction(`${safeDeviceName}_${teleKey}`, val, aiElementId, config.unit);
-                            }
                         }
                     }
                 }
             });
         }
-    } catch (err) {
-        console.error("Lỗi tải dữ liệu cảm biến:", err);
-    }
+    } catch (err) { console.error(err); }
 }
 
+// ==========================================
+// 3. KHỞI TẠO VÀ HEADER
+// ==========================================
+async function capNhatHienThiField() {
+    if (fieldsList.length === 0) return;
+    const currentField = fieldsList[currentIndex];
+    currentFieldId = currentField.field_id; 
+    
+    document.getElementById('current-field-name').textContent = currentField.field_name;
+    document.getElementById('current-field-id').textContent = currentField.field_id;
+    
+    aiResultsCache = {}; 
+    await updateAISettings(); 
+    await capNhatDuLieu(); 
+    goiAiDuDoan(); 
+}
+
+async function layDanhSachField() {
+    try {
+        const response = await fetch('/api/fields');
+        fieldsList = await response.json();
+        if (fieldsList && fieldsList.length > 0) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const targetFieldId = urlParams.get('field_id');
+            if (targetFieldId) {
+                const foundIndex = fieldsList.findIndex(f => f.field_id === targetFieldId);
+                currentIndex = (foundIndex !== -1) ? foundIndex : 0;
+            }
+            capNhatHienThiField();
+        }
+    } catch (err) { console.error(err); }
+}
 
 document.addEventListener("DOMContentLoaded", () => {
-    const btnPrev = document.getElementById('btn-prev-field');
-    const btnNext = document.getElementById('btn-next-field');
-
-    if (btnPrev) {
-        btnPrev.addEventListener('click', () => {
-            if (fieldsList.length === 0) return;
-            
-            // Tính toán vị trí của ruộng trước đó
-            currentIndex = (currentIndex - 1 + fieldsList.length) % fieldsList.length;
-            
-            // Lấy ID của ruộng mới
-            const newFieldId = fieldsList[currentIndex].field_id;
-            
-            // THAY ĐỔI ĐƯỜNG DẪN URL TRÊN TRÌNH DUYỆT (Không load lại trang)
-            window.history.pushState({ field_id: newFieldId }, '', `/dashboard?field_id=${newFieldId}`);
-            
-            // Cập nhật giao diện mượt mà
-            capNhatHienThiField();
-        });
-    }
-
-    if (btnNext) {
-        btnNext.addEventListener('click', () => {
-            if (fieldsList.length === 0) return;
-            
-            // Tính toán vị trí của ruộng tiếp theo
-            currentIndex = (currentIndex + 1) % fieldsList.length;
-            
-            // Lấy ID của ruộng mới
-            const newFieldId = fieldsList[currentIndex].field_id;
-            
-            // THAY ĐỔI ĐƯỜNG DẪN URL TRÊN TRÌNH DUYỆT (Không load lại trang)
-            window.history.pushState({ field_id: newFieldId }, '', `/dashboard?field_id=${newFieldId}`);
-            
-            // Cập nhật giao diện mượt mà
-            capNhatHienThiField();
-        });
-    }
-
-    // Bắt thêm sự kiện khi người dùng bấm nút "Back" hoặc "Forward" trên trình duyệt
-    window.addEventListener('popstate', (event) => {
-        // Tải lại danh sách field để tự động nhảy về đúng tab theo URL
-        layDanhSachField();
-    });
-
-    // Khởi chạy các hàm đầu tiên
-    layDanhSachField(); 
-    setInterval(layDanhSachField, 10000); 
-    setInterval(capNhatDuLieu, 5000); 
-});
-
-
-document.addEventListener("DOMContentLoaded", () => {
-    // Đã gộp chung bắt ID để dùng đúng cho nút Back của bạn
-    const btnBack = document.getElementById('goToDashboard') || document.getElementById('btn-back'); 
-    const goToControl = document.getElementById('ControlBtn');
-    const btnSettings = document.getElementById('btn-settings');
-    const logoutBtn = document.getElementById('logoutBtn');
-
     fetch('/api/current_user')
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          document.getElementById('userName').innerText = data.username;
-          
-        // XỬ LÝ LỖI HIỂN THỊ ROLE: Biến "admin" thành "administrator"
-        let displayRole = data.role;
-        if (displayRole === 'admin') displayRole = 'administrator';
-        const userRoleEl = document.getElementById('userRole');
-            if (userRoleEl) userRoleEl.innerText = displayRole;
-            // Kiểm tra xem có phải Admin không
+            currentLoggedUser = data.username;
+            document.getElementById('userName').innerText = data.username;
+            let displayRole = data.role === 'admin' ? 'administrator' : data.role;
+            document.getElementById('userRole').innerText = displayRole;
             const isAdmin = (data.role === 'administrator' || data.role === 'admin');
-            // Ghi đè sự kiện nút Back (ĐÃ SỬA LẠI ĐƯỜNG DẪN TẠI ĐÂY)
+            const btnBack = document.getElementById('goToDashboard') || document.getElementById('btn-back');
             if (btnBack) {
                 btnBack.onclick = (e) => {
                     e.preventDefault();
-                    // Admin -> Quản lý Nhà kính | User -> Trang chủ
                     window.location.href = isAdmin ? '/admin_management/greenhouses' : '/';
                 };
-            }        
-        }
-      })
-      .catch(err => console.error("Lỗi lấy thông tin user:", err));
-      
-    if (btnSettings) {
-        btnSettings.addEventListener('click', () => {
-            window.location.href = '/manage';
-        });
-    }
-    
-
-    if (goToControl) {
-        goToControl.addEventListener('click', function () {
-
-            if (currentFieldId) {
-                window.location.href = `/control?field_id=${currentFieldId}`;
-            } else {
-                window.location.href = '/control';
             }
-        });
-    }
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', function (e) {
-            e.preventDefault();
-            fetch('/logout', { method: 'POST' })
-            .then(res => {
-                if (!res.ok) throw new Error("Server trả về lỗi");
-                return res.json();
-            })
-            .then(data => {
-                if (data.success) { window.location.href = data.redirect || '/login'; } 
-                else { resultBox.innerText = data.message || "Không thể đăng xuất."; }
-            })
-            .catch(error => { resultBox.innerText = "Lỗi kết nối!"; });
-            });
-    }
-});
-// document.addEventListener("DOMContentLoaded", () => {
-//     const goToControl = document.getElementById('goToControl');
-//     if (goToControl) {
-//     goToControl.addEventListener('click', function () {
-//       window.location.href = '/';
-//     });
-//   }
-// });
+        }
+      });
 
-async function fetchAIPrediction(sensorId, currentValue, elementId, unit) {
+    document.getElementById('ControlBtn')?.addEventListener('click', () => {
+        window.location.href = currentFieldId ? `/control?field_id=${currentFieldId}` : '/control';
+    });
+    document.getElementById('btn-settings')?.addEventListener('click', () => window.location.href = '/manage');
+    document.getElementById('logoutBtn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        fetch('/logout', { method: 'POST' }).then(() => window.location.href = '/login');
+    });
+
+    document.getElementById('btn-prev-field')?.addEventListener('click', () => {
+        currentIndex = (currentIndex - 1 + fieldsList.length) % fieldsList.length;
+        window.history.pushState(null, '', `/dashboard?field_id=${fieldsList[currentIndex].field_id}`);
+        capNhatHienThiField();
+    });
+    document.getElementById('btn-next-field')?.addEventListener('click', () => {
+        currentIndex = (currentIndex + 1) % fieldsList.length;
+        window.history.pushState(null, '', `/dashboard?field_id=${fieldsList[currentIndex].field_id}`);
+        capNhatHienThiField();
+    });
+
+    layDanhSachField(); 
+    setInterval(capNhatDuLieu, 5000); 
+    setInterval(updateAISettings, 60000); 
+    setInterval(kiemTraCanhBaoDiThuong, 5000);
+});
+
+// ==========================================
+// 4. HÀM XỬ LÝ THÔNG BÁO VÀ CHUÔNG 
+// ==========================================
+async function addNotificationToDBandUI(status, device_id, displayDeviceName, score, fieldName = "Unknown Field") {
+    const ts = Math.floor(Date.now() / 1000); 
+    
+    let message = status === "CRITICAL" 
+        ? `Nguy cấp: [${fieldName}] ${displayDeviceName} vượt ngưỡng High (${score})` 
+        : `Cảnh báo: [${fieldName}] ${displayDeviceName} vượt ngưỡng Low (${score})`;
+    let color = status === "CRITICAL" ? "#f44336" : "#ff9800";
+    
+    notificationsList.unshift({
+        status: status,
+        device_id: device_id,
+        ts: ts,
+        username: currentLoggedUser,
+        message: message, 
+        color: color,     
+        timeString: new Date().toLocaleTimeString()
+    });
+    
+    if (notificationsList.length > 10) notificationsList.pop(); 
+    renderBellUI();
+
     try {
-        const response = await fetch('http://127.0.0.1:8000/predict', {
+        await fetch('/api/save_notification', { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                sensor_id: sensorId, 
-                val: currentValue 
+            body: JSON.stringify({
+                status: status,
+                device_id: device_id,
+                ts: ts,
+                username: currentLoggedUser
             })
         });
+    } catch(err) {
+        console.error("Lỗi đồng bộ thông báo:", err);
+    }
+}
 
-        if (!response.ok) throw new Error("AI Server Error");
+function renderBellUI() {
+    const bellIcon = document.querySelector('img[alt="Notifications"]');
+    if (!bellIcon) return;
 
+    let bellWrapper = bellIcon.closest('.bell-wrapper-container');
+    if (!bellWrapper) {
+        bellWrapper = document.createElement('div');
+        bellWrapper.className = 'bell-wrapper-container';
+        bellWrapper.style.position = 'relative';
+        bellWrapper.style.display = 'inline-block';
+        bellIcon.parentNode.insertBefore(bellWrapper, bellIcon);
+        bellWrapper.appendChild(bellIcon);
+    }
+    
+    let badge = document.getElementById('ai-bell-badge');
+    if (!badge) {
+        badge = document.createElement('span');
+        badge.id = 'ai-bell-badge';
+        badge.style.cssText = 'position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; cursor: pointer;';
+        bellWrapper.appendChild(badge);
+    }
+    badge.innerText = notificationsList.length;
+    badge.style.display = notificationsList.length > 0 ? 'block' : 'none';
+
+    let notifBox = document.getElementById('ai-notif-box');
+    if (!notifBox) {
+        notifBox = document.createElement('div');
+        notifBox.id = 'ai-notif-box';
+        notifBox.style.cssText = 'position: absolute; top: 100%; right: 0; margin-top: 10px; background: white; border: 1px solid #ccc; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 300px; max-height: 400px; overflow-y: auto; z-index: 9999; border-radius: 5px; display: none;';
+        bellWrapper.appendChild(notifBox);
+        
+        bellWrapper.style.cursor = 'pointer';
+        bellWrapper.addEventListener('click', function() {
+            notifBox.style.display = notifBox.style.display === 'none' ? 'block' : 'none';
+        });
+    }
+
+    if (notificationsList.length === 0) {
+        notifBox.innerHTML = '<div style="padding: 10px; text-align: center; color: #666;">Không có thông báo</div>';
+    } else {
+        notifBox.innerHTML = notificationsList.map(n => `
+            <div style="border-bottom: 1px solid #eee; padding: 10px; font-size: 13px; line-height: 1.4; text-align: left;">
+                <strong style="color: ${n.color};">[${n.status}]</strong> ${n.message} <br>
+                <span style="color: #999; font-size: 11px;">${n.timeString}</span>
+            </div>
+        `).join('');
+    }
+}
+// ==========================================
+// 5. HÀM VẼ BIỂU ĐỒ (CHART.JS)
+// ==========================================
+let myChartInstance = null; // Biến lưu trữ biểu đồ hiện tại
+
+// Đóng Popup khi bấm nút X
+document.getElementById('closeChartModal')?.addEventListener('click', () => {
+    document.getElementById('chartModal').style.display = 'none';
+});
+
+// Hàm mở Modal và vẽ biểu đồ
+async function openChartModal(deviceId, telemetryName, unit, label) {
+    document.getElementById('chartModal').style.display = 'block';
+    document.getElementById('chartTitle').innerText = `Lịch sử ${label} - ${deviceId}`;
+    
+    try {
+        // Gọi API lấy lịch sử dữ liệu (Bước 2)
+        const response = await fetch(`/api/send_chart?device_id=${encodeURIComponent(deviceId)}&name=${encodeURIComponent(telemetryName)}`);
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            const labels = []; // Trục X (Thời gian)
+            const dataValues = []; // Trục Y (Giá trị)
+            
+            result.data.forEach(item => {
+                // Đổi ts (mili-giây) sang dạng giờ:phút:giây
+                const dateObj = new Date(item.ts);
+                const timeString = `${dateObj.getHours()}:${dateObj.getMinutes() < 10 ? '0' : ''}${dateObj.getMinutes()}`;
+                
+                labels.push(timeString);
+                dataValues.push(item.value);
+            });
+            
+            veBieuDo(labels, dataValues, label, unit);
+        }
+    } catch (err) {
+        console.error("Lỗi tải dữ liệu biểu đồ:", err);
+    }
+}
+
+function veBieuDo(labels, data, labelName, unit) {
+    const ctx = document.getElementById('sensorChart').getContext('2d');
+    if (myChartInstance) {
+        myChartInstance.destroy();
+    }
+    
+    myChartInstance = new Chart(ctx, {
+        type: 'line', // Biểu đồ đường thẳng
+        data: {
+            labels: labels,
+            datasets: [{
+                label: `${labelName} (${unit})`,
+                data: data,
+                borderColor: '#00bcd4',
+                backgroundColor: 'rgba(0, 188, 212, 0.1)',
+                borderWidth: 2,
+                pointRadius: 3,
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { beginAtZero: false }
+            }
+        }
+    });
+}
+function dongBieuDo() {
+    const modal = document.getElementById('chartModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    if (myChartInstance) {
+        myChartInstance.destroy();
+        myChartInstance = null;
+    }
+}
+async function kiemTraCanhBaoDiThuong() {
+    // Chỉ chạy khi nút gạt Anomaly Prediction trên giao diện đã được bật
+    if (anomolyPredictionStatusDB !== 'ON') return; 
+
+    try {
+        const response = await fetch('/api/check_anomaly');
         const data = await response.json();
-        const aiContainer = document.getElementById(elementId);
 
-        if (aiContainer) {
-            if (data.status === "success") {
-                aiContainer.innerHTML = `<i class="fa-solid fa-robot" style="color: #4CAF50;"></i> Next: ${data.predicted_next_val} ${unit}`;
-                aiContainer.style.color = "#4CAF50"; // Màu xanh lá khi dự đoán thành công
-            } else if (data.status === "waiting") {
-                // ĐÃ THAY ĐỔI Ở ĐÂY: Hiển thị tiến độ thu thập dữ liệu
-                aiContainer.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang thu thập: ${data.current_step}/${data.total_steps} dữ liệu`;
-                aiContainer.style.color = "#FF9800"; // Màu cam khi đang chờ
+        if (data.success) {
+            const score = parseFloat(data.anomaly_score);
+            const deviceName = data.device_name; // VD: "SI Outdoor Sensor 1"
+            const fieldName = data.field_name;   // VD: "Ruộng ngô"
+
+            let status = null;
+            if (score >= anomolyScoreHighDB) {
+                status = "CRITICAL";
+            } else if (score >= anomolyScoreLowDB) {
+                status = "WARNING";
+            }
+
+            // Nếu vượt ngưỡng, đẩy thẳng vào hàm tạo thông báo của bạn
+            if (status) {
+                // Mình truyền đúng 'deviceName' và 'fieldName' như bạn yêu cầu vào giao diện
+                // Tham số thứ 2 (device_id) tạm để là deviceName hoặc ID nếu API của bạn có trả về để lưu DB.
+                addNotificationToDBandUI(status, deviceName, deviceName, score, fieldName);
             }
         }
     } catch (err) {
-        console.error(`Lỗi dự đoán cho ${sensorId}:`, err);
-        const aiContainer = document.getElementById(elementId);
-        if (aiContainer) {
-            aiContainer.innerHTML = `<i class="fa-solid fa-robot" style="color: #F44336;"></i> AI offline`;
-            aiContainer.style.color = "#F44336";
-        }
+        console.error("Lỗi tải dữ liệu cảnh báo dị thường:", err);
     }
 }

@@ -470,3 +470,44 @@
 2026-04-04 22:00:41,116 - INFO - Đăng nhập: 1
 2026-04-04 22:00:47,455 - INFO - Đăng xuất: 1
 2026-04-04 22:01:00,895 - INFO - Đăng nhập: admin
+2026-04-27 19:04:59,374 - INFO - Đăng ký: trung
+2026-04-27 19:05:03,676 - INFO - Đăng nhập: trung
+2026-04-27 19:05:28,609 - INFO - Đăng nhập: 1
+2026-04-27 19:30:09,507 - INFO - Đăng nhập: 1
+2026-04-27 19:31:39,813 - INFO - Đăng nhập: 1
+2026-04-27 19:46:12,500 - WARNING - Đổi tên thiết bị SI Outdoor Sensor 1 thành SI Outdoor Sensor 2
+2026-04-27 19:46:16,679 - INFO - Đăng nhập: 1
+2026-04-27 19:46:48,402 - WARNING - Đổi tên thiết bị SI Outdoor Sensor 2 thành SI Outdoor Sensor 1
+2026-04-27 20:01:59,870 - INFO - Đăng nhập: 1
+2026-04-27 20:13:35,545 - INFO - Đăng nhập: 1
+2026-04-27 20:14:17,709 - INFO - Đăng xuất: 1
+2026-04-27 20:14:19,007 - INFO - Đăng nhập: 1
+2026-04-27 20:20:43,955 - INFO - Đăng nhập: 1
+2026-05-01 11:10:20,565 - INFO - Đăng nhập: 1
+2026-05-03 12:00:20,438 - INFO - Đăng nhập: 1
+2026-05-03 12:05:24,079 - INFO - Đăng nhập: 1
+2026-05-03 12:08:22,021 - WARNING - Đổi tên thiết bị SI Soil Moisture 1 thành SI Soil Moisture 8
+2026-05-03 12:53:53,519 - INFO - Đăng nhập: 1
+2026-05-03 13:03:42,293 - INFO - Đăng nhập: 1
+2026-05-03 13:04:34,897 - INFO - Đăng nhập: 1
+2026-05-03 19:01:12,053 - INFO - Đăng nhập: 1
+2026-05-03 19:01:40,911 - INFO - Đăng nhập: 1
+2026-05-03 19:03:02,239 - INFO - Đăng nhập: 1
+2026-05-03 19:05:24,238 - INFO - Đăng nhập: 1
+2026-05-03 19:09:28,749 - WARNING - Đổi tên thiết bị SI Soil Moisture 8 thành SI Soil Moisture 1
+2026-05-03 19:28:43,328 - INFO - Đăng nhập: 1
+2026-05-03 19:35:54,333 - WARNING - Đổi tên thiết bị SI Soil Moisture 1 thành SI Soil Moisture 8
+2026-05-03 19:37:02,622 - INFO - Đăng nhập: 1
+2026-05-03 19:51:01,852 - WARNING - Đổi tên thiết bị SI Soil Moisture 8 thành SI Soil Moisture 1
+2026-05-03 19:54:51,211 - INFO - Đăng nhập: 1
+2026-05-03 20:01:01,982 - INFO - Đăng nhập: 1
+2026-05-03 20:01:35,348 - INFO - Đăng xuất: 1
+2026-05-03 20:01:37,519 - INFO - Đăng nhập: 1
+2026-05-03 20:07:33,814 - INFO - Đăng nhập: 1
+2026-05-04 19:10:15,038 - INFO - Đăng nhập: 1
+2026-05-04 19:35:53,092 - INFO - Đăng nhập: 1
+2026-05-04 19:37:09,746 - INFO - Đăng nhập: 1
+2026-05-04 19:38:07,189 - INFO - Đăng nhập: 1
+2026-05-04 19:40:11,547 - INFO - Đăng nhập: 1
+2026-05-04 19:42:38,394 - INFO - Đăng nhập: 1
+2026-05-04 19:53:31,638 - INFO - Đăng nhập: 1

@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function showMessage(msg, isSuccess) {
     const box = document.getElementById('notification-box');
+    if (!box) return;
     box.textContent = msg;
     box.className = `notification ${isSuccess ? 'success' : 'error'}`;
     box.style.display = 'block';
@@ -24,61 +25,168 @@ async function loadSystemHierarchy() {
 
         for (const field of fields) {
             const fieldId = field.field_id;
-            const fieldName = field.field_name || fieldId; // Lấy tên ruộng
+            const fieldName = field.field_name || fieldId;
             
             const fieldBox = document.createElement('div');
             fieldBox.className = 'field-manage-box';
             
-            // Đã thay đổi: Hiển thị và Nhập liệu bằng fieldName thay vì fieldId
             fieldBox.innerHTML = `
                 <div class="field-header">
                     <div id="view-field-${fieldId}" class="view-mode">
                         <span class="item-name-text"><i class="fa-solid fa-map-location-dot" style="color:#4CAF50;"></i> ${fieldName}</span>
-                        <button class="btn-edit" onclick="toggleEdit('field', '${fieldId}', true)"><i class="fa-solid fa-pen"></i></button>
+                        <div style="display: flex; gap: 5px;">
+                            <button class="btn-ai-toggle" onclick="toggleAISettings('${fieldId}')"><i class="fa-solid fa-robot"></i> Cấu hình AI</button>
+                            <button class="btn-edit" onclick="toggleEdit('field', '${fieldId}', true)"><i class="fa-solid fa-pen"></i></button>
+                        </div>
                     </div>
                     <div id="edit-field-${fieldId}" class="edit-mode" style="display: none;">
                         <input type="text" id="input-field-${fieldId}" class="item-input" value="${fieldName}">
-                        
-                        <button class="btn-save" onclick="saveField('${fieldId}', '${fieldName}')"><i class="fa-solid fa-check"></i></button>
+                        <button class="btn-save" onclick="saveField('${fieldId}')"><i class="fa-solid fa-check"></i></button>
                         <button class="btn-cancel" onclick="toggleEdit('field', '${fieldId}', false)"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                 </div>
+                
                 <div class="device-list" id="devices-of-${fieldId}">
                     <span style="color:#999; font-size: 13px;">Đang tải thiết bị...</span>
                 </div>
+
+                <div class="ai-settings-section" id="ai-settings-${fieldId}" style="display: none;">
+                    <div style="font-weight: bold; margin-bottom: 12px; color: #8e44ad;">
+                        <i class="fa-solid fa-sliders"></i> Thông số AI Management (Field: ${fieldId})
+                    </div>
+                    <div class="ai-settings-grid">
+                        <div class="ai-setting-item">
+                            <label>anomoly_score_low</label>
+                            <input type="number" step="0.01" id="ai-low-${fieldId}">
+                        </div>
+                        <div class="ai-setting-item">
+                            <label>anomoly_score_high</label>
+                            <input type="number" step="0.01" id="ai-high-${fieldId}">
+                        </div>
+                        <div class="ai-setting-item">
+                            <label>step</label>
+                            <input type="number" id="ai-step-${fieldId}">
+                        </div>
+                        <div class="ai-setting-item">
+                            <label>anomoly_status</label>
+                            <select id="ai-status-${fieldId}">
+                                <option value="ON">ON</option>
+                                <option value="OFF">OFF</option>
+                            </select>
+                        </div>
+                        <div class="ai-setting-item">
+                            <label>prediction_status</label>
+                            <select id="ai-pred-status-${fieldId}">
+                                <option value="ON">ON</option>
+                                <option value="OFF">OFF</option>
+                            </select>
+                        </div>
+                        <div class="ai-setting-item">
+                            <label>anomoly_prediction_status</label>
+                            <select id="ai-anom-pred-status-${fieldId}">
+                                <option value="ON">ON</option>
+                                <option value="OFF">OFF</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn-save-ai" onclick="saveAISettings('${fieldId}')">
+                        <i class="fa-solid fa-floppy-disk"></i> Lưu Cấu Hình AI
+                    </button>
+                </div>
             `;
             container.appendChild(fieldBox);
-
-            loadDevicesForField(fieldId);
+            await loadDevicesForField(fieldId);
         }
     } catch (err) {
         container.innerHTML = '<span style="color:red">Lỗi tải dữ liệu hệ thống.</span>';
     }
 }
 
+// ==========================================
+// 2. LOGIC CẤU HÌNH AI (QUAN TRỌNG NHẤT)
+// ==========================================
+
+// Hàm lấy dữ liệu thật từ DB và hiện form
+async function toggleAISettings(fieldId) {
+    const panel = document.getElementById(`ai-settings-${fieldId}`);
+    
+    // Nếu đang đóng thì mới đi lấy dữ liệu từ Database về điền vào ô
+    if (panel.style.display === 'none' || panel.style.display === '') {
+        try {
+            const res = await fetch(`/api/get_ai_settings?field_id=${fieldId}`);
+            const result = await res.json();
+
+            if (result.success && result.data) {
+                const d = result.data;
+                // Điền dữ liệu từ Database vào các ô input
+                document.getElementById(`ai-low-${fieldId}`).value = d.anomoly_score_low;
+                document.getElementById(`ai-high-${fieldId}`).value = d.anomoly_score_high;
+                document.getElementById(`ai-step-${fieldId}`).value = d.step;
+                document.getElementById(`ai-status-${fieldId}`).value = d.anomoly_status;
+                document.getElementById(`ai-pred-status-${fieldId}`).value = d.prediction_status;
+                document.getElementById(`ai-anom-pred-status-${fieldId}`).value = d.anomoly_prediction_status;
+                
+                panel.style.display = 'block';
+            } else {
+                showMessage("Không tìm thấy cấu hình AI trong Database!", false);
+            }
+        } catch (err) {
+            showMessage("Lỗi kết nối Server khi tải cấu hình AI!", false);
+        }
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
+// Hàm gửi dữ liệu đã sửa về lại Database
+async function saveAISettings(fieldId) {
+    const payload = {
+        field_id: fieldId,
+        anomoly_score_low: parseFloat(document.getElementById(`ai-low-${fieldId}`).value),
+        anomoly_score_high: parseFloat(document.getElementById(`ai-high-${fieldId}`).value),
+        step: parseInt(document.getElementById(`ai-step-${fieldId}`).value),
+        anomoly_status: document.getElementById(`ai-status-${fieldId}`).value,
+        prediction_status: document.getElementById(`ai-pred-status-${fieldId}`).value,
+        anomoly_prediction_status: document.getElementById(`ai-anom-pred-status-${fieldId}`).value
+    };
+
+    try {
+        const res = await fetch('/api/update_ai_settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        showMessage(data.message, data.success);
+        if (data.success) {
+            document.getElementById(`ai-settings-${fieldId}`).style.display = 'none';
+        }
+    } catch (err) {
+        showMessage("Lỗi kết nối Server khi lưu cấu hình AI!", false);
+    }
+}
+
+// ==========================================
+// 3. CÁC HÀM QUẢN LÝ TÊN (GIỮ NGUYÊN)
+// ==========================================
 async function loadDevicesForField(fieldId) {
     const devContainer = document.getElementById(`devices-of-${fieldId}`);
     try {
         const response = await fetch('/api/data', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                field_id: fieldId
-            })
+            body: JSON.stringify({ field_id: fieldId })
         });
         const data = await response.json();
         devContainer.innerHTML = '';
-
         let hasDevice = false;
 
         if (Array.isArray(data)) {
             data.forEach(deviceObj => {
                 for (const deviceName in deviceObj) {
                     hasDevice = true;
-                    // Tạo ID an toàn cho HTML
                     const safeName = deviceName.replace(/\s+/g, '-');
-                    const domId = `${fieldId}-${safeName}`; // Gắn thêm fieldId để ID không trùng lặp
-
+                    const domId = `${fieldId}-${safeName}`; 
                     const devDiv = document.createElement('div');
                     devDiv.className = 'device-item';
                     devDiv.innerHTML = `
@@ -96,10 +204,7 @@ async function loadDevicesForField(fieldId) {
                 }
             });
         }
-
-        if (!hasDevice) {
-            devContainer.innerHTML = '<span style="color:#999; font-size: 13px;">Không có thiết bị.</span>';
-        }
+        if (!hasDevice) devContainer.innerHTML = '<span style="color:#999; font-size: 13px;">Không có thiết bị.</span>';
     } catch (err) {
         devContainer.innerHTML = '<span style="color:red; font-size: 13px;">Lỗi tải thiết bị.</span>';
     }
@@ -112,8 +217,7 @@ function toggleEdit(type, id, isEditing) {
 
 async function saveField(oldFieldId) {
     const newFieldName = document.getElementById(`input-field-${oldFieldId}`).value.trim();
-    if (!newFieldName || newFieldName === oldFieldId) return toggleEdit('field', oldFieldId, false);
-
+    if (!newFieldName) return toggleEdit('field', oldFieldId, false);
     try {
         const res = await fetch('/api/rename_field', {
             method: 'POST',
@@ -122,7 +226,7 @@ async function saveField(oldFieldId) {
         });
         const data = await res.json();
         showMessage(data.message, data.success);
-        if (data.success) loadSystemHierarchy(); // Refresh toàn bộ cây
+        if (data.success) loadSystemHierarchy(); 
     } catch (err) {
         showMessage("Lỗi kết nối đến Server!", false);
     }
@@ -130,8 +234,7 @@ async function saveField(oldFieldId) {
 
 async function saveDevice(oldName, domId) {
     const newName = document.getElementById(`input-device-${domId}`).value.trim();
-    if (!newName || newName === oldName) return toggleEdit('device', domId, false);
-
+    if (!newName) return toggleEdit('device', domId, false);
     try {
         const res = await fetch('/api/rename_device', {
             method: 'POST',
@@ -140,24 +243,8 @@ async function saveDevice(oldName, domId) {
         });
         const data = await res.json();
         showMessage(data.message, data.success);
-        if (data.success) loadSystemHierarchy(); // Refresh toàn bộ cây để update tên
+        if (data.success) loadSystemHierarchy(); 
     } catch (err) {
         showMessage("Lỗi kết nối đến Server!", false);
     }
 }
-
-document.addEventListener("DOMContentLoaded", () => {
-    const goToDashboard = document.getElementById('goToDashboard');
-    const goToControl = document.getElementById('ControlBtn');
-    const btnSettings = document.getElementById('btn-settings');
-    
-    if (btnSettings) {
-        btnSettings.addEventListener('click', () => { window.location.href = '/manage'; });
-    }
-    if (goToDashboard) {
-        goToDashboard.addEventListener('click', () => { window.location.href = '/'; });
-    }
-    if (goToControl) {
-        goToControl.addEventListener('click', () => { window.location.href = '/control'; });
-    }
-});

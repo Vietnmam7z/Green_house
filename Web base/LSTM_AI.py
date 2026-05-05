@@ -4,11 +4,10 @@ from pydantic import BaseModel
 import numpy as np
 import tensorflow as tf
 import joblib
-from collections import deque
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
-from typing import Dict
+import sqlite3 
 
 app = FastAPI()
 
@@ -24,12 +23,12 @@ model = tf.keras.models.load_model("sensor_lstm_model.keras")
 scaler = joblib.load("scaler.save")
 
 TIME_STEP = 5
-
-buffers: Dict[str, deque] = {}
+DB_PATH = "field.db"
 
 class SensorData(BaseModel):
-    sensor_id: str
-    val: float
+    device_id: str
+    name: str
+    step: int
 
 @app.get("/")
 def serve_webpage():
@@ -37,22 +36,35 @@ def serve_webpage():
 
 @app.post("/predict")
 def predict_soil(data: SensorData):
+    step_ms = data.step * 60 * 1000
     
-    if data.sensor_id not in buffers:
-        buffers[data.sensor_id] = deque(maxlen=TIME_STEP)
-        
-    current_buffer = buffers[data.sensor_id]
-    current_buffer.append(data.val)
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT AVG(value)
+        FROM telemetry 
+        WHERE device_id = (SELECT device_id FROM device WHERE device_name = ? OR device_id = ?) 
+          AND name = ? 
+        GROUP BY CAST(ts / ? AS INTEGER)
+        ORDER BY CAST(ts / ? AS INTEGER) DESC 
+        LIMIT ?
+    """, (data.device_id, data.device_id, data.name, step_ms, step_ms, TIME_STEP))
     
-    if len(current_buffer) < TIME_STEP:
+    records = cursor.fetchall()
+    conn.close()
+    
+    if len(records) < TIME_STEP:
         return {
             "status": "waiting",
-            "current_step": len(current_buffer),
+            "current_step": len(records),
             "total_steps": TIME_STEP,
-            "message": f"Chờ thêm dữ liệu ({len(current_buffer)}/{TIME_STEP})"
+            "message": f"Chờ thêm dữ liệu ({len(records)}/{TIME_STEP})"
         }
     
-    raw_data = np.array(list(current_buffer)).reshape(-1, 1)
+    historical_values = [row[0] for row in records]
+    historical_values.reverse()
+    
+    raw_data = np.array(historical_values).reshape(-1, 1)
     scaled_data = scaler.transform(raw_data)
     input_lstm = scaled_data.reshape(1, TIME_STEP, 1)
     
@@ -63,8 +75,7 @@ def predict_soil(data: SensorData):
     
     return {
         "status": "success",
-        "predicted_next_val": round(result, 2),
-        "sensor_id": data.sensor_id
+        "predicted_next_val": round(result, 2)
     }
 
 if __name__ == "__main__":

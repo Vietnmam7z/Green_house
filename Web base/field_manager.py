@@ -537,7 +537,7 @@ class FieldDB:
             except Exception as e:
                 conn.rollback()
                 return {"success": False, "message": str(e)}
-
+    
     def create_notification_management(self, username: str):
         with self.connect() as conn:
             cursor = conn.cursor()

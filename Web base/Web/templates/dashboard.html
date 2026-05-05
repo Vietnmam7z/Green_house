@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SmartCare Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
 <body>
@@ -60,5 +61,13 @@
     </div>
 
     <script src="/static/js/dashboard.js"></script>
+    <div id="chartModal" onclick="dongBieuDo()" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6);">
+        <div onclick="event.stopPropagation()" style="background-color: #fff; margin: 5% auto; padding: 20px; border-radius: 10px; width: 80%; max-width: 800px; position: relative;">
+            <!-- Nút X tắt biểu đồ -->
+            <span onclick="dongBieuDo()" style="position: absolute; right: 20px; top: 15px; font-size: 24px; font-weight: bold; cursor: pointer; color: #aaa;">&times;</span>
+            <h3 id="chartTitle" style="text-align: center; color: #333; margin-top: 0;">Biểu đồ</h3>
+            <canvas id="sensorChart" width="400" height="200"></canvas>
+        </div>
+    </div>
 </body>
 </html>
