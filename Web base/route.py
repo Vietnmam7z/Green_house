@@ -15,6 +15,7 @@ import subprocess
 import sys
 import sqlite3
 import json
+import device_controller
 
 class Routes:
     def __init__(self, auth: Authentication, otp: OTPManager, sensor: Sensor_API, field: FieldDB, logger: UserLogger):
@@ -127,7 +128,7 @@ class Routes:
         else:
             return jsonify({"success": False, "message": "Thiết bị không phản hồi"})
 	
-    # API LẤY TRẠNG THÁI ĐỒNG BỘ CHO TRANG CONTROL
+    # API CHO TRANG CONTROL
     def get_control_status(self):
         field_id = request.args.get('field_id')
         if not field_id:
@@ -159,7 +160,41 @@ class Routes:
             return redirect('/') 
 
         return render_template('admin_management.html')
-    
+
+    def get_devices_controller(self):
+        field_id = request.args.get("field_id") 
+        result = self.field.get_devices_controller_by_field(field_id)
+
+        if result["success"]:
+            return jsonify({
+                "success": True,
+                "devices": result["devices"]
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": result["message"]
+            })
+
+    def toggle_and_send(self):
+        field_id = request.args.get("field_id")
+        device_id = request.args.get("device_id")
+
+        result = self.field.toggle_device_state(int(device_id))
+        if not result["success"]:
+            return jsonify(result)
+
+        new_state = result["new_state"]
+
+        type_state = self.field.get_type_and_state_by_field(field_idq)
+        print(f"DEBUG: Lấy type và state cho field_id {field_id} => {type_state}")
+        if type_state["success"]:
+            for type_, state in type_state["data"]:
+                if type_.lower() == "valve":
+                    device_controller.send_state(int(field_id), new_state)
+
+        return jsonify({"success": True, "new_state": new_state})
+
     # 1. TRANG RENDER HTML
     def user_management_page(self):
         resp = self.require_login()
@@ -656,8 +691,7 @@ class Routes:
             "success": True, 
             "message": "Đã lưu cấu hình AI thành công!"
         }), 200
-
-       
+ 
     def add_user(self):
         username = session.get('username')
         result = self.field.find_username(username)
@@ -793,6 +827,7 @@ class Routes:
                 "field_name": field_name
             })
         return jsonify({"success": False})
+    
     def save_notification(self):
         data = request.get_json()
         if not data:
@@ -817,6 +852,8 @@ class Routes:
             return jsonify({"success": True, "username": username, "role": role})
         else:
             return jsonify({"success": False, "message": "Chưa đăng nhập"}), 401
+        
+
 #################################################################################################################################
 
 
@@ -839,6 +876,8 @@ field = FieldDB()
 log = UserLogger()
 routes = Routes(auth,otp,sensor,field,log)
 scheduler = BackgroundScheduler()
+
+server.add_route('/api/get_devices_controller', routes.toggle_and_send, methods=['POST'])
 server.add_route('/', routes.home_page, methods=['GET'])
 server.add_route('/login', routes.login_page, methods=['GET'])
 server.add_route('/login', routes.login, methods=['POST'])
@@ -861,7 +900,7 @@ server.add_route('/api/rename_field', routes.rename_field_name, methods=['POST']
 server.add_route('/api/send_chart', routes.send_chart, methods=['GET'])
 server.add_route('/api/current_user', routes.get_current_user, methods=['GET'])
 server.add_route('/api/control_device', routes.control_device, methods=['POST'])
-server.add_route('/api/get_control_status', routes.get_control_status, methods=['GET'])
+#server.add_route('/api/get_control_status', routes.get_control_status, methods=['GET'])
 server.add_route('/api/save_notification', routes.save_notification, methods=['POST'])
 server.add_route('/api/update_ai_settings', routes.update_ai_settings, methods=['POST'])
 server.add_route('/api/get_ai_settings', routes.get_ai_settings, methods=['GET'])

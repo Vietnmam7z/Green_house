@@ -68,8 +68,7 @@ class FieldDB:
             """, field_ids)
             rows = cursor.fetchall()
             return [r[0] for r in rows]
-
-        
+       
     def delete_field(self, field_id: str):
         with self.connect() as conn:
             cursor = conn.cursor()
@@ -584,18 +583,67 @@ class FieldDB:
                 conn.rollback()
                 return {"success": False, "message": str(e)}
 
-    def insert_notification(self, status: str, device_id: str, ts: int, username: str):
+        def insert_notification(self, status: str, device_id: str, ts: int, username: str):
+            with self.connect() as conn:
+                cursor = conn.cursor()
+                try:
+                    cursor.execute("""
+                        INSERT INTO notification (status, device_id, ts, username)
+                        VALUES (?, ?, ?, ?)
+                    """, (status, device_id, ts, username))
+                    conn.commit()
+                    return {"success": True, "message": "Thêm notification thành công"}
+                except Exception as e:
+                    conn.rollback()
+                    return {"success": False, "message": str(e)}
+
+    def get_devices_controller_by_field(self, field_id: int):
         with self.connect() as conn:
             cursor = conn.cursor()
             try:
                 cursor.execute("""
-                    INSERT INTO notification (status, device_id, ts, username)
-                    VALUES (?, ?, ?, ?)
-                """, (status, device_id, ts, username))
+                    SELECT device_id, device_name, type, state, created_at, updated_at
+                    FROM device_controller
+                    WHERE field_id = ?
+                """, (field_id,))
+                rows = cursor.fetchall()
+                return {"success": True, "devices": rows}
+            except Exception as e:
+                return {"success": False, "message": str(e)}
+
+    def toggle_device_state(self, device_id: int):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("SELECT state FROM device_controller WHERE device_id = ?", (device_id,))
+                current = cursor.fetchone()
+                if not current:
+                    return {"success": False, "message": "Device không tồn tại"}
+
+                new_state = "DONE" if current[0] == "ON" else "ON"
+                cursor.execute("""
+                    UPDATE device_controller
+                    SET state = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE device_id = ?
+                """, (new_state, device_id))
                 conn.commit()
-                return {"success": True, "message": "Thêm notification thành công"}
+                return {"success": True, "new_state": new_state}
             except Exception as e:
                 conn.rollback()
+                return {"success": False, "message": str(e)}
+
+    def get_type_and_state_by_field(self, field_id: int):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    SELECT type, state
+                    FROM device_controller
+                    WHERE field_id = ?
+                """, (field_id,))
+                rows = cursor.fetchall()
+                return {"success": True, "data": rows}
+            except Exception as e:
                 return {"success": False, "message": str(e)}
 
 
