@@ -583,19 +583,19 @@ class FieldDB:
                 conn.rollback()
                 return {"success": False, "message": str(e)}
 
-        def insert_notification(self, status: str, device_id: str, ts: int, username: str):
-            with self.connect() as conn:
-                cursor = conn.cursor()
-                try:
-                    cursor.execute("""
-                        INSERT INTO notification (status, device_id, ts, username)
-                        VALUES (?, ?, ?, ?)
-                    """, (status, device_id, ts, username))
-                    conn.commit()
-                    return {"success": True, "message": "Thêm notification thành công"}
-                except Exception as e:
-                    conn.rollback()
-                    return {"success": False, "message": str(e)}
+    def insert_notification(self, status: str, device_id: str, ts: int, username: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    INSERT INTO notification (status, device_id, ts, username)
+                    VALUES (?, ?, ?, ?)
+                """, (status, device_id, ts, username))
+                conn.commit()
+                return {"success": True, "message": "Thêm notification thành công"}
+            except Exception as e:
+                conn.rollback()
+                return {"success": False, "message": str(e)}
 
     def get_devices_controller_by_field(self, field_id: int):
         with self.connect() as conn:

@@ -791,17 +791,17 @@ class Routes:
             return jsonify(result)
         return result
     
-    # def save_notification(self):
-    #     data = request.get_json()
-    #     if not data:
-    #         return jsonify({"success": False, "message": "Không nhận được dữ liệu"})
+    def save_notification(self):
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "message": "Không nhận được dữ liệu"})
 
-    #     status = data.get('status')
-    #     device_id = data.get('device_id')
-    #     ts = data.get('ts')
-    #     username = data.get('username')
-    #     result = self.field.insert_notification(status, device_id, ts, username)
-    #     return jsonify(result)
+        status = data.get('status')
+        device_id = data.get('device_id')
+        ts = data.get('ts')
+        username = data.get('username')
+        result = self.field.insert_notification(status, device_id, ts, username)
+        return jsonify(result)
 
     def get_current_user(self):
         # Kiểm tra xem user có trong session (đã đăng nhập) chưa
@@ -860,7 +860,7 @@ server.add_route('/api/send_chart', routes.send_chart, methods=['GET'])
 server.add_route('/api/current_user', routes.get_current_user, methods=['GET'])
 server.add_route('/api/control_device', routes.control_device, methods=['POST'])
 #server.add_route('/api/get_control_status', routes.get_control_status, methods=['GET'])
-# server.add_route('/api/save_notification', routes.save_notification, methods=['POST'])
+server.add_route('/api/save_notification', routes.save_notification, methods=['POST'])
 server.add_route('/api/update_ai_settings', routes.update_ai_settings, methods=['POST'])
 server.add_route('/api/get_ai_settings', routes.get_ai_settings, methods=['GET'])
 server.add_route('/api/check_anomaly', routes.check_anomaly, methods=['GET'])
