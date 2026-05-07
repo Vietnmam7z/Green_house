@@ -168,69 +168,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const mainContainer = document.getElementById('dynamic-charts-container');
     if (!mainContainer) return;
 
-    // Tạo một khung riêng biệt cho từng ruộng
-    const fieldSection = document.createElement('div');
-    fieldSection.style.cssText = "margin-top: 40px;";
-    fieldSection.innerHTML = `
-        <h3 style="color: #2c3e50; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; display: inline-block;">
-            <i class="fa-solid fa-chart-area"></i> Biểu đồ: ${fieldName}
-        </h3>
-        <div id="chart-grid-${fieldId}" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 15px;"></div>
-    `;
-    mainContainer.appendChild(fieldSection);
-    
-    const chartGrid = document.getElementById(`chart-grid-${fieldId}`);
-
-    try {
-        const res = await fetch('/api/data', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ field_id: fieldId })
-        });
-        const data = await res.json();
-
-        // Quét thiết bị để vẽ canvas
-        if (Array.isArray(data)) {
-            data.forEach(deviceObj => {
-                for (const deviceName in deviceObj) {
-                    const telemetries = deviceObj[deviceName];
-                    
-                    for (const teleKey in telemetries) {
-                        if (!telemetries[teleKey] || telemetries[teleKey].value === undefined) continue;
-
-                        // Tạo ID an toàn
-                        const safeDeviceName = deviceName.replace(/\s+/g, '-');
-                        const canvasId = `chart-${fieldId}-${safeDeviceName}-${teleKey}`;
-
-                        const chartDiv = document.createElement('div');
-                        chartDiv.style.cssText = "background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #eee;";
-                        chartDiv.innerHTML = `
-                            <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 14px; text-transform: uppercase;">
-                                <i class="fa-solid fa-chart-line" style="color:#4CAF50;"></i> ${teleKey} <span style="color:#999; font-size:12px;">(${deviceName})</span>
-                            </h4>
-                            
-                            <div style="margin-bottom: 15px; display: flex; gap: 5px;">
-                                <button onclick="window.taiBieuDoRieng('${deviceName}', '${teleKey}', '1h', '${canvasId}')" style="cursor:pointer; padding:3px 8px; font-size:12px; border-radius:4px; border:1px solid #ccc; background:#f9f9f9;">1h</button>
-                                <button onclick="window.taiBieuDoRieng('${deviceName}', '${teleKey}', '1d', '${canvasId}')" style="cursor:pointer; padding:3px 8px; font-size:12px; border-radius:4px; border:1px solid #ccc; background:#f9f9f9;">1d</button>
-                                <button onclick="window.taiBieuDoRieng('${deviceName}', '${teleKey}', '7d', '${canvasId}')" style="cursor:pointer; padding:3px 8px; font-size:12px; border-radius:4px; border:1px solid #ccc; background:#f9f9f9;">7d</button>
-                                <button onclick="window.taiBieuDoRieng('${deviceName}', '${teleKey}', '30d', '${canvasId}')" style="cursor:pointer; padding:3px 8px; font-size:12px; border-radius:4px; border:1px solid #ccc; background:#f9f9f9;">30d</button>
-                            </div>
-                            
-                            <div style="position: relative; height:250px; width:100%">
-                                <canvas id="${canvasId}"></canvas>
-                            </div>
-                        `;
-                        chartGrid.appendChild(chartDiv);
-
-                        // Mặc định gọi API tải và vẽ dữ liệu 1 Ngày (1d)
-                        window.taiBieuDoRieng(deviceName, teleKey, '1d', canvasId);
-                    }
-                }
-            });
-        }
-    } catch (err) {
-        console.error(`Lỗi tạo khung biểu đồ cho ${fieldId}:`, err);
-    }
   }
 
   // --- 4. TÍNH NĂNG LOGOUT ---

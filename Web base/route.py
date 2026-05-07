@@ -761,26 +761,12 @@ class Routes:
         name = request.args.get('name')
         
         # Kết nối Database
-        conn = sqlite3.connect('field.db')
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            SELECT ts, value FROM (
-                SELECT ts, value FROM telemetry 
-                WHERE device_id = (SELECT device_id FROM device WHERE device_name = ? OR device_id = ?) 
-                  AND name = ? 
-                ORDER BY ts DESC 
-                LIMIT 30
-            ) ORDER BY ts ASC
-        """, (device_id, device_id, name))
-        
-        records = cursor.fetchall()
-        conn.close()
-        
-        # Format lại dữ liệu trả về cho Javascript
-        data_list = [{"ts": row[0], "value": row[1]} for row in records]
-        
-        return jsonify({"success": True, "data": data_list})
+        if not device_id or not name:
+            return jsonify({"success": False, "message": "Thiếu tham số device_id hoặc name"}), 400
+        result = self.field.send_chart(device_id, name)
+        if isinstance(result, dict):
+            return jsonify(result)
+        return result
     
     # def get_data(self):
     #     fake_temp = round(random.uniform(10.0, 45.0), 1)
@@ -800,49 +786,22 @@ class Routes:
     #         "moisture": soil_moisture
     # })
     def check_anomaly(self):
-        conn = sqlite3.connect('field.db')
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT 
-                telemetry.value, 
-                device.device_name, 
-                field.field_name
-            FROM telemetry
-            JOIN device ON telemetry.device_id = device.device_id
-            JOIN field ON device.field_id = field.field_id
-            WHERE telemetry.name = 'anomaly_score'
-            ORDER BY telemetry.ts DESC
-            LIMIT 1
-        """)
-        
-        result = cursor.fetchone()
-        conn.close()
-        
-        if result:
-            score, device_name, field_name = result
-            return jsonify({
-                "success": True,
-                "anomaly_score": score,
-                "device_name": device_name,
-                "field_name": field_name
-            })
-        return jsonify({"success": False})
+        result = self.field.check_anomaly()
+        if isinstance(result, dict):
+            return jsonify(result)
+        return result
     
-    def save_notification(self):
-        data = request.get_json()
-        if not data:
-            return jsonify({"success": False, "message": "Không nhận được dữ liệu"})
+    # def save_notification(self):
+    #     data = request.get_json()
+    #     if not data:
+    #         return jsonify({"success": False, "message": "Không nhận được dữ liệu"})
 
-        # Rút dữ liệu từ cục JSON mà Javascript gửi lên
-        status = data.get('status')
-        device_id = data.get('device_id')
-        ts = data.get('ts')
-        username = data.get('username')
-
-        # Gọi hàm insert_notification mà bạn vừa gửi
-        # Chú ý: Thay 'db' bằng tên biến khởi tạo Database của bạn (ví dụ: self.db, field_db, ...)
-        result = self.field.insert_notification(status, device_id, ts, username)
-        return jsonify(result)
+    #     status = data.get('status')
+    #     device_id = data.get('device_id')
+    #     ts = data.get('ts')
+    #     username = data.get('username')
+    #     result = self.field.insert_notification(status, device_id, ts, username)
+    #     return jsonify(result)
 
     def get_current_user(self):
         # Kiểm tra xem user có trong session (đã đăng nhập) chưa
@@ -901,7 +860,7 @@ server.add_route('/api/send_chart', routes.send_chart, methods=['GET'])
 server.add_route('/api/current_user', routes.get_current_user, methods=['GET'])
 server.add_route('/api/control_device', routes.control_device, methods=['POST'])
 #server.add_route('/api/get_control_status', routes.get_control_status, methods=['GET'])
-server.add_route('/api/save_notification', routes.save_notification, methods=['POST'])
+# server.add_route('/api/save_notification', routes.save_notification, methods=['POST'])
 server.add_route('/api/update_ai_settings', routes.update_ai_settings, methods=['POST'])
 server.add_route('/api/get_ai_settings', routes.get_ai_settings, methods=['GET'])
 server.add_route('/api/check_anomaly', routes.check_anomaly, methods=['GET'])

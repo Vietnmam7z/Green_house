@@ -286,20 +286,20 @@ async function addNotificationToDBandUI(status, device_id, displayDeviceName, sc
     if (notificationsList.length > 10) notificationsList.pop(); 
     renderBellUI();
 
-    try {
-        await fetch('/api/save_notification', { 
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                status: status,
-                device_id: device_id,
-                ts: ts,
-                username: currentLoggedUser
-            })
-        });
-    } catch(err) {
-        console.error("Lỗi đồng bộ thông báo:", err);
-    }
+    // try {
+    //     await fetch('/api/save_notification', { 
+    //         method: 'POST',
+    //         headers: { 'Content-Type': 'application/json' },
+    //         body: JSON.stringify({
+    //             status: status,
+    //             device_id: device_id,
+    //             ts: ts,
+    //             username: currentLoggedUser
+    //         })
+    //     });
+    // } catch(err) {
+    //     console.error("Lỗi đồng bộ thông báo:", err);
+    // }
 }
 
 function renderBellUI() {
@@ -430,7 +430,7 @@ function dongBieuDo() {
     }
 }
 async function kiemTraCanhBaoDiThuong() {
-    // Chỉ chạy khi nút gạt Anomaly Prediction trên giao diện đã được bật
+   
     if (anomolyPredictionStatusDB !== 'ON') return; 
 
     try {
@@ -439,8 +439,8 @@ async function kiemTraCanhBaoDiThuong() {
 
         if (data.success) {
             const score = parseFloat(data.anomaly_score);
-            const deviceName = data.device_name; // VD: "SI Outdoor Sensor 1"
-            const fieldName = data.field_name;   // VD: "Ruộng ngô"
+            const deviceName = data.device_name;
+            const fieldName = data.field_name;
 
             let status = null;
             if (score >= anomolyScoreHighDB) {
@@ -448,11 +448,7 @@ async function kiemTraCanhBaoDiThuong() {
             } else if (score >= anomolyScoreLowDB) {
                 status = "WARNING";
             }
-
-            // Nếu vượt ngưỡng, đẩy thẳng vào hàm tạo thông báo của bạn
             if (status) {
-                // Mình truyền đúng 'deviceName' và 'fieldName' như bạn yêu cầu vào giao diện
-                // Tham số thứ 2 (device_id) tạm để là deviceName hoặc ID nếu API của bạn có trả về để lưu DB.
                 addNotificationToDBandUI(status, deviceName, deviceName, score, fieldName);
             }
         }

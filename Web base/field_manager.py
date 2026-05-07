@@ -645,5 +645,54 @@ class FieldDB:
                 return {"success": True, "data": rows}
             except Exception as e:
                 return {"success": False, "message": str(e)}
+            
+    def send_chart(self, device_id: str, name: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                SELECT ts, value FROM (
+                    SELECT ts, value FROM telemetry 
+                    WHERE device_id = (SELECT device_id FROM device WHERE device_name = ? OR device_id = ?) 
+                    AND name = ? 
+                    ORDER BY ts DESC 
+                    LIMIT 30
+                ) ORDER BY ts ASC
+            """, (device_id, device_id, name))
+            records = cursor.fetchall()
+            data_list = [{"ts": row[0], "value": row[1]} for row in records]
+            return jsonify({"success": True, "data": data_list})
+        except Exception as e:
+                return {"success": False, "message": str(e)}
+        
 
+
+    def check_anomaly(self):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                SELECT 
+                    telemetry.value, 
+                    device.device_name, 
+                    field.field_name
+                FROM telemetry
+                JOIN device ON telemetry.device_id = device.device_id
+                JOIN field ON device.field_id = field.field_id
+                WHERE telemetry.name = 'anomaly_score'
+                ORDER BY telemetry.ts DESC
+                LIMIT 1
+            """)     
+            result = cursor.fetchone()
+            if result:
+                score, device_name, field_name = result
+                return jsonify({
+                    "success": True,
+                    "anomaly_score": score,
+                    "device_name": device_name,
+                    "field_name": field_name
+                })
+            return jsonify({"success": False})
+        except Exception as e:
+                return {"success": False, "message": str(e)}
 
