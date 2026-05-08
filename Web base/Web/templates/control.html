@@ -153,17 +153,179 @@
 
             </div>
 
-            <div class="video-panel">
-                <h2 style="text-align: left; margin-bottom: -10px;">Live video</h2>
-                <div class="video-container">
-                    <img src="../static/img/live-video.png" alt="Camera 1">
-                    <div class="video-label">Camera 1</div>
+            <div class="schedule-panel">
+                <div class="schedule-header">
+                    <h2>Irrigation Schedule</h2>
+                    <div class="schedule-actions" style="display: flex; align-items: center; gap: 15px; position: relative;">
+                        <button class="icon-btn hidden" id="btnCloseSearch" title="Close Search">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+
+                        <input type="text" id="searchInput" class="search-input hidden" placeholder="Search by name...">
+                        
+                        <button class="icon-btn" id="btnAddSchedule" title="Add Schedule">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+
+                        <button class="icon-btn" id="toggleSearchBtn" title="Search">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </button>
+
+                        <button class="icon-btn" id="btnColumns" title="Display Columns">
+                            <i class="fa-solid fa-bars"></i>
+                        </button>
+                        
+                        <div id="columnDropdown" class="column-dropdown hidden">
+                            <div class="dropdown-header">Show Columns</div>
+                            <label><input type="checkbox" class="col-toggle" data-col="0" checked> Name</label>
+                            <label><input type="checkbox" class="col-toggle" data-col="1" checked> Start day</label>
+                            <label><input type="checkbox" class="col-toggle" data-col="2" checked> Start time</label>
+                            <label><input type="checkbox" class="col-toggle" data-col="3" checked> Repeat</label>
+                            <label><input type="checkbox" class="col-toggle" data-col="4" checked> End day</label>
+                            <label><input type="checkbox" class="col-toggle" data-col="5" checked> Duration</label>
+                            <label><input type="checkbox" class="col-toggle" data-col="6" checked> Volume</label>
+                        </div>
+                    </div>
                 </div>
-                <div class="video-container">
-                    <img src="../static/img/live-video.png" alt="Camera 2">
-                    <div class="video-label">Camera 2</div>
+
+                <div class="table-responsive">
+                    <table class="schedule-table">
+                        <thead>
+                            <tr>
+                                <th>Name <i class="fa-solid fa-arrow-up" style="font-size: 10px; margin-left: 5px;"></i></th>
+                                <th>Start day</th>
+                                <th>Start time</th>
+                                <th>Repeat</th>
+                                <th>End day</th>
+                                <th>Duration</th>
+                                <th>Volume</th>
+                                <th></th> </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="badge badge-name">Evening</span></td>
+                                <td>6 May</td>
+                                <td><span class="badge badge-time">14:04</span></td>
+                                <td>Daily</td>
+                                <td>1 Jan 2030</td>
+                                <td><span class="badge badge-duration">1 min</span></td>
+                                <td><span class="badge badge-empty">-</span></td>
+                                <td class="action-cells">
+                                    <i class="fa-solid fa-pen action-icon-btn"></i>
+                                    <i class="fa-solid fa-trash action-icon-btn"></i>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-name">Morning</span></td>
+                                <td>4 Oct<br>2022</td>
+                                <td><span class="badge badge-time">17:00</span></td>
+                                <td>Daily</td>
+                                <td>1 Jan 2030</td>
+                                <td><span class="badge badge-duration">60 min</span></td>
+                                <td><span class="badge badge-empty">-</span></td>
+                                <td class="action-cells">
+                                    <i class="fa-solid fa-pen action-icon-btn"></i>
+                                    <i class="fa-solid fa-trash action-icon-btn"></i>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-name">TEST</span></td>
+                                <td>6 May</td>
+                                <td><span class="badge badge-time">03:31</span></td>
+                                <td>—</td>
+                                <td>—</td>
+                                <td><span class="badge badge-duration">1 min</span></td>
+                                <td><span class="badge badge-empty">-</span></td>
+                                <td class="action-cells">
+                                    <i class="fa-solid fa-pen action-icon-btn"></i>
+                                    <i class="fa-solid fa-trash action-icon-btn"></i>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="schedule-footer">
+                    <div class="items-per-page">
+                        Items per page:
+                        <select>
+                            <option>10</option>
+                            <option>20</option>
+                            <option>50</option>
+                        </select>
+                    </div>
+                    <div class="pagination-controls">
+                        <span>1 - 3 of 3</span>
+                        <button class="page-nav-btn" disabled><i class="fa-solid fa-angles-left"></i></button>
+                        <button class="page-nav-btn" disabled><i class="fa-solid fa-angle-left"></i></button>
+                        <button class="page-nav-btn" disabled><i class="fa-solid fa-angle-right"></i></button>
+                        <button class="page-nav-btn" disabled><i class="fa-solid fa-angles-right"></i></button>
+                    </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="addScheduleModal">
+        <div class="modal-box schedule-modal">
+            <div class="modal-header">
+                <h3>Add Schedule</h3>
+                <i class="fa-solid fa-xmark close-modal" id="closeScheduleModal"></i>
+            </div>
+            
+            <div class="toggle-container">
+                <button type="button" class="toggle-btn active" data-mode="consumption">Consumption</button>
+                <button type="button" class="toggle-btn" data-mode="duration">Duration</button>
+            </div>
+
+            <form id="scheduleForm">
+                <div class="input-group">
+                    <label>Name*</label>
+                    <input type="text" id="schedName" placeholder="Enter schedule name" autocomplete="off">
+                </div>
+                
+                <div class="row-inputs">
+                    <div class="input-group">
+                        <label>Start day</label>
+                        <input type="date" id="schedStartDay">
+                    </div>
+                    <div class="input-group">
+                        <label>Start time</label>
+                        <input type="time" id="schedStartTime">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Repeat</label>
+                    <select id="schedRepeat">
+                        <option value="none">None</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="every_n_days">Every N days</option>
+                        <option value="every_n_weeks">Every N weeks</option>
+                    </select>
+                </div>
+
+                <div class="input-group hidden" id="repeatNGroup">
+                    <label id="repeatNLabel">Repeat every N days</label>
+                    <input type="number" id="schedRepeatN" placeholder="Enter number" min="1">
+                </div>
+
+                <div class="input-group">
+                    <label>End day</label>
+                    <input type="date" id="schedEndDay">
+                </div>
+
+                <div class="input-group" id="valueInputGroup">
+                    <label id="valueLabel">Consumption (Liters)</label>
+                    <input type="number" id="schedValue" placeholder="0">
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" id="cancelSchedule">CANCEL</button>
+                    <button type="submit" class="btn-create" id="createSchedule" disabled>CREATE</button>
+                </div>
+            </form>
         </div>
     </div>
 

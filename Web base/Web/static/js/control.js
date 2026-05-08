@@ -210,3 +210,198 @@ document.addEventListener("DOMContentLoaded", () => {
     // Thiết lập vòng lặp hỏi thăm Server mỗi 2 giây để đồng bộ tự động
     setInterval(syncControlStates, 2000);
 });
+
+
+// =====================================================================
+// FILE: control.js - ĐÃ CẬP NHẬT SEARCH VÀ GIỮ NGUYÊN MODAL
+// =====================================================================
+
+document.addEventListener("DOMContentLoaded", () => {
+    // --- 1. KHAI BÁO BIẾN CHO MODAL (THÊM LỊCH) ---
+    const addModal = document.getElementById('addScheduleModal');
+    const openBtn = document.getElementById('btnAddSchedule'); // Nút Thêm xanh lá
+    const closeBtn = document.getElementById('closeScheduleModal');
+    const cancelBtn = document.getElementById('cancelSchedule');
+    const createBtn = document.getElementById('createSchedule');
+    const nameInput = document.getElementById('schedName');
+    const toggleBtns = document.querySelectorAll('.toggle-btn');
+    const valueLabel = document.getElementById('valueLabel');
+    const repeatSelect = document.getElementById('schedRepeat');
+    const repeatNGroup = document.getElementById('repeatNGroup');
+    const repeatNLabel = document.getElementById('repeatNLabel');
+
+    // --- 2. KHAI BÁO BIẾN CHO SEARCH ---
+    const toggleSearchBtn = document.getElementById('toggleSearchBtn');
+    const btnCloseSearch = document.getElementById('btnCloseSearch'); // Nút Đóng mới
+    const searchInput = document.getElementById('searchInput');
+    const btnColumns = document.getElementById('btnColumns');
+    const btnAddSchedule = document.getElementById('btnAddSchedule'); // Nút Thêm
+
+    // =========================================
+    // PHẦN XỬ LÝ SEARCH (CẬP NHẬT CÓ NÚT ĐÓNG)
+    // =========================================
+    if (toggleSearchBtn && searchInput && btnCloseSearch) {
+        
+        // HÀNH ĐỘNG 1: MỞ SEARCH
+        toggleSearchBtn.addEventListener('click', function() {
+            // Hiện ô Search và nút Đóng
+            searchInput.classList.remove('hidden');
+            btnCloseSearch.classList.remove('hidden');
+
+            // Ẩn 3 nút hành động để nhường chỗ
+            btnAddSchedule.classList.add('icon-hide');
+            toggleSearchBtn.classList.add('icon-hide');
+            btnColumns.classList.add('icon-hide');
+
+            searchInput.focus(); // Tự động đưa con trỏ chuột vào ô nhập
+        });
+
+        // HÀNH ĐỘNG 2: ĐÓNG SEARCH (Nhấn vào nút X)
+        btnCloseSearch.addEventListener('click', function() {
+            // Ẩn ô Search và nút Đóng
+            searchInput.classList.add('hidden');
+            btnCloseSearch.classList.add('hidden');
+
+            // Hiện lại 3 nút hành động
+            btnAddSchedule.classList.remove('icon-hide');
+            toggleSearchBtn.classList.remove('icon-hide');
+            btnColumns.classList.remove('icon-hide');
+
+            // Xóa nội dung search và reset bảng
+            searchInput.value = '';
+            filterTable('');
+        });
+
+        // Lọc bảng khi gõ phím
+        searchInput.addEventListener('input', function() {
+            filterTable(this.value.toLowerCase().trim());
+        });
+    }
+
+    // Hàm lọc bảng (Giữ nguyên)
+    function filterTable(keyword) {
+        const rows = document.querySelectorAll('.schedule-table tbody tr');
+        rows.forEach(row => {
+            const nameCell = row.querySelector('td:first-child');
+            if (nameCell) {
+                const nameText = nameCell.textContent.toLowerCase();
+                row.style.display = nameText.includes(keyword) ? '' : 'none';
+            }
+        });
+    }
+
+    // =========================================
+    // PHẦN XỬ LÝ MODAL ADD SCHEDULE (GIỮ NGUYÊN)
+    // =========================================
+    if (openBtn) {
+        openBtn.addEventListener('click', () => {
+            addModal.classList.remove('hidden');
+        });
+    }
+
+    const closeModal = () => {
+        addModal.classList.add('hidden');
+        document.getElementById('scheduleForm').reset();
+        if (repeatNGroup) repeatNGroup.classList.add('hidden');
+        updateCreateButton();
+    };
+
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+
+    toggleBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            toggleBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const mode = this.getAttribute('data-mode');
+            valueLabel.innerText = (mode === 'consumption') ? "Consumption (Liters)" : "Duration (Minutes)";
+        });
+    });
+
+    if (repeatSelect) {
+        repeatSelect.addEventListener('change', function() {
+            if (this.value === 'every_n_days') {
+                repeatNGroup.classList.remove('hidden');
+                repeatNLabel.innerText = "Repeat every N days";
+            } else if (this.value === 'every_n_weeks') {
+                repeatNGroup.classList.remove('hidden');
+                repeatNLabel.innerText = "Repeat every N weeks";
+            } else {
+                repeatNGroup.classList.add('hidden');
+            }
+        });
+    }
+
+    const updateCreateButton = () => {
+        if (nameInput && nameInput.value.trim().length > 0) {
+            createBtn.disabled = false;
+            createBtn.classList.add('active');
+        } else {
+            createBtn.disabled = true;
+            createBtn.classList.remove('active');
+        }
+    };
+
+    if (nameInput) nameInput.addEventListener('input', updateCreateButton);
+
+    // Xử lý nút Submit
+    const scheduleForm = document.getElementById('scheduleForm');
+    if (scheduleForm) {
+        scheduleForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert("Đã tạo lịch mới thành công!");
+            closeModal();
+        });
+    }
+
+
+    // =========================================
+    // PHẦN XỬ LÝ ẨN/HIỆN CỘT (DISPLAY COLUMNS)
+    // =========================================
+    const columnDropdown = document.getElementById('columnDropdown');
+    const colToggles = document.querySelectorAll('.col-toggle');
+
+    if (btnColumns && columnDropdown) {
+        // 1. Mở/Đóng pop-up khi nhấn nút Icon Columns
+        btnColumns.addEventListener('click', function(e) {
+            e.stopPropagation(); // Ngăn sự kiện click bị truyền ra ngoài
+            columnDropdown.classList.toggle('hidden');
+        });
+
+        // 2. Nhấn ra ngoài màn hình thì tự động đóng pop-up lại
+        document.addEventListener('click', function(e) {
+            if (!columnDropdown.contains(e.target) && !btnColumns.contains(e.target)) {
+                columnDropdown.classList.add('hidden');
+            }
+        });
+
+        // Không đóng pop-up khi đang click vào các checkbox bên trong nó
+        columnDropdown.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+
+    // 3. Logic ẩn/hiện cột dựa trên Checkbox
+    colToggles.forEach(toggle => {
+        toggle.addEventListener('change', function() {
+            // Lấy vị trí cột (index từ 0 đến 7)
+            const colIndex = parseInt(this.getAttribute('data-col'));
+            const isVisible = this.checked;
+
+            // A. Cập nhật thẻ <th> (Tiêu đề cột)
+            const tableHeaders = document.querySelectorAll('.schedule-table th');
+            if (tableHeaders[colIndex]) {
+                tableHeaders[colIndex].style.display = isVisible ? '' : 'none';
+            }
+
+            // B. Cập nhật thẻ <td> (Các ô nội dung trong cột đó của từng hàng)
+            const tableRows = document.querySelectorAll('.schedule-table tbody tr');
+            tableRows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells[colIndex]) {
+                    cells[colIndex].style.display = isVisible ? '' : 'none';
+                }
+            });
+        });
+    });
+});
