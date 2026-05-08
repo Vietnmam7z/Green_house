@@ -291,24 +291,96 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =========================================
-    // PHẦN XỬ LÝ MODAL ADD SCHEDULE (GIỮ NGUYÊN)
+    // PHẦN XỬ LÝ MODAL (THÊM / SỬA LỊCH)
     // =========================================
+    
+    const modalTitle = document.getElementById('modalTitle'); // Lấy tiêu đề Modal
+    let currentRowBeingEdited = null; // Biến siêu quan trọng: Lưu lại dòng đang được sửa
+
+    // 1. MỞ MODAL THÊM MỚI (Khi nhấn nút + màu xanh)
     if (openBtn) {
         openBtn.addEventListener('click', () => {
+            currentRowBeingEdited = null; // Chắc chắn là chế độ Thêm mới
+            if (modalTitle) modalTitle.innerText = "Add Schedule";
+            if (createBtn) createBtn.innerText = "CREATE";
             addModal.classList.remove('hidden');
         });
     }
 
+    // 2. XỬ LÝ SỰ KIỆN CLICK TRÊN BẢNG (SỬA & XÓA)
+    const scheduleTableBody = document.querySelector('.schedule-table tbody');
+    if (scheduleTableBody) {
+        // Dùng Event Delegation để bắt sự kiện click cho toàn bộ bảng
+        scheduleTableBody.addEventListener('click', function(e) {
+            
+            // ==========================================
+            // A. NẾU CLICK VÀO ICON CÂY BÚT (SỬA)
+            // ==========================================
+            if (e.target.classList.contains('fa-pen')) {
+                currentRowBeingEdited = e.target.closest('tr');
+
+                const nameCell = currentRowBeingEdited.querySelector('td:nth-child(1) .badge').innerText;
+                const repeatCellText = currentRowBeingEdited.querySelector('td:nth-child(4)').innerText.toLowerCase();
+
+                nameInput.value = nameCell;
+                
+                if (repeatCellText === 'daily') repeatSelect.value = 'daily';
+                else if (repeatCellText === 'weekly') repeatSelect.value = 'weekly';
+                else repeatSelect.value = 'none';
+
+                if (modalTitle) modalTitle.innerText = "Edit Schedule";
+                if (createBtn) createBtn.innerText = "SAVE";
+
+                updateCreateButton();
+                addModal.classList.remove('hidden');
+            }
+
+            // ==========================================
+            // B. NẾU CLICK VÀO ICON THÙNG RÁC (XÓA)
+            // ==========================================
+            if (e.target.classList.contains('fa-trash')) {
+                // 1. Tìm cái dòng (thẻ <tr>) chứa nút thùng rác vừa bấm
+                const rowToDelete = e.target.closest('tr');
+                
+                // 2. Lấy tên của lịch để hiện thông báo cho rõ ràng
+                const scheduleName = rowToDelete.querySelector('td:nth-child(1) .badge').innerText;
+                
+                // 3. Hiện hộp thoại hỏi người dùng có chắc chắn không
+                const isConfirmed = confirm(`Are you sure you want to delete the schedule: "${scheduleName}"?`);
+                
+                // 4. Nếu người dùng bấm OK
+                if (isConfirmed) {
+                    // Xóa dòng đó khỏi giao diện ngay lập tức
+                    rowToDelete.remove();
+                    
+                    // Thông báo thành công (Bạn có thể bỏ dòng này đi nếu thấy phiền)
+                    // alert(`Đã xóa thành công lịch: ${scheduleName}`);
+                    
+                    // LƯU Ý: Sau này bạn sẽ gọi API ở đây để xóa thật trong Database
+                    // fetch('/api/delete_schedule', { method: 'POST', body: ... })
+                }
+            }
+        });
+    }
+
+    // 3. ĐÓNG MODAL (Và reset mọi thứ)
     const closeModal = () => {
         addModal.classList.add('hidden');
         document.getElementById('scheduleForm').reset();
         if (repeatNGroup) repeatNGroup.classList.add('hidden');
+        
+        // Trả mọi thứ về mặc định (Add Mode)
+        currentRowBeingEdited = null;
+        if (modalTitle) modalTitle.innerText = "Add Schedule";
+        if (createBtn) createBtn.innerText = "CREATE";
+        
         updateCreateButton();
     };
 
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
     if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
 
+    // Xử lý các logic nút bấm bên trong Modal (Consumption/Duration) - GIỮ NGUYÊN
     toggleBtns.forEach(btn => {
         btn.addEventListener('click', function() {
             toggleBtns.forEach(b => b.classList.remove('active'));
@@ -344,64 +416,91 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (nameInput) nameInput.addEventListener('input', updateCreateButton);
 
-    // Xử lý nút Submit
+    // 4. LƯU DỮ LIỆU (Khi nhấn CREATE hoặc SAVE)
     const scheduleForm = document.getElementById('scheduleForm');
     if (scheduleForm) {
         scheduleForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            alert("Đã tạo lịch mới thành công!");
+            
+            const newName = nameInput.value;
+
+            if (currentRowBeingEdited) {
+                // === NẾU ĐANG Ở CHẾ ĐỘ SỬA ===
+                // Cập nhật lại tên trên dòng vừa sửa
+                currentRowBeingEdited.querySelector('td:nth-child(1) .badge').innerText = newName;
+                alert("Đã cập nhật lịch: " + newName);
+            } else {
+                // === NẾU ĐANG Ở CHẾ ĐỘ THÊM MỚI ===
+                // Thực hiện gọi API thêm mới vào Backend
+                alert("Đã tạo lịch mới: " + newName);
+            }
+
             closeModal();
         });
     }
 
-
     // =========================================
-    // PHẦN XỬ LÝ ẨN/HIỆN CỘT (DISPLAY COLUMNS)
+    // LOGIC PHÂN TRANG (PAGINATION)
     // =========================================
-    const columnDropdown = document.getElementById('columnDropdown');
-    const colToggles = document.querySelectorAll('.col-toggle');
+    let currentPage = 1;
+    const rowsPerPage = 10;
 
-    if (btnColumns && columnDropdown) {
-        // 1. Mở/Đóng pop-up khi nhấn nút Icon Columns
-        btnColumns.addEventListener('click', function(e) {
-            e.stopPropagation(); // Ngăn sự kiện click bị truyền ra ngoài
-            columnDropdown.classList.toggle('hidden');
-        });
+    function updatePagination() {
+        const rows = document.querySelectorAll('.schedule-table tbody tr');
+        const totalRows = rows.length;
+        const totalPages = Math.ceil(totalRows / rowsPerPage) || 1;
 
-        // 2. Nhấn ra ngoài màn hình thì tự động đóng pop-up lại
-        document.addEventListener('click', function(e) {
-            if (!columnDropdown.contains(e.target) && !btnColumns.contains(e.target)) {
-                columnDropdown.classList.add('hidden');
+        // Đảm bảo trang hiện tại không vượt quá tổng số trang
+        if (currentPage > totalPages) currentPage = totalPages;
+
+        // Ẩn/Hiện các dòng dựa trên trang hiện tại
+        rows.forEach((row, index) => {
+            const start = (currentPage - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            if (index >= start && index < end) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
             }
         });
 
-        // Không đóng pop-up khi đang click vào các checkbox bên trong nó
-        columnDropdown.addEventListener('click', function(e) {
-            e.stopPropagation();
+        // Cập nhật text hiển thị (Ví dụ: Page 1 of 3)
+        const pageInfo = document.getElementById('pageInfo');
+        if (pageInfo) pageInfo.innerText = `Page ${currentPage} of ${totalPages}`;
+
+        // Vô hiệu hóa nút nếu không còn trang để chuyển
+        const prevBtn = document.getElementById('prevPage');
+        const nextBtn = document.getElementById('nextPage');
+        if (prevBtn) prevBtn.disabled = (currentPage === 1);
+        if (nextBtn) nextBtn.disabled = (currentPage === totalPages);
+    }
+
+    // Gán sự kiện cho các nút bấm
+    const prevPageBtn = document.getElementById('prevPage');
+    const nextPageBtn = document.getElementById('nextPage');
+
+    if (prevPageBtn) {
+        prevPageBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                updatePagination();
+            }
         });
     }
 
-    // 3. Logic ẩn/hiện cột dựa trên Checkbox
-    colToggles.forEach(toggle => {
-        toggle.addEventListener('change', function() {
-            // Lấy vị trí cột (index từ 0 đến 7)
-            const colIndex = parseInt(this.getAttribute('data-col'));
-            const isVisible = this.checked;
-
-            // A. Cập nhật thẻ <th> (Tiêu đề cột)
-            const tableHeaders = document.querySelectorAll('.schedule-table th');
-            if (tableHeaders[colIndex]) {
-                tableHeaders[colIndex].style.display = isVisible ? '' : 'none';
+    if (nextPageBtn) {
+        nextPageBtn.addEventListener('click', () => {
+            const totalRows = document.querySelectorAll('.schedule-table tbody tr').length;
+            if (currentPage < Math.ceil(totalRows / rowsPerPage)) {
+                currentPage++;
+                updatePagination();
             }
-
-            // B. Cập nhật thẻ <td> (Các ô nội dung trong cột đó của từng hàng)
-            const tableRows = document.querySelectorAll('.schedule-table tbody tr');
-            tableRows.forEach(row => {
-                const cells = row.querySelectorAll('td');
-                if (cells[colIndex]) {
-                    cells[colIndex].style.display = isVisible ? '' : 'none';
-                }
-            });
         });
-    });
+    }
+
+    // Gọi hàm lần đầu để khởi tạo bảng
+    updatePagination();
+
+    // Mẹo: Mỗi khi bạn thêm 1 hàng mới hoặc xóa 1 hàng, 
+    // hãy nhớ gọi lại hàm updatePagination() để cập nhật lại số trang.
 });

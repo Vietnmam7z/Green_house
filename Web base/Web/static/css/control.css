@@ -353,19 +353,55 @@ input:checked + .slider:before { transform: translateX(26px); }
     gap: 30px;
 }
 
-.items-per-page select {
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 5px;
-    margin-left: 10px;
-    color: #555;
-    outline: none;
+/* =========================================
+   SIMPLE PAGINATION
+========================================= */
+.schedule-footer {
+    display: flex;
+    justify-content: center; /* Căn giữa bộ phân trang */
+    padding: 15px 20px;
+    border-top: 1px solid #e0e0e0;
+    background-color: #ffffff;
 }
 
-.pagination-controls {
+.pagination-simple {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 20px;
+}
+
+.page-btn {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    color: #546e7a;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.page-btn:hover:not(:disabled) {
+    background-color: #e9ecef;
+    color: #1e88e5;
+    border-color: #1e88e5;
+}
+
+.page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #f1f3f4;
+}
+
+#pageInfo {
+    font-size: 14px;
+    color: #78909c;
+    font-weight: 500;
+    min-width: 80px;
+    text-align: center;
 }
 
 .page-nav-btn {

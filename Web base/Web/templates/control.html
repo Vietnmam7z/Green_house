@@ -246,20 +246,14 @@
                 </div>
 
                 <div class="schedule-footer">
-                    <div class="items-per-page">
-                        Items per page:
-                        <select>
-                            <option>10</option>
-                            <option>20</option>
-                            <option>50</option>
-                        </select>
-                    </div>
-                    <div class="pagination-controls">
-                        <span>1 - 3 of 3</span>
-                        <button class="page-nav-btn" disabled><i class="fa-solid fa-angles-left"></i></button>
-                        <button class="page-nav-btn" disabled><i class="fa-solid fa-angle-left"></i></button>
-                        <button class="page-nav-btn" disabled><i class="fa-solid fa-angle-right"></i></button>
-                        <button class="page-nav-btn" disabled><i class="fa-solid fa-angles-right"></i></button>
+                    <div class="pagination-simple">
+                        <button class="page-btn" id="prevPage" title="Previous Page">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+                        <span id="pageInfo">Page 1 of 1</span>
+                        <button class="page-btn" id="nextPage" title="Next Page">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -269,7 +263,7 @@
     <div class="modal-overlay hidden" id="addScheduleModal">
         <div class="modal-box schedule-modal">
             <div class="modal-header">
-                <h3>Add Schedule</h3>
+                <h3 id="modalTitle">Add Schedule</h3>
                 <i class="fa-solid fa-xmark close-modal" id="closeScheduleModal"></i>
             </div>
             
