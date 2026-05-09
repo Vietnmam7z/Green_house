@@ -801,6 +801,7 @@ class FieldDB:
                         s.device_id,
                         s.name,
                         s.event_date,
+                        s.end_date,
                         s.event_time,
                         s.event_type,
                         s.mode,
@@ -826,16 +827,17 @@ class FieldDB:
                         "device_id": row[3],   
                         "name": row[4],
                         "event_date": row[5],
-                        "event_time": row[6],
-                        "event_type": row[7],
-                        "mode": row[8],
-                        "duration": row[9],
-                        "consumption": row[10],
-                        "repeat_enabled": bool(row[11]) if row[11] is not None else False,
-                        "type_repeat": row[12],
-                        "repeat_value": row[13],
-                        "enabled": bool(row[14]) if row[14] is not None else False,
-                        "created_at": row[15]
+                        "end_date": row[6],
+                        "event_time": row[7],
+                        "event_type": row[8],
+                        "mode": row[9],
+                        "duration": row[10],
+                        "consumption": row[11],
+                        "repeat_enabled": bool(row[12]) if row[12] is not None else False,
+                        "type_repeat": row[13],
+                        "repeat_value": row[14],
+                        "enabled": bool(row[15]) if row[15] is not None else False,
+                        "created_at": row[16]
                     })
 
                 return {
@@ -851,12 +853,10 @@ class FieldDB:
                 }
             
     def get_schedulers_by_field_id(self, field_id):
-
         with self.connect() as conn:
             cursor = conn.cursor()
-
             try:
-
+                # Dùng LEFT JOIN để móc nối lấy dc.device_name
                 cursor.execute("""
                     SELECT
                         s.scheduler_id,
@@ -865,6 +865,7 @@ class FieldDB:
                         s.device_id,
                         s.name,
                         s.event_date,
+                        s.end_date,
                         s.event_time,
                         s.event_type,
                         s.mode,
@@ -874,39 +875,38 @@ class FieldDB:
                         s.type_repeat,
                         s.repeat_value,
                         s.enabled,
-                        s.created_at
+                        s.created_at,
+                        dc.device_name   -- ✔ THÊM CỘT TÊN THIẾT BỊ (Index 17)
                     FROM scheduler s
-                    JOIN field f
-                        ON s.field_id = f.field_id
+                    JOIN field f ON s.field_id = f.field_id
+                    LEFT JOIN device_controller dc ON s.device_id = dc.device_id
                     WHERE s.field_id = ?
                     ORDER BY s.scheduler_id DESC
                 """, (field_id,))
 
                 rows = cursor.fetchall()
-
                 schedulers = []
 
                 for row in rows:
-
                     schedulers.append({
                         "scheduler_id": row[0],
                         "field_id": row[1],
                         "field_name": row[2],
-
-                        "device_id": row[3],   # ✔ ADDED
-
+                        "device_id": row[3],
                         "name": row[4],
                         "event_date": row[5],
-                        "event_time": row[6],
-                        "event_type": row[7],
-                        "mode": row[8],
-                        "duration": row[9],
-                        "consumption": row[10],
-                        "repeat_enabled": bool(row[11]) if row[11] is not None else False,
-                        "type_repeat": row[12],
-                        "repeat_value": row[13],
-                        "enabled": bool(row[14]) if row[14] is not None else False,
-                        "created_at": row[15]
+                        "end_date": row[6],
+                        "event_time": row[7],
+                        "event_type": row[8],
+                        "mode": row[9],
+                        "duration": row[10],
+                        "consumption": row[11],
+                        "repeat_enabled": bool(row[12]) if row[12] is not None else False,
+                        "type_repeat": row[13],
+                        "repeat_value": row[14],
+                        "enabled": bool(row[15]) if row[15] is not None else False,
+                        "created_at": row[16],
+                        "device_name": row[17] if row[17] else "Unknown" # ✔ GÁN TÊN VÀO JSON
                     })
 
                 return {
@@ -915,10 +915,9 @@ class FieldDB:
                 }
 
             except Exception as e:
-
                 return {
-                    "success": True,
-                    "data": rows
+                    "success": False,
+                    "message": str(e)
                 }
 
     def create_scheduler(
@@ -927,6 +926,7 @@ class FieldDB:
         device_id,   
         name,
         event_date,
+        end_date,         # ✔ Thêm end_date
         event_time,
         event_type,
         mode,
@@ -936,18 +936,16 @@ class FieldDB:
         type_repeat=None,
         repeat_value=None
     ):
-
         with self.connect() as conn:
             cursor = conn.cursor()
-
             try:
-
                 cursor.execute("""
                     INSERT INTO scheduler (
                         field_id,
                         device_id,
                         name,
                         event_date,
+                        end_date,
                         event_time,
                         event_type,
                         mode,
@@ -958,12 +956,13 @@ class FieldDB:
                         repeat_value,
                         enabled
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
                 """, (
                     field_id,
-                    device_id,   # ✔ ADD
+                    device_id,   
                     name,
                     event_date,
+                    end_date,     # ✔ Thêm end_date vào biến truyền xuống
                     event_time,
                     event_type,
                     mode,
@@ -973,16 +972,12 @@ class FieldDB:
                     type_repeat,
                     repeat_value
                 ))
-
                 conn.commit()
-
                 return {
                     "success": True,
                     "message": "Scheduler created successfully"
                 }
-
             except Exception as e:
-
                 return {
                     "success": False,
                     "message": str(e)
@@ -1018,9 +1013,10 @@ class FieldDB:
         self,
         scheduler_id,
         field_id,
-        device_id,   # ✔ ADD
+        device_id,   
         name,
         event_date,
+        end_date,         # ✔ Thêm end_date
         event_time,
         event_type,
         mode,
@@ -1031,19 +1027,17 @@ class FieldDB:
         repeat_value=None,
         enabled=True
     ):
-
         with self.connect() as conn:
             cursor = conn.cursor()
-
             try:
-
                 cursor.execute("""
                     UPDATE scheduler
                     SET
                         field_id = ?,
-                        device_id = ?,   -- ✔ ADD
+                        device_id = ?,   
                         name = ?,
                         event_date = ?,
+                        end_date = ?,
                         event_time = ?,
                         event_type = ?,
                         mode = ?,
@@ -1056,9 +1050,10 @@ class FieldDB:
                     WHERE scheduler_id = ?
                 """, (
                     field_id,
-                    device_id,   # ✔ ADD
+                    device_id,   
                     name,
                     event_date,
+                    end_date,     
                     event_time,
                     event_type,
                     mode,
@@ -1070,16 +1065,12 @@ class FieldDB:
                     int(enabled),
                     scheduler_id
                 ))
-
                 conn.commit()
-
                 return {
                     "success": True,
                     "message": "Scheduler updated successfully"
                 }
-
             except Exception as e:
-
                 return {
                     "success": False,
                     "message": str(e)
@@ -1139,14 +1130,14 @@ class FieldDB:
                     "message": str(e)
                 }
             
-    def update_scheduler_date(self, scheduler_id, next_date):
+    def update_scheduler_date(self, scheduler_id, next_date, next_time):
         with self.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE scheduler
-                SET event_date = ?
+                SET event_date = ?, event_time = ?
                 WHERE scheduler_id = ?
-            """, (next_date, scheduler_id))
+            """, (next_date, next_time, scheduler_id))
             conn.commit()
 
     def get_device_sensor_mapping(self, device_id):

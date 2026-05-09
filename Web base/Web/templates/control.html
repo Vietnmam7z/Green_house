@@ -193,55 +193,18 @@
                         <thead>
                             <tr>
                                 <th>Name <i class="fa-solid fa-arrow-up" style="font-size: 10px; margin-left: 5px;"></i></th>
+                                <th>Device</th>
                                 <th>Start day</th>
                                 <th>Start time</th>
                                 <th>Repeat</th>
                                 <th>End day</th>
                                 <th>Duration</th>
                                 <th>Volume</th>
-                                <th></th> </tr>
+                                <th></th> 
+                            </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td><span class="badge badge-name">Evening</span></td>
-                                <td>6 May</td>
-                                <td><span class="badge badge-time">14:04</span></td>
-                                <td>Daily</td>
-                                <td>1 Jan 2030</td>
-                                <td><span class="badge badge-duration">1 min</span></td>
-                                <td><span class="badge badge-empty">-</span></td>
-                                <td class="action-cells">
-                                    <i class="fa-solid fa-pen action-icon-btn"></i>
-                                    <i class="fa-solid fa-trash action-icon-btn"></i>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><span class="badge badge-name">Morning</span></td>
-                                <td>4 Oct<br>2022</td>
-                                <td><span class="badge badge-time">17:00</span></td>
-                                <td>Daily</td>
-                                <td>1 Jan 2030</td>
-                                <td><span class="badge badge-duration">60 min</span></td>
-                                <td><span class="badge badge-empty">-</span></td>
-                                <td class="action-cells">
-                                    <i class="fa-solid fa-pen action-icon-btn"></i>
-                                    <i class="fa-solid fa-trash action-icon-btn"></i>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><span class="badge badge-name">TEST</span></td>
-                                <td>6 May</td>
-                                <td><span class="badge badge-time">03:31</span></td>
-                                <td>—</td>
-                                <td>—</td>
-                                <td><span class="badge badge-duration">1 min</span></td>
-                                <td><span class="badge badge-empty">-</span></td>
-                                <td class="action-cells">
-                                    <i class="fa-solid fa-pen action-icon-btn"></i>
-                                    <i class="fa-solid fa-trash action-icon-btn"></i>
-                                </td>
-                            </tr>
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
 
@@ -276,6 +239,12 @@
                 <div class="input-group">
                     <label>Name*</label>
                     <input type="text" id="schedName" placeholder="Enter schedule name" autocomplete="off">
+                </div>
+
+                <div class="input-group">
+                    <label>Device*</label>
+                    <select id="schedDevice">
+                        </select>
                 </div>
                 
                 <div class="row-inputs">
