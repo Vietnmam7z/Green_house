@@ -82,3 +82,21 @@ class UserLogger:
 
     def log_set_notification_status(self, field_id: str, status: str):
         self.logger.warning(f"Đặt trạng thái thông báo cho ruộng {field_id} thành {status}")
+
+    def log_set_device_state(self, field_id: str, device_type: str, state: str):
+        self.logger.warning(f"Đặt trạng thái thiết bị {device_type} của ruộng {field_id} thành {state}")
+
+    def log_create_job(self, job_id: str, field_id: str, device_id: str, threshold: float, event_date: str, event_time: str):
+        self.logger.warning(f"Tạo công việc {job_id} cho ruộng {field_id} vào ngày {event_date} lúc {event_time} với thiết bị {device_id} và ngưỡng {threshold}")
+
+    def log_create_job_no_threshold(self, job_id: str, field_id: str, device_id: str, duration: int, event_date: str, event_time: str):
+        self.logger.warning(f"Tạo công việc {job_id} cho ruộng {field_id} vào ngày {event_date} lúc {event_time} với thiết bị {device_id} trong {duration} giây")
+
+    def log_delete_job(self, job_id: str):
+        self.logger.warning(f"Xóa công việc {job_id}")
+    
+    def log_update_job(self, job_id: str, field_id: str, device_id: str, threshold: float, event_date: str, event_time: str):
+        self.logger.warning(f"Cập nhật công việc {job_id} cho ruộng {field_id} vào ngày {event_date} lúc {event_time} với thiết bị {device_id} và ngưỡng {threshold}")
+
+    def log_update_job_no_threshold(self, job_id: str, field_id: str, device_id: str, duration: int, event_date: str, event_time: str):
+        self.logger.warning(f"Cập nhật công việc {job_id} cho ruộng {field_id} vào ngày {event_date} lúc {event_time} với thiết bị {device_id} trong {duration} giây")   
