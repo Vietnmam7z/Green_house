@@ -69,7 +69,7 @@ class Routes:
         data = request.get_json()
         
         field_id = data.get('field_id')
-        device_name = data.get('device_name')
+        device_name = data.get('device_name') # VD: 'Light', 'Irrigation' từ UI
         action = data.get('action') # 'ON' hoặc 'OFF'
 
         # 1. KIỂM TRA QUYỀN
@@ -79,56 +79,83 @@ class Routes:
 
         print(f"User {username} ra lệnh: {action} thiết bị {device_name} tại {field_id}")
 
-        # 2. LƯU TRẠNG THÁI VÀO DATABASE ĐỂ ĐỒNG BỘ
+        # 2. BẢN ĐỒ MAP GIAO DIỆN (UI) SANG TYPE TRONG DATABASE
+        ui_to_db_type = {
+            "Light": "light",
+            "Vent": "vent",
+            "Irrigation": "valve",
+            "Cooling pad": "cooling_pad",
+            "Heater": "heater",
+            "CO2 valve": "co2_valve",
+            "Fan": "fan",
+            "Fertigation": "fertilizer"
+        }
+        
+        db_type = ui_to_db_type.get(device_name)
+        if not db_type:
+            return jsonify({"success": False, "message": "Thiết bị không hợp lệ"}), 400
+
+        # Chuyển đổi trạng thái cho khớp với DB (OFF tương đương với DONE)
+        db_state = "ON" if action == "ON" else "DONE"
+
+        # 3. LƯU VÀO BẢNG DEVICE_CONTROLLER & GỬI MQTT
         try:
-            # Thêm timeout=5.0 để nếu DB bị khóa, nó sẽ chờ tối đa 5 giây thay vì báo lỗi ngay
             conn = sqlite3.connect('field.db', timeout=5.0)
             cur = conn.cursor()
-            
-            # KHÓA ĐỘC QUYỀN (EXCLUSIVE LOCK): Ngăn luồng khác đọc/ghi xen ngang
             cur.execute("BEGIN EXCLUSIVE")
             
-            # Lấy trạng thái hiện tại (nếu có)
-            cur.execute("SELECT status FROM field_status WHERE field_id = ?", (field_id,))
+            # Tìm ID của thiết bị theo type
+            cur.execute("SELECT device_id FROM device_controller WHERE field_id = ? AND type = ?", (field_id, db_type))
             row = cur.fetchone()
-
-            states = {}
-            if row and row[0]:
-                try:
-                    states = json.loads(row[0])
-                except json.JSONDecodeError:
-                    pass
-
-            # Cập nhật trạng thái của thiết bị vừa được bấm
-            states[device_name] = action
-
-            # Lưu ngược lại vào database
-            if row is not None:
-                cur.execute("UPDATE field_status SET status = ? WHERE field_id = ?", (json.dumps(states), field_id))
-            else:
-                cur.execute("INSERT INTO field_status (field_id, status) VALUES (?, ?)", (field_id, json.dumps(states)))
+            
+            if row:
+                device_id = row[0]
+                # Cập nhật trạng thái
+                cur.execute("UPDATE device_controller SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE device_id = ?", (db_state, device_id))
+                conn.commit()
                 
-            conn.commit()
+                # Gửi lệnh MQTT xuống phần cứng
+                device_controller.send_device_command(field_id, db_type, db_state)
+
+                if db_state == "DONE":
+                    jobs_to_remove = []
+                    # Tìm xem có lịch nào của thiết bị này đang chạy ngầm không
+                    for sched_id, job in self.running_jobs.items():
+                        if str(job["device_id"]) == str(device_id):
+                            row = job["row"]
+                            end_date_str = row.get("end_date") # Lấy ngày kết thúc
+                            
+                            # Tính chu kỳ lặp kế tiếp
+                            next_date, next_time = self.calculate_next_date(row)
+                            
+                            # KIỂM TRA HẾT HẠN KHI TẮT THỦ CÔNG
+                            if end_date_str and next_date > end_date_str:
+                                self.field.delete_scheduler(sched_id)
+                                print(f"[MANUAL OFF - EXPIRED] Lịch {sched_id} đã hết hạn. Đã xóa.")
+                            else:
+                                self.field.update_scheduler_date(sched_id, next_date, next_time)
+                                print(f"[MANUAL OFF] Đã đóng sớm lịch {sched_id} do người dùng tắt tay.")
+                                
+                            jobs_to_remove.append(sched_id)
+                    
+                    # Dọn dẹp bộ nhớ
+                    for sched_id in jobs_to_remove:
+                        del self.running_jobs[sched_id]
+                # ========================================================
+
+            else:
+                conn.rollback()
+                return jsonify({"success": False, "message": "Không tìm thấy thiết bị này trong CSDL"}), 404
+                
             conn.close()
+            return jsonify({"success": True, "message": f"Đã {action} {device_name}"})
             
         except sqlite3.OperationalError as e:
-            # Nếu 2 người bấm thật sự cùng lúc và timeout không cứu được, báo cho Web biết
             print(f"Lỗi khóa DB: {e}")
-            return jsonify({"success": False, "message": "Hệ thống đang bận xử lý lệnh khác, vui lòng thử lại!"}), 503
+            return jsonify({"success": False, "message": "Hệ thống đang bận, vui lòng thử lại!"}), 503
         except Exception as e:
-            print(f"Lỗi Database trong control_device: {e}")
+            print(f"Lỗi hệ thống: {e}")
             return jsonify({"success": False, "message": f"Lỗi server: {e}"}), 500
-
-        # ==========================================================
-        # 3. TRẢ VỀ KẾT QUẢ CHO FRONTEND
-        # CHÚ Ý: Các dòng dưới đây phải thẳng hàng với chữ 'try' phía trên
-        # ==========================================================
-        is_success = True 
-        
-        if is_success:
-            return jsonify({"success": True, "message": f"Đã {action} {device_name}"})
-        else:
-            return jsonify({"success": False, "message": "Thiết bị không phản hồi"})
 	
     # API CHO TRANG CONTROL
     def get_control_status(self):
@@ -217,6 +244,11 @@ class Routes:
 
     def create_scheduler(self):
         data = request.json
+        start = data.get("event_date")
+        end = data.get("end_date")
+        
+        if end and start and end < start:
+            return jsonify({"success": False, "message": "End date must be >= Start date"})
         try:
             result = self.field.create_scheduler(
                 field_id=data.get("field_id"),
@@ -508,7 +540,9 @@ class Routes:
     def handle_done_jobs(self, now):
         for scheduler_id in list(self.running_jobs.keys()):
             job = self.running_jobs[scheduler_id]
-            
+            row = job["row"]
+            end_date_str = row.get("end_date") # Lấy ngày kết thúc từ Database
+
             # --- PHẦN XỬ LÝ THEO THỜI GIAN (TIME) ---
             if job.get("type") == "time":
                 elapsed = (now - job["start_time"]).total_seconds()
@@ -518,20 +552,25 @@ class Routes:
                 device_id = job["device_id"]
                 self.execute_scheduler(device_id, "DONE")
                 
-                # SỬA LẠI ĐÚNG 2 DÒNG NÀY:
-                next_date, next_time = self.calculate_next_date(job["row"])
-                self.field.update_scheduler_date(scheduler_id, next_date, next_time)
+                # 1. Tính ngày giờ lặp lại
+                next_date, next_time = self.calculate_next_date(row)
+                
+                # 2. KIỂM TRA HẾT HẠN
+                if end_date_str and next_date > end_date_str:
+                    self.field.delete_scheduler(scheduler_id)
+                    print(f"[EXPIRED] Lịch {scheduler_id} (Time) đã hết hạn (Next: {next_date} > End: {end_date_str}). Đã xóa.")
+                else:
+                    self.field.update_scheduler_date(scheduler_id, next_date, next_time)
                 
                 del self.running_jobs[scheduler_id]
                 continue
 
-            # --- PHẦN XỬ LÝ THEO LƯU LƯỢNG (CONSUMPTION) MỚI SỬA ---
+            # --- PHẦN XỬ LÝ THEO LƯU LƯỢNG (CONSUMPTION) ---
             if job.get("type") != "consumption":
                 continue
 
             sensor_id = job["sensor_id"]
             device_type = job.get("device_type", "valve")
-            # [VÁ LỖI 2A]: Xác định đúng tên tín hiệu cần nghe
             telemetry_name = "fertilizerCounter" if device_type == "fertilizer" else "pulseCounter"
 
             db_max_ts = self.field.get_max_ts(sensor_id)
@@ -547,12 +586,11 @@ class Routes:
             max_ts = last_ts
             prev_value = job.get("prev_value")
 
-            for row in rows:
-                ts = row[0]
-                value_str = row[1]
-                name = row[2]
+            for r in rows:
+                ts = r[0]
+                value_str = r[1]
+                name = r[2]
 
-                # [VÁ LỖI 2B]: Lọc BỎ TẤT CẢ tín hiệu rác (như pin, sóng...), chỉ nghe đồng hồ nước
                 if name != telemetry_name:
                     continue
 
@@ -575,7 +613,7 @@ class Routes:
             job["last_ts"] = max_ts
             job["total_consumption"] = job.get("total_consumption", 0) + total_delta
 
-            threshold = float(job["row"].get("consumption") or 0)
+            threshold = float(row.get("consumption") or 0)
 
             print(f"[CONS] Cảm biến {sensor_id} | Chảy thêm: {total_delta}L | Tổng đã tưới: {job['total_consumption']}L / Mục tiêu: {threshold}L")
 
@@ -584,9 +622,15 @@ class Routes:
                 device_id = job["device_id"]
                 self.execute_scheduler(device_id, "DONE") # Tắt máy bơm
                 
-                # Tính ngày lặp lại tiếp theo và lưu vào DB
-                next_date, next_time = self.calculate_next_date(job["row"])
-                self.field.update_scheduler_date(scheduler_id, next_date, next_time)
+                # 1. Tính ngày lặp lại tiếp theo
+                next_date, next_time = self.calculate_next_date(row)
+                
+                # 2. KIỂM TRA HẾT HẠN
+                if end_date_str and next_date > end_date_str:
+                    self.field.delete_scheduler(scheduler_id)
+                    print(f"[EXPIRED] Lịch {scheduler_id} (Cons) đã hết hạn (Next: {next_date} > End: {end_date_str}). Đã xóa.")
+                else:
+                    self.field.update_scheduler_date(scheduler_id, next_date, next_time)
                 
                 del self.running_jobs[scheduler_id] # Kết thúc tiến trình
                 

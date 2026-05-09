@@ -582,3 +582,46 @@
 2026-05-09 20:12:07,625 - WARNING - Cập nhật công việc 5 cho ruộng 001 vào ngày 2026-05-09 lúc 20:13:00 với thiết bị 1 trong 1 giây
 2026-05-09 20:18:12,610 - INFO - Đăng nhập: 1
 2026-05-09 20:21:00,466 - WARNING - Cập nhật công việc 3 cho ruộng 001 vào ngày 2026-05-10 lúc 02:36:00 với thiết bị 1 trong 15 giây
+2026-05-09 20:51:56,033 - INFO - Đăng nhập: 1
+2026-05-09 20:52:18,093 - WARNING - Cập nhật công việc 4 cho ruộng 001 vào ngày 2026-05-09 lúc 20:53:00 với thiết bị 8 trong 1 giây
+2026-05-09 20:52:28,750 - WARNING - Cập nhật công việc 4 cho ruộng 001 vào ngày 2026-05-09 lúc 20:53:00 với thiết bị 1 trong 1 giây
+2026-05-09 20:55:51,530 - WARNING - Cập nhật công việc 4 cho ruộng 001 vào ngày 2026-05-10 lúc 20:53:00 với thiết bị 1 trong 1 giây
+2026-05-09 20:55:55,861 - WARNING - Cập nhật công việc 4 cho ruộng 001 vào ngày 2026-05-10 lúc 20:55:00 với thiết bị 1 trong 1 giây
+2026-05-09 20:56:01,247 - WARNING - Cập nhật công việc 4 cho ruộng 001 vào ngày 2026-05-10 lúc 20:57:00 với thiết bị 1 trong 1 giây
+2026-05-09 20:57:34,656 - WARNING - Cập nhật công việc 5 cho ruộng 001 vào ngày 2026-05-10 lúc 20:58:00 với thiết bị 1 trong 1 giây
+2026-05-09 21:02:32,465 - INFO - Đăng nhập: 1
+2026-05-09 21:02:48,120 - WARNING - Xóa công việc 1
+2026-05-09 21:02:52,351 - WARNING - Xóa công việc 2
+2026-05-09 21:02:54,783 - WARNING - Xóa công việc 9
+2026-05-09 21:02:56,752 - WARNING - Xóa công việc 5
+2026-05-09 21:02:58,060 - WARNING - Xóa công việc 4
+2026-05-09 21:02:59,356 - WARNING - Xóa công việc 3
+2026-05-09 21:03:30,443 - WARNING - Tạo công việc None cho ruộng 001 vào ngày 2026-05-09 lúc 21:04:00 với thiết bị 1 và ngưỡng 10
+2026-05-09 21:03:50,537 - WARNING - Tạo công việc None cho ruộng 001 vào ngày 2026-05-09 lúc 21:04:00 với thiết bị 1 trong 1 giây
+2026-05-09 21:05:08,009 - WARNING - Xóa công việc 10
+2026-05-09 21:05:44,381 - WARNING - Xóa công việc 11
+2026-05-09 21:06:16,554 - WARNING - Tạo công việc None cho ruộng 001 vào ngày 2026-05-09 lúc 21:07:00 với thiết bị 1 và ngưỡng 10
+2026-05-09 21:08:39,121 - WARNING - Xóa công việc 12
+2026-05-09 21:08:54,509 - WARNING - Tạo công việc None cho ruộng 001 vào ngày 2026-05-09 lúc 21:09:00 với thiết bị 1 trong 1 giây
+2026-05-09 21:15:41,363 - INFO - Đăng nhập: 1
+2026-05-09 21:15:49,240 - WARNING - Cập nhật công việc 13 cho ruộng 001 vào ngày 2026-05-13 lúc 21:16:00 với thiết bị 1 trong 1 giây
+2026-05-09 21:15:55,578 - WARNING - Cập nhật công việc 13 cho ruộng 001 vào ngày 2026-05-09 lúc 21:16:00 với thiết bị 1 trong 1 giây
+2026-05-09 21:20:38,076 - WARNING - Cập nhật công việc 13 cho ruộng 001 vào ngày 2026-05-09 lúc 21:21:00 với thiết bị 1 và ngưỡng 10
+2026-05-09 21:24:46,932 - INFO - Đăng nhập: 1
+2026-05-09 21:24:54,855 - WARNING - Cập nhật công việc 13 cho ruộng 001 vào ngày 2026-05-09 lúc 21:25:00 với thiết bị 1 và ngưỡng 10
+2026-05-09 21:25:35,779 - WARNING - Cập nhật công việc 13 cho ruộng 001 vào ngày 2026-05-16 lúc 21:25:00 với thiết bị 1 và ngưỡng 10
+2026-05-09 21:25:45,393 - WARNING - Cập nhật công việc 13 cho ruộng 001 vào ngày 2026-05-09 lúc 21:25:00 với thiết bị 1 và ngưỡng 10
+2026-05-09 21:25:55,077 - WARNING - Cập nhật công việc 13 cho ruộng 001 vào ngày 2026-05-09 lúc 21:26:00 với thiết bị 1 và ngưỡng 10
+2026-05-09 21:33:18,914 - INFO - Đăng nhập: 1
+2026-05-09 21:33:36,686 - WARNING - Cập nhật công việc 13 cho ruộng 001 vào ngày 2026-05-09 lúc 21:34:00 với thiết bị 1 và ngưỡng 10
+2026-05-09 21:33:48,551 - WARNING - Cập nhật công việc 13 cho ruộng 001 vào ngày 2026-05-09 lúc 21:34:00 với thiết bị 1 trong 1 giây
+2026-05-09 21:34:36,732 - WARNING - Cập nhật công việc 13 cho ruộng 001 vào ngày 2026-05-09 lúc 21:35:00 với thiết bị 1 trong 1 giây
+2026-05-09 21:34:50,564 - WARNING - Cập nhật công việc 13 cho ruộng 001 vào ngày 2026-05-09 lúc 21:35:00 với thiết bị 1 trong 1 giây
+2026-05-09 21:38:03,243 - INFO - Đăng nhập: 1
+2026-05-09 21:38:23,692 - WARNING - Tạo công việc None cho ruộng 001 vào ngày 2026-05-09 lúc 21:39:00 với thiết bị 1 trong 1 giây
+2026-05-09 21:39:34,759 - WARNING - Tạo công việc None cho ruộng 001 vào ngày 2026-05-09 lúc 21:40:00 với thiết bị 1 trong 1 giây
+2026-05-09 21:47:48,021 - WARNING - Tạo công việc None cho ruộng 001 vào ngày 2026-05-09 lúc 21:48:00 với thiết bị 1 trong 1 giây
+2026-05-09 21:49:04,555 - WARNING - Tạo công việc None cho ruộng 001 vào ngày 2026-05-09 lúc 21:51:00 với thiết bị 1 trong 1 giây
+2026-05-09 21:49:19,826 - WARNING - Cập nhật công việc 16 cho ruộng 001 vào ngày 2026-05-09 lúc 21:50:00 với thiết bị 1 trong 1 giây
+2026-05-09 21:49:26,388 - WARNING - Xóa công việc 17
+2026-05-09 21:50:56,556 - WARNING - Cập nhật công việc 16 cho ruộng 001 vào ngày 2026-05-09 lúc 21:50:00 với thiết bị 1 trong 1 giây

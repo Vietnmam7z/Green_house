@@ -4,27 +4,46 @@ let currentIndex = 0;
 let currentFieldId = null;
 
 // ======================================================================
-// 1. HÀM ĐỒNG BỘ TRẠNG THÁI TỪ DATABASE (Thay thế cho localStorage cũ)
+// 1. HÀM ĐỒNG BỘ TRẠNG THÁI TỪ DATABASE (Đã fix sử dụng device_controller)
 // ======================================================================
 function syncControlStates() {
     if (!currentFieldId) return;
 
-    fetch(`/api/get_control_status?field_id=${currentFieldId}`)
+    // Gọi API lấy danh sách thiết bị và trạng thái thật của device_controller
+    fetch(`/api/devices_list?field_id=${currentFieldId}`)
         .then(res => res.json())
         .then(data => {
-            if (data.success && data.states) {
-                // Quét tất cả các công tắc trên giao diện
+            if (data.success && data.devices) {
+                
+                // Bản đồ Map ngược từ Type (DB) sang tên Nút bấm (UI)
+                const dbToUiType = {
+                    "light": "Light",
+                    "vent": "Vent",
+                    "valve": "Irrigation",
+                    "cooling_pad": "Cooling pad",
+                    "heater": "Heater",
+                    "co2_valve": "CO2 valve",
+                    "fan": "Fan",
+                    "fertilizer": "Fertigation"
+                };
+
                 const toggles = document.querySelectorAll('.device-toggle');
                 
                 toggles.forEach(toggle => {
-                    const deviceName = toggle.getAttribute('data-device');
-                    // Lấy trạng thái từ DB, nếu 'ON' thì là true, ngược lại là false
-                    const stateFromDB = data.states[deviceName];
-                    const isChecked = (stateFromDB === 'ON');
+                    const uiDeviceName = toggle.getAttribute('data-device'); // Vd: 'Irrigation'
                     
-                    // Chỉ cập nhật nếu trạng thái trên UI khác với DB (tránh chớp nháy)
-                    if (toggle.checked !== isChecked) {
-                        toggle.checked = isChecked;
+                    // Tìm thiết bị trong mảng DB trả về (d[2] là cột Type)
+                    const matchingDevice = data.devices.find(d => dbToUiType[d[2]] === uiDeviceName);
+                    
+                    if (matchingDevice) {
+                        // d[3] là cột State ('ON' hoặc 'DONE')
+                        const stateFromDB = matchingDevice[3];
+                        const isChecked = (stateFromDB === 'ON');
+                        
+                        // Nếu Lịch tưới bật -> công tắc trên web cũng tự động gạt sang ON
+                        if (toggle.checked !== isChecked) {
+                            toggle.checked = isChecked;
+                        }
                     }
                 });
             }
@@ -453,8 +472,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 valueLabel.innerText = targetMode === 'consumption' ? "Consumption (Liters)" : "Duration (Minutes)";
                 document.getElementById('schedValue').value = targetMode === 'consumption' ? schedData.consumption : schedData.duration;
 
-                if(schedData.repeat_enabled) {
+                if(schedData.repeat_enabled && schedData.type_repeat !== 'none') {
                     repeatSelect.value = schedData.type_repeat;
+                    if (endDayGroup) endDayGroup.classList.remove('hidden'); // Hiện End Day
+
                     if(schedData.type_repeat.includes('every_n')) {
                         repeatNGroup.classList.remove('hidden');
                         document.getElementById('schedRepeatN').value = schedData.repeat_value;
@@ -465,6 +486,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     repeatSelect.value = 'none';
                     repeatNGroup.classList.add('hidden');
+                    if (endDayGroup) endDayGroup.classList.add('hidden'); // Ẩn End Day
                 }
 
                 // Tái tạo lại danh sách thiết bị và chọn thiết bị cũ
@@ -523,6 +545,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 4. LƯU DỮ LIỆU (CREATE / UPDATE VIA API)
     const scheduleForm = document.getElementById('scheduleForm');
+    const startDay = document.getElementById('schedStartDay').value;
+    const endDay = document.getElementById('schedEndDay').value;
+
+    if (endDay && startDay) {
+        if (new Date(endDay) < new Date(startDay)) {
+            alert("Lỗi: Ngày kết thúc (End day) không được nhỏ hơn ngày bắt đầu (Start day)!");
+            createBtn.disabled = false;
+            createBtn.innerText = currentRowBeingEdited ? "SAVE" : "CREATE";
+            return;
+        }
+    }
+
     if (scheduleForm) {
         scheduleForm.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -586,11 +620,12 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Đóng Modal (Giữ nguyên)
+    // Đóng Modal (Đã cập nhật ẩn End Day)
     const closeModal = () => {
         addModal.classList.add('hidden');
         document.getElementById('scheduleForm').reset();
         if (repeatNGroup) repeatNGroup.classList.add('hidden');
+        if (endDayGroup) endDayGroup.classList.add('hidden'); // Reset ẩn End Day
         currentRowBeingEdited = null;
         currentSchedulerId = null;
         if (modalTitle) modalTitle.innerText = "Add Schedule";
@@ -613,9 +648,12 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     if (nameInput) nameInput.addEventListener('input', updateCreateButton);
     
-    // Repeat Select Dropdown (Giữ nguyên)
+    const endDayGroup = document.getElementById('endDayGroup'); // Khai báo thêm biến này
+
+    // Repeat Select Dropdown (Đã cập nhật logic ẩn/hiện End Day)
     if (repeatSelect) {
         repeatSelect.addEventListener('change', function() {
+            // 1. Xử lý hiện/ẩn cấu hình lặp N ngày/tuần
             if (this.value === 'every_n_days') {
                 repeatNGroup.classList.remove('hidden');
                 repeatNLabel.innerText = "Repeat every N days";
@@ -624,6 +662,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 repeatNLabel.innerText = "Repeat every N weeks";
             } else {
                 repeatNGroup.classList.add('hidden');
+            }
+
+            // 2. Xử lý hiện/ẩn End Day
+            if (this.value === 'none') {
+                if (endDayGroup) endDayGroup.classList.add('hidden');
+                document.getElementById('schedEndDay').value = ""; // Xóa dữ liệu rác nếu ẩn
+            } else {
+                if (endDayGroup) endDayGroup.classList.remove('hidden');
             }
         });
     }
