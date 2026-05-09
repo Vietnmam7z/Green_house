@@ -50,14 +50,14 @@ body {
    MAIN CONTENT (Đã chỉnh sửa lấp đầy 100vh)
 ========================================= */
 .container {
-    max-width: 1250px; /* Căn chỉnh nút Back bằng đúng Dashboard */
+    max-width: 95%; /* Chiếm 95% chiều rộng màn hình thay vì con số cố định */
     width: 100%;
     margin: 0 auto;
-    padding: 10px 30px 20px 30px;
-    flex: 1; /* Ép thẻ container chiếm toàn bộ không gian còn lại dưới Navbar */
+    padding: 10px 20px 20px 20px;
+    flex: 1;
     display: flex;
     flex-direction: column;
-    min-height: 0; /* Ngăn chặn bị tràn layout */
+    min-height: 0;
 }
 
 h1.page-title {
@@ -142,20 +142,21 @@ h1.page-title {
     transform: scale(0.9); 
 }
 
-/* Control Layout (Tự động co dãn) */
+/* Điều chỉnh lại bố cục chia 2 phần */
 .control-layout {
     display: flex;
-    gap: 40px;
-    flex: 1; /* Chiếm hết chiều cao còn lại của .container */
-    min-height: 0; /* Bắt buộc để cắt phần bị tràn */
+    gap: 30px; /* Khoảng cách giữa nút bấm và bảng */
+    flex: 1;
+    min-height: 0;
+    align-items: stretch; /* Ép cả 2 bên cao bằng nhau */
 }
 
-/* Khung 8 thẻ điều khiển thiết bị */
+/* Phần bên trái: Nút bấm (Cố định chiều rộng để bảng được dài ra) */
 .control-panel {
-    flex: 1;
+    flex: 0 0 450px; /* Cố định chiều rộng 450px cho phần nút bấm */
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: repeat(4, 1fr); /* Chia đều chính xác thành 4 hàng ngang */
+    grid-template-rows: repeat(4, 1fr);
     gap: 15px;
     min-height: 0;
 }
@@ -178,44 +179,6 @@ h1.page-title {
     font-weight: bold;
 }
 
-/* Khung 2 Camera */
-.video-panel {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    min-height: 0;
-}
-
-.video-panel h2 {
-    flex-shrink: 0; /* Không cho tiêu đề video bị ép lại */
-}
-
-.video-container {
-    width: 100%;
-    flex: 1; /* 2 camera tự động chia đôi chiều cao 50/50 */
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-}
-
-.video-container img {
-    width: 100%;
-    height: 100%; /* Ép ảnh cao bằng thẻ cha */
-    object-fit: cover; /* Cắt mép ảnh để lấp đầy khung mà không bị méo tỷ lệ */
-    border-radius: 15px;
-    display: block;
-    flex: 1;
-    min-height: 0;
-}
-
-.video-label {
-    text-align: center;
-    margin-top: 5px;
-    font-weight: bold;
-    flex-shrink: 0;
-}
-
 /* Toggle Switch (Giữ nguyên) */
 .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
 .switch input { opacity: 0; width: 0; height: 0; }
@@ -233,5 +196,474 @@ input:checked + .slider:before { transform: translateX(26px); }
     .control-layout { flex-direction: column; }
     .nav-bar { flex-direction: column; align-items: stretch; }
     .info-bar { flex-direction: column; gap: 5px; text-align: center; }
-    .video-container img { height: 250px; flex: none; } /* Set cứng chiều cao ảnh trên mobile */
+}
+
+/* =========================================
+   IRRIGATION SCHEDULE PANEL
+========================================= */
+/* Phần bên phải: Bảng Schedule (Chiếm toàn bộ không gian còn lại) */
+.schedule-panel {
+    flex: 1; /* Tự động kéo dài lấp đầy phần trống */
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Header Bảng */
+.schedule-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.schedule-header h2 {
+    font-size: 18px;
+    color: #78909c; /* Màu xám xanh giống bản thiết kế */
+    font-weight: 500;
+}
+
+.schedule-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 15px;
+    min-width: 40px;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    color: #546e7a;
+    font-size: 16px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.icon-btn:hover {
+    color: #1e88e5;
+}
+
+/* Khu vực Bảng */
+.table-responsive {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto; /* Cho phép cuộn ngang nếu màn hình nhỏ */
+}
+
+/* Đảm bảo bảng luôn rộng 100% của phần nó chiếm */
+.schedule-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto; /* Để các cột tự giãn theo nội dung */
+}
+
+.schedule-table th {
+    text-align: left;
+    padding: 15px 20px;
+    color: #78909c;
+    font-weight: 500;
+    font-size: 14px;
+    border-bottom: 1px solid #e0e0e0;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 1;
+}
+
+.schedule-table td {
+    padding: 15px 20px;
+    color: #78909c;
+    font-size: 14px;
+    border-bottom: 1px solid #f5f5f5;
+    vertical-align: middle;
+}
+
+/* Căn giữa một số cột quan trọng cho cân đối */
+.schedule-table th, .schedule-table td {
+    padding: 15px 12px; /* Giảm padding một chút để hiển thị được nhiều cột hơn */
+    text-align: center; /* Căn giữa tất cả các cột */
+}
+
+/* Riêng cột Name thì căn trái cho dễ đọc */
+.schedule-table th:first-child, 
+.schedule-table td:first-child {
+    text-align: left;
+    padding-left: 25px;
+}
+
+/* Cột Actions (Sửa/Xóa) căn phải */
+.schedule-table th:last-child, 
+.schedule-table td:last-child {
+    text-align: right;
+    padding-right: 25px;
+}
+
+/* Các nhãn (Badges) giống màu thiết kế */
+.badge {
+    padding: 5px 12px;
+    border-radius: 15px;
+    font-weight: bold;
+    font-size: 13px;
+    display: inline-block;
+}
+
+.badge-name, .badge-time, .badge-duration {
+    background-color: #f3f0ff; /* Nền tím nhạt */
+    color: #4527a0; /* Chữ tím đậm */
+}
+
+.badge-empty {
+    background-color: #f3f0ff;
+    color: #4527a0;
+    padding: 2px 8px;
+}
+
+/* Nút Sửa / Xóa */
+.action-cells {
+    text-align: right;
+}
+
+.action-icon-btn {
+    color: #757575;
+    cursor: pointer;
+    margin-left: 15px;
+    font-size: 16px;
+    transition: color 0.2s;
+}
+
+.action-icon-btn:hover {
+    color: #4527a0;
+}
+
+/* Footer & Phân trang */
+.schedule-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 15px 20px;
+    border-top: 2px solid #e0e0e0;
+    color: #9e9e9e;
+    font-size: 13px;
+    gap: 30px;
+}
+
+/* =========================================
+   SIMPLE PAGINATION
+========================================= */
+.schedule-footer {
+    display: flex;
+    justify-content: center; /* Căn giữa bộ phân trang */
+    padding: 15px 20px;
+    border-top: 1px solid #e0e0e0;
+    background-color: #ffffff;
+}
+
+.pagination-simple {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.page-btn {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    color: #546e7a;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.page-btn:hover:not(:disabled) {
+    background-color: #e9ecef;
+    color: #1e88e5;
+    border-color: #1e88e5;
+}
+
+.page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #f1f3f4;
+}
+
+#pageInfo {
+    font-size: 14px;
+    color: #78909c;
+    font-weight: 500;
+    min-width: 80px;
+    text-align: center;
+}
+
+.page-nav-btn {
+    background: none;
+    border: none;
+    color: #bdbdbd;
+    font-size: 14px;
+    cursor: not-allowed; /* Mặc định là disabled theo ảnh */
+}
+
+/* Thêm hiệu ứng nếu nút được enable sau này */
+.page-nav-btn:not([disabled]) {
+    cursor: pointer;
+    color: #757575;
+}
+
+.page-nav-btn:not([disabled]):hover {
+    color: #1e88e5;
+}
+
+
+/* =========================================
+   MODAL ADD SCHEDULE STYLING
+========================================= */
+.schedule-modal {
+    width: 450px !important;
+    text-align: left !important;
+    padding: 30px !important;
+}
+
+.schedule-modal h3 {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+/* Toggle Buttons (Consumption/Duration) */
+.toggle-container {
+    display: flex;
+    background: #f1f3f4;
+    border-radius: 8px;
+    padding: 4px;
+    margin: 20px 0;
+}
+
+.toggle-btn {
+    flex: 1;
+    border: none;
+    padding: 10px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    background: transparent;
+    color: #5f6368;
+    transition: 0.3s;
+}
+
+.toggle-btn.active {
+    background: white;
+    color: #1a73e8;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Form Styling */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+}
+
+.input-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #5f6368;
+    margin-bottom: 5px;
+}
+
+.input-group input, .input-group select {
+    padding: 10px 12px;
+    border: 1px solid #dadce0;
+    border-radius: 4px;
+    font-size: 14px;
+    outline: none;
+}
+
+.input-group input:focus {
+    border-color: #1a73e8;
+}
+
+.row-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+/* Footer Buttons */
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 25px;
+}
+
+.btn-cancel {
+    background: transparent;
+    border: 1px solid #dadce0;
+    color: #5f6368;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-create {
+    background: #e0e0e0; /* Mặc định xám khi disabled */
+    border: none;
+    color: white;
+    padding: 10px 25px;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: not-allowed;
+    transition: 0.3s;
+}
+
+/* Khi nút Create được kích hoạt */
+.btn-create.active {
+    background: #1a73e8;
+    cursor: pointer;
+}
+
+.btn-create.active:hover {
+    background: #1765cc;
+}
+
+
+/* =========================================
+   CẤU TRÚC MODAL CHUNG (NỀN ĐEN & ẨN/HIỆN)
+========================================= */
+
+/* Nền đen mờ phủ toàn màn hình */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5); /* Độ mờ 50% */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999; /* Luôn nổi lên trên cùng */
+}
+
+/* Khung màu trắng của Modal */
+.modal-box {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 5px 25px rgba(0,0,0,0.2);
+    position: relative; /* Để nút X căn góc theo nó */
+}
+
+/* Class thần thánh dùng để ẩn popup */
+.hidden {
+    display: none !important;
+}
+
+/* Nút X đóng modal ở góc trên bên phải */
+.close-modal {
+    position: absolute;
+    top: 30px;
+    right: 30px;
+    font-size: 24px;
+    color: #9aa0a6;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.close-modal:hover {
+    color: #d32f2f; /* Đỏ lên khi hover */
+}
+
+
+/* =========================================
+   SEARCH BAR EFFECT
+========================================= */
+/* Class để ẩn các icon khi đang search */
+.icon-hide {
+    display: none !important;
+}
+
+/* Ô search trượt ra mượt mà */
+.search-input {
+    width: 200px;
+    padding: 6px 15px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+.search-input.hidden {
+    width: 0;
+    padding: 0;
+    margin: 0;
+    opacity: 0;
+    border: none;
+    pointer-events: none;
+}
+
+/* Nút Đóng Search */
+#btnCloseSearch {
+    transition: all 0.3s ease;
+}
+
+/* Đảm bảo khi Search mở rộng, các icon khác biến mất mượt mà */
+.icon-hide {
+    display: none !important;
+}
+
+/* =========================================
+   POP-UP DISPLAY COLUMNS
+========================================= */
+.column-dropdown {
+    position: absolute;
+    top: 45px; /* Cách thanh header một đoạn */
+    right: 0;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    padding: 15px;
+    width: 180px;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.dropdown-header {
+    font-size: 14px;
+    font-weight: 700;
+    color: #2c3e50;
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 8px;
+    margin-bottom: 5px;
+}
+
+.column-dropdown label {
+    font-size: 13px;
+    color: #555;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.column-dropdown label:hover {
+    color: #1a73e8;
+}
+
+/* Tùy chỉnh checkbox một chút cho gọn */
+.column-dropdown input[type="checkbox"] {
+    cursor: pointer;
+    transform: scale(1.1);
 }
