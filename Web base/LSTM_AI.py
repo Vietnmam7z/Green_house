@@ -67,7 +67,7 @@ def predict_soil(data: SensorData):
     raw_data = np.array(historical_values).reshape(-1, 1)
     scaled_data = scaler.transform(raw_data)
     input_lstm = scaled_data.reshape(1, TIME_STEP, 1)
-    
+    print(historical_values)
     prediction_scaled = model.predict(input_lstm, verbose=0)
     prediction_real = scaler.inverse_transform(prediction_scaled)
     
