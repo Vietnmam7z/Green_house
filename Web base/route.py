@@ -223,6 +223,7 @@ class Routes:
                 device_id=data.get("device_id"),
                 name=data.get("name"),
                 event_date=data.get("event_date"),
+                end_date=data.get("end_date"),
                 event_time=data.get("event_time"),
                 event_type=data.get("event_type"),
                 mode=data.get("mode"),
@@ -270,6 +271,7 @@ class Routes:
                 device_id=data.get("device_id"),
                 name=data.get("name"),
                 event_date=data.get("event_date"),
+                end_date=data.get("end_date"),
                 event_time=data.get("event_time"),
                 event_type=data.get("event_type"),
                 mode=data.get("mode"),
@@ -336,32 +338,27 @@ class Routes:
         print(f"[EXEC] {state} -> {device_type} (field {field_id})")
 
     def calculate_next_date(self, row):
-        event_date = datetime.strptime(row["event_date"], "%Y-%m-%d")
+        event_date_str = row["event_date"]
+        event_time_str = row["event_time"]
         repeat_type = row["type_repeat"]
-        repeat_value = row["repeat_value"]
+        repeat_value = row.get("repeat_value") or 1
 
-        if repeat_type == "Daily":
-            next_date = event_date + timedelta(days=1)
+        # Kết hợp ngày và giờ hiện tại thành đối tượng datetime
+        current_run = datetime.strptime(f"{event_date_str} {event_time_str[:5]}", "%Y-%m-%d %H:%M")
+        
+        next_run = current_run # Mặc định
 
-        elif repeat_type == "Every N days":
-            next_date = event_date + timedelta(days=repeat_value)
+        if repeat_type == "daily":
+            next_run = current_run + timedelta(days=1)
+        elif repeat_type == "every_n_days":
+            next_run = current_run + timedelta(days=int(repeat_value))
+        elif repeat_type == "weekly":
+            next_run = current_run + timedelta(days=7)
+        elif repeat_type == "every_n_weeks":
+            next_run = current_run + timedelta(weeks=int(repeat_value))
 
-        elif repeat_type == "Weekly":
-            next_date = event_date + timedelta(days=7)
-
-        elif repeat_type == "Every N weeks":
-            next_date = event_date + timedelta(weeks=repeat_value)
-
-        elif repeat_type == "Monthly":
-            next_date = event_date + timedelta(days=30)
-
-        elif repeat_type == "Yearly":
-            next_date = event_date + timedelta(days=365)
-
-        else:
-            next_date = event_date
-
-        return next_date.strftime("%Y-%m-%d")
+        # Trả về cùng lúc (Ngày, Giờ)
+        return next_run.strftime("%Y-%m-%d"), next_run.strftime("%H:%M:%S")
         
     def check_and_run_schedulers(self):
         now = datetime.now()
@@ -409,7 +406,13 @@ class Routes:
                         self.executed_keys.add(base_key)
 
                 elif mode == "consumption":
+                    base_key = f"{scheduler_id}_{event_date}_{event_time}"
+                    if base_key in self.executed_keys:
+                        continue
+
                     job = self.handle_consumption_scheduler(row, now, current_date, current_time)
+                    if job:
+                        self.executed_keys.add(base_key) 
 
                 if job:
                     self.running_jobs[job["scheduler_id"]] = job
@@ -444,14 +447,30 @@ class Routes:
         if scheduler_id in self.running_jobs:
             return None
 
+        initial_value = None
+        telemetry_name = "fertilizerCounter" if device_type == "fertilizer" else "pulseCounter"
+        try:
+            current_data = self.field.get_telemetry(sensor_id)
+            if current_data and sensor_id in current_data:
+                if telemetry_name in current_data[sensor_id]:
+                    initial_value = float(current_data[sensor_id][telemetry_name]["value"])
+        except Exception as e:
+            print(f"Lỗi lấy giá trị ban đầu: {e}")
+
+        if initial_value is None:
+            initial_value = 0.0
+
         start_ts = int(now.timestamp() * 1000)
         self.execute_scheduler(device_id, "ON")
+        
         return {
             "scheduler_id": scheduler_id,
             "device_id": device_id,
             "sensor_id": sensor_id,
+            "device_type": device_type,  # Thêm dòng này để dùng ở hàm dưới
             "start_time": now,
             "last_ts": start_ts,
+            "prev_value": initial_value, # Nạp số mốc vào đây
             "row": row,
             "type": "consumption"
         }
@@ -489,25 +508,32 @@ class Routes:
     def handle_done_jobs(self, now):
         for scheduler_id in list(self.running_jobs.keys()):
             job = self.running_jobs[scheduler_id]
+            
+            # --- PHẦN XỬ LÝ THEO THỜI GIAN (TIME) ---
             if job.get("type") == "time":
                 elapsed = (now - job["start_time"]).total_seconds()
-                if elapsed < job.get("duration", 0):
+                if elapsed < (job.get("duration", 0) * 60):
                     continue
 
                 device_id = job["device_id"]
                 self.execute_scheduler(device_id, "DONE")
-                next_date = self.calculate_next_date(job["row"])
-                self.field.update_scheduler_date(
-                    scheduler_id,
-                    next_date
-                )
+                
+                # SỬA LẠI ĐÚNG 2 DÒNG NÀY:
+                next_date, next_time = self.calculate_next_date(job["row"])
+                self.field.update_scheduler_date(scheduler_id, next_date, next_time)
+                
                 del self.running_jobs[scheduler_id]
                 continue
 
+            # --- PHẦN XỬ LÝ THEO LƯU LƯỢNG (CONSUMPTION) MỚI SỬA ---
             if job.get("type") != "consumption":
                 continue
 
             sensor_id = job["sensor_id"]
+            device_type = job.get("device_type", "valve")
+            # [VÁ LỖI 2A]: Xác định đúng tên tín hiệu cần nghe
+            telemetry_name = "fertilizerCounter" if device_type == "fertilizer" else "pulseCounter"
+
             db_max_ts = self.field.get_max_ts(sensor_id)
             last_ts = job.get("last_ts", 0)
             if last_ts > db_max_ts:
@@ -520,26 +546,27 @@ class Routes:
             total_delta = 0
             max_ts = last_ts
             prev_value = job.get("prev_value")
-            if prev_value is None:
-                try:
-                    prev_value = float(rows[0][1])
-                    job["prev_value"] = prev_value
-                except:
-                    prev_value = None
 
             for row in rows:
+                ts = row[0]
+                value_str = row[1]
+                name = row[2]
+
+                # [VÁ LỖI 2B]: Lọc BỎ TẤT CẢ tín hiệu rác (như pin, sóng...), chỉ nghe đồng hồ nước
+                if name != telemetry_name:
+                    continue
+
                 try:
-                    value = float(row[1])
+                    value = float(value_str)
                 except:
                     continue
-                ts = row[0]
+                
                 if prev_value is not None:
                     delta = value - prev_value
                     if delta > 0:
                         total_delta += delta
 
                 prev_value = value
-
                 job["prev_value"] = prev_value
 
                 if ts > max_ts:
@@ -550,27 +577,18 @@ class Routes:
 
             threshold = float(job["row"].get("consumption") or 0)
 
-            print(
-                f"[CONS] sensor={sensor_id} "
-                f"delta={total_delta} "
-                f"total={job['total_consumption']} "
-                f"threshold={threshold}"
-            )
+            print(f"[CONS] Cảm biến {sensor_id} | Chảy thêm: {total_delta}L | Tổng đã tưới: {job['total_consumption']}L / Mục tiêu: {threshold}L")
 
+            # NẾU ĐÃ TƯỚI ĐỦ (HOẶC VƯỢT) NGƯỠNG
             if threshold > 0 and job["total_consumption"] >= threshold:
-
                 device_id = job["device_id"]
-
-                self.execute_scheduler(device_id, "DONE")
-
-                next_date = self.calculate_next_date(job["row"])
-
-                self.field.update_scheduler_date(
-                    scheduler_id,
-                    next_date
-                )
-
-                del self.running_jobs[scheduler_id]
+                self.execute_scheduler(device_id, "DONE") # Tắt máy bơm
+                
+                # Tính ngày lặp lại tiếp theo và lưu vào DB
+                next_date, next_time = self.calculate_next_date(job["row"])
+                self.field.update_scheduler_date(scheduler_id, next_date, next_time)
+                
+                del self.running_jobs[scheduler_id] # Kết thúc tiến trình
                 
     def reset_daily_cache(self):
         self.executed_keys.clear()
@@ -1220,6 +1238,7 @@ def job_reset_daily_cache():
         routes.reset_daily_cache()
     
 server.add_route('/api/get_devices_controller', routes.toggle_and_send, methods=['POST'])
+server.add_route('/api/devices_list', routes.get_devices_controller, methods=['GET'])
 server.add_route('/', routes.home_page, methods=['GET'])
 server.add_route('/login', routes.login_page, methods=['GET'])
 server.add_route('/login', routes.login, methods=['POST'])
@@ -1258,9 +1277,15 @@ server.add_route('/api/admin/clear_fields', routes.api_admin_clear_fields, metho
 server.add_route('/api/admin/edit_greenhouse', routes.api_admin_edit_greenhouse, methods=['POST'])
 server.add_route('/api/admin/delete_greenhouse_fields', routes.api_admin_delete_greenhouse_fields, methods=['POST'])
 
+server.add_route('/api/get_schedulers', routes.get_schedulers_by_field, methods=['GET'])
+server.add_route('/api/create_scheduler', routes.create_scheduler, methods=['POST'])
+server.add_route('/api/update_scheduler', routes.update_scheduler, methods=['POST'])
+server.add_route('/api/delete_scheduler', routes.delete_scheduler, methods=['POST'])
+
 scheduler.add_job(job_reset_daily_cache, 'cron', hour=0, minute=0)
 scheduler.add_job(job_update_status, 'interval', seconds=10)
 scheduler.add_job(job_check_scheduler,'interval',seconds=1,max_instances=1,coalesce=True)
+
 
 #scheduler.add_job(job_update_out_date_status, 'interval', seconds=5)
 

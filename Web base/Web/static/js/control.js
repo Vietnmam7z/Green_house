@@ -291,42 +291,187 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =========================================
-    // PHẦN XỬ LÝ MODAL (THÊM / SỬA LỊCH)
+    // PHẦN XỬ LÝ MODAL VÀ KẾT NỐI API SCHEDULER
     // =========================================
     
-    const modalTitle = document.getElementById('modalTitle'); // Lấy tiêu đề Modal
-    let currentRowBeingEdited = null; // Biến siêu quan trọng: Lưu lại dòng đang được sửa
+    const modalTitle = document.getElementById('modalTitle');
+    let currentRowBeingEdited = null; 
+    let currentSchedulerId = null; 
+    let currentDevices = []; // Biến mới: Lưu danh sách thiết bị của ruộng
 
-    // 1. MỞ MODAL THÊM MỚI (Khi nhấn nút + màu xanh)
+    // [MỚI] 1A. HÀM TẢI DANH SÁCH THIẾT BỊ TỪ DATABASE
+    function loadDevicesFromServer() {
+        if (!currentFieldId) return;
+        fetch(`/api/devices_list?field_id=${currentFieldId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.devices) {
+                    // Chuyển mảng array thành object cho dễ thao tác (d[0]=id, d[1]=name, d[2]=type)
+                    currentDevices = data.devices.map(d => ({
+                        id: d[0],
+                        name: d[1],
+                        type: d[2]
+                    }));
+                }
+            })
+            .catch(err => console.error("Lỗi tải danh sách thiết bị:", err));
+    }
+
+    // [MỚI] 1B. HÀM CẬP NHẬT DROPDOWN THIẾT BỊ THEO CHẾ ĐỘ (DUR/CONS)
+    function populateDeviceDropdown(mode) {
+        const deviceSelect = document.getElementById('schedDevice');
+        if (!deviceSelect) return;
+        deviceSelect.innerHTML = ''; // Xóa sạch danh sách cũ
+        
+        let hasValidDevice = false;
+
+        currentDevices.forEach(device => {
+            // LOGIC CỐT LÕI: Nếu là Consumption, CHỈ cho phép 'valve' và 'fertilizer'
+            if (mode === 'consumption' && device.type !== 'valve' && device.type !== 'fertilizer') {
+                return; // Bỏ qua thiết bị này
+            }
+            
+            const option = document.createElement('option');
+            option.value = device.id;
+            option.dataset.type = device.type; // Lưu type ngầm để nhét vào API
+            option.textContent = device.name;
+            deviceSelect.appendChild(option);
+            hasValidDevice = true;
+        });
+
+        if (!hasValidDevice) {
+            const option = document.createElement('option');
+            option.value = "";
+            option.textContent = "Không có thiết bị hỗ trợ chế độ này";
+            deviceSelect.appendChild(option);
+        }
+    }
+
+    // 1C. HÀM TẢI DỮ LIỆU LỊCH TỪ DATABASE VÀ RENDER BẢNG
+    function loadSchedulesFromServer() {
+        if (!currentFieldId) return;
+        fetch(`/api/get_schedulers?field_id=${currentFieldId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const tbody = document.querySelector('.schedule-table tbody');
+                    tbody.innerHTML = ''; 
+
+                    data.data.forEach(sched => {
+                        let valDisplay = '<span class="badge badge-empty">-</span>';
+                        let durDisplay = '<span class="badge badge-empty">-</span>';
+                        if (sched.mode === 'consumption') {
+                            valDisplay = `<span class="badge badge-duration">${sched.consumption} L</span>`;
+                        } else {
+                            durDisplay = `<span class="badge badge-duration">${sched.duration} min</span>`;
+                        }
+
+                        let repeatDisplay = sched.type_repeat;
+                        
+                        // Tự động viết hoa chữ cái đầu tiên
+                        if (repeatDisplay && typeof repeatDisplay === 'string') {
+                            repeatDisplay = repeatDisplay.charAt(0).toUpperCase() + repeatDisplay.slice(1);
+                        }
+
+                        if (sched.type_repeat === 'every_n_days') repeatDisplay = `Every ${sched.repeat_value} days`;
+                        if (sched.type_repeat === 'every_n_weeks') repeatDisplay = `Every ${sched.repeat_value} weeks`;
+                        if (!sched.repeat_enabled || sched.type_repeat === 'none') repeatDisplay = '—';
+
+                        // CHỈ GIỮ LẠI ĐÚNG 1 KHỐI NÀY
+                        const tr = document.createElement('tr');
+                        tr.setAttribute('data-id', sched.scheduler_id); 
+                        tr.setAttribute('data-full', JSON.stringify(sched)); 
+
+                        tr.innerHTML = `
+                            <td><span class="badge badge-name">${sched.name}</span></td>
+                            <td>${sched.device_name || '—'}</td> 
+                            <td>${sched.event_date || '—'}</td>
+                            <td><span class="badge badge-time">${(sched.event_time || '').substring(0,5)}</span></td>
+                            <td>${repeatDisplay}</td>
+                            <td>${sched.end_date || '—'}</td>
+                            <td>${durDisplay}</td>
+                            <td>${valDisplay}</td>
+                            <td class="action-cells">
+                                <i class="fa-solid fa-pen action-icon-btn" title="Edit"></i>
+                                <i class="fa-solid fa-trash action-icon-btn" title="Delete"></i>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                    updatePagination();
+                }
+            });
+    }
+
+    // Tự động load thiết bị & lịch khi chuyển ruộng
+    const originalCapNhatHienThiField = capNhatHienThiField;
+    capNhatHienThiField = function() {
+        originalCapNhatHienThiField();
+        loadDevicesFromServer(); // Tải lại 8 thiết bị của ruộng này
+        loadSchedulesFromServer(); 
+    };
+
+    // 2. MỞ MODAL THÊM MỚI
     if (openBtn) {
         openBtn.addEventListener('click', () => {
-            currentRowBeingEdited = null; // Chắc chắn là chế độ Thêm mới
+            currentRowBeingEdited = null;
+            currentSchedulerId = null;
             if (modalTitle) modalTitle.innerText = "Add Schedule";
             if (createBtn) createBtn.innerText = "CREATE";
+            
+            // Render dropdown thiết bị tùy theo nút Toggle đang active
+            const currentMode = document.querySelector('.toggle-btn.active').getAttribute('data-mode');
+            populateDeviceDropdown(currentMode);
+
             addModal.classList.remove('hidden');
         });
     }
 
-    // 2. XỬ LÝ SỰ KIỆN CLICK TRÊN BẢNG (SỬA & XÓA)
+    // 3. XỬ LÝ CLICK TRÊN BẢNG (SỬA & XÓA)
     const scheduleTableBody = document.querySelector('.schedule-table tbody');
     if (scheduleTableBody) {
-        // Dùng Event Delegation để bắt sự kiện click cho toàn bộ bảng
         scheduleTableBody.addEventListener('click', function(e) {
-            
-            // ==========================================
-            // A. NẾU CLICK VÀO ICON CÂY BÚT (SỬA)
-            // ==========================================
+            const tr = e.target.closest('tr');
+            if (!tr) return;
+            const schedData = JSON.parse(tr.getAttribute('data-full'));
+
+            // === A. NHẤN NÚT SỬA ===
             if (e.target.classList.contains('fa-pen')) {
-                currentRowBeingEdited = e.target.closest('tr');
+                currentRowBeingEdited = tr;
+                currentSchedulerId = schedData.scheduler_id;
 
-                const nameCell = currentRowBeingEdited.querySelector('td:nth-child(1) .badge').innerText;
-                const repeatCellText = currentRowBeingEdited.querySelector('td:nth-child(4)').innerText.toLowerCase();
-
-                nameInput.value = nameCell;
+                nameInput.value = schedData.name;
+                document.getElementById('schedStartDay').value = schedData.event_date;
+                document.getElementById('schedEndDay').value = schedData.end_date || "";
+                document.getElementById('schedStartTime').value = (schedData.event_time || "").substring(0,5);
                 
-                if (repeatCellText === 'daily') repeatSelect.value = 'daily';
-                else if (repeatCellText === 'weekly') repeatSelect.value = 'weekly';
-                else repeatSelect.value = 'none';
+                const targetMode = schedData.mode === 'consumption' ? 'consumption' : 'duration';
+                toggleBtns.forEach(b => {
+                    b.classList.remove('active');
+                    if(b.getAttribute('data-mode') === targetMode) b.classList.add('active');
+                });
+                valueLabel.innerText = targetMode === 'consumption' ? "Consumption (Liters)" : "Duration (Minutes)";
+                document.getElementById('schedValue').value = targetMode === 'consumption' ? schedData.consumption : schedData.duration;
+
+                if(schedData.repeat_enabled) {
+                    repeatSelect.value = schedData.type_repeat;
+                    if(schedData.type_repeat.includes('every_n')) {
+                        repeatNGroup.classList.remove('hidden');
+                        document.getElementById('schedRepeatN').value = schedData.repeat_value;
+                        repeatNLabel.innerText = schedData.type_repeat === 'every_n_days' ? "Repeat every N days" : "Repeat every N weeks";
+                    } else {
+                        repeatNGroup.classList.add('hidden');
+                    }
+                } else {
+                    repeatSelect.value = 'none';
+                    repeatNGroup.classList.add('hidden');
+                }
+
+                // Tái tạo lại danh sách thiết bị và chọn thiết bị cũ
+                populateDeviceDropdown(targetMode);
+                setTimeout(() => {
+                    document.getElementById('schedDevice').value = schedData.device_id;
+                }, 50);
 
                 if (modalTitle) modalTitle.innerText = "Edit Schedule";
                 if (createBtn) createBtn.innerText = "SAVE";
@@ -335,61 +480,140 @@ document.addEventListener("DOMContentLoaded", () => {
                 addModal.classList.remove('hidden');
             }
 
-            // ==========================================
-            // B. NẾU CLICK VÀO ICON THÙNG RÁC (XÓA)
-            // ==========================================
+            // === B. NHẤN NÚT XÓA ===
             if (e.target.classList.contains('fa-trash')) {
-                // 1. Tìm cái dòng (thẻ <tr>) chứa nút thùng rác vừa bấm
-                const rowToDelete = e.target.closest('tr');
-                
-                // 2. Lấy tên của lịch để hiện thông báo cho rõ ràng
-                const scheduleName = rowToDelete.querySelector('td:nth-child(1) .badge').innerText;
-                
-                // 3. Hiện hộp thoại hỏi người dùng có chắc chắn không
-                const isConfirmed = confirm(`Are you sure you want to delete the schedule: "${scheduleName}"?`);
-                
-                // 4. Nếu người dùng bấm OK
-                if (isConfirmed) {
-                    // Xóa dòng đó khỏi giao diện ngay lập tức
-                    rowToDelete.remove();
+                if (confirm(`Bạn có chắc chắn muốn xóa lịch: "${schedData.name}"?`)) {
                     
-                    // Thông báo thành công (Bạn có thể bỏ dòng này đi nếu thấy phiền)
-                    // alert(`Đã xóa thành công lịch: ${scheduleName}`);
-                    
-                    // LƯU Ý: Sau này bạn sẽ gọi API ở đây để xóa thật trong Database
-                    // fetch('/api/delete_schedule', { method: 'POST', body: ... })
+                    // ĐÃ SỬA LẠI THÀNH delete_scheduler (thêm chữ r)
+                    fetch('/api/delete_scheduler', { 
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ scheduler_id: schedData.scheduler_id })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if(data.success) {
+                            loadSchedulesFromServer(); // Tải lại bảng nếu xóa thành công
+                        } else {
+                            alert("Lỗi khi xóa: " + data.message);
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Lỗi xóa lịch:", err);
+                        alert("Không thể kết nối đến server để xóa.");
+                    });
                 }
             }
         });
     }
 
-    // 3. ĐÓNG MODAL (Và reset mọi thứ)
+    // Toggle Buttons (Consumption/Duration) - TÍCH HỢP BỘ LỌC THIẾT BỊ
+    toggleBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            toggleBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            const mode = this.getAttribute('data-mode');
+            valueLabel.innerText = (mode === 'consumption') ? "Consumption (Liters)" : "Duration (Minutes)";
+            
+            // Gọi hàm lọc lại danh sách thiết bị ngay khi bấm nút
+            populateDeviceDropdown(mode);
+        });
+    });
+
+    // 4. LƯU DỮ LIỆU (CREATE / UPDATE VIA API)
+    const scheduleForm = document.getElementById('scheduleForm');
+    if (scheduleForm) {
+        scheduleForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const deviceSelect = document.getElementById('schedDevice');
+            const selectedOption = deviceSelect.options[deviceSelect.selectedIndex];
+            
+            if (!selectedOption || !selectedOption.value) {
+                alert("Vui lòng chọn thiết bị hợp lệ!");
+                return;
+            }
+
+            createBtn.disabled = true;
+            createBtn.innerText = "Processing...";
+
+            const mode = document.querySelector('.toggle-btn.active').getAttribute('data-mode');
+            const repeatVal = repeatSelect.value;
+            
+            const dbMode = mode === 'duration' ? 'time' : 'consumption';
+
+            const payload = {
+                field_id: currentFieldId,
+                device_id: parseInt(selectedOption.value),       
+                event_type: selectedOption.dataset.type,         
+                name: nameInput.value,
+                event_date: document.getElementById('schedStartDay').value,
+                end_date: document.getElementById('schedEndDay').value,
+                event_time: document.getElementById('schedStartTime').value + ":00", 
+                mode: dbMode, 
+                duration: mode === 'duration' ? parseInt(document.getElementById('schedValue').value || 0) : 0,
+                consumption: mode === 'consumption' ? parseFloat(document.getElementById('schedValue').value || 0) : 0,
+                repeat_enabled: repeatVal !== 'none',
+                type_repeat: repeatVal !== 'none' ? repeatVal : null,
+                repeat_value: repeatVal.includes('every_n') ? parseInt(document.getElementById('schedRepeatN').value || 1) : null
+            };
+
+            const apiUrl = currentRowBeingEdited ? '/api/update_scheduler' : '/api/create_scheduler';
+            if (currentRowBeingEdited) payload.scheduler_id = currentSchedulerId;
+
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    loadSchedulesFromServer();
+                    closeModal();
+                } else {
+                    alert("Lỗi: " + data.message);
+                    createBtn.disabled = false;
+                    createBtn.innerText = currentRowBeingEdited ? "SAVE" : "CREATE";
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                createBtn.disabled = false;
+                createBtn.innerText = currentRowBeingEdited ? "SAVE" : "CREATE";
+            });
+        });
+    }
+
+    // Đóng Modal (Giữ nguyên)
     const closeModal = () => {
         addModal.classList.add('hidden');
         document.getElementById('scheduleForm').reset();
         if (repeatNGroup) repeatNGroup.classList.add('hidden');
-        
-        // Trả mọi thứ về mặc định (Add Mode)
         currentRowBeingEdited = null;
+        currentSchedulerId = null;
         if (modalTitle) modalTitle.innerText = "Add Schedule";
         if (createBtn) createBtn.innerText = "CREATE";
-        
         updateCreateButton();
     };
 
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
     if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
 
-    // Xử lý các logic nút bấm bên trong Modal (Consumption/Duration) - GIỮ NGUYÊN
-    toggleBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            toggleBtns.forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            const mode = this.getAttribute('data-mode');
-            valueLabel.innerText = (mode === 'consumption') ? "Consumption (Liters)" : "Duration (Minutes)";
-        });
-    });
-
+    // Cập nhật trạng thái nút Create (Giữ nguyên)
+    const updateCreateButton = () => {
+        if (nameInput && nameInput.value.trim().length > 0) {
+            createBtn.disabled = false;
+            createBtn.classList.add('active');
+        } else {
+            createBtn.disabled = true;
+            createBtn.classList.remove('active');
+        }
+    };
+    if (nameInput) nameInput.addEventListener('input', updateCreateButton);
+    
+    // Repeat Select Dropdown (Giữ nguyên)
     if (repeatSelect) {
         repeatSelect.addEventListener('change', function() {
             if (this.value === 'every_n_days') {
@@ -401,41 +625,6 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 repeatNGroup.classList.add('hidden');
             }
-        });
-    }
-
-    const updateCreateButton = () => {
-        if (nameInput && nameInput.value.trim().length > 0) {
-            createBtn.disabled = false;
-            createBtn.classList.add('active');
-        } else {
-            createBtn.disabled = true;
-            createBtn.classList.remove('active');
-        }
-    };
-
-    if (nameInput) nameInput.addEventListener('input', updateCreateButton);
-
-    // 4. LƯU DỮ LIỆU (Khi nhấn CREATE hoặc SAVE)
-    const scheduleForm = document.getElementById('scheduleForm');
-    if (scheduleForm) {
-        scheduleForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const newName = nameInput.value;
-
-            if (currentRowBeingEdited) {
-                // === NẾU ĐANG Ở CHẾ ĐỘ SỬA ===
-                // Cập nhật lại tên trên dòng vừa sửa
-                currentRowBeingEdited.querySelector('td:nth-child(1) .badge').innerText = newName;
-                alert("Đã cập nhật lịch: " + newName);
-            } else {
-                // === NẾU ĐANG Ở CHẾ ĐỘ THÊM MỚI ===
-                // Thực hiện gọi API thêm mới vào Backend
-                alert("Đã tạo lịch mới: " + newName);
-            }
-
-            closeModal();
         });
     }
 
