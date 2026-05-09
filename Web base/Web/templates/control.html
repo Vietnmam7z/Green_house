@@ -249,12 +249,11 @@
                 
                 <div class="row-inputs">
                     <div class="input-group">
-                        <label>Start day</label>
-                        <input type="date" id="schedStartDay">
+                        <label>Start day*</label> <input type="date" id="schedStartDay" required>
                     </div>
                     <div class="input-group">
-                        <label>Start time</label>
-                        <input type="time" id="schedStartTime">
+                        <label>Start time*</label>
+                        <input type="time" id="schedStartTime" required>
                     </div>
                 </div>
 
@@ -281,7 +280,7 @@
 
                 <div class="input-group" id="valueInputGroup">
                     <label id="valueLabel">Consumption (Liters)</label>
-                    <input type="number" id="schedValue" placeholder="0">
+                    <input type="number" id="schedValue" placeholder="0" min="0"> 
                 </div>
 
                 <div class="modal-footer">

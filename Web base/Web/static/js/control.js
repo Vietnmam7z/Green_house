@@ -545,17 +545,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 4. LƯU DỮ LIỆU (CREATE / UPDATE VIA API)
     const scheduleForm = document.getElementById('scheduleForm');
-    const startDay = document.getElementById('schedStartDay').value;
-    const endDay = document.getElementById('schedEndDay').value;
-
-    if (endDay && startDay) {
-        if (new Date(endDay) < new Date(startDay)) {
-            alert("Lỗi: Ngày kết thúc (End day) không được nhỏ hơn ngày bắt đầu (Start day)!");
-            createBtn.disabled = false;
-            createBtn.innerText = currentRowBeingEdited ? "SAVE" : "CREATE";
-            return;
-        }
-    }
 
     if (scheduleForm) {
         scheduleForm.addEventListener('submit', function(e) {
@@ -571,6 +560,49 @@ document.addEventListener("DOMContentLoaded", () => {
 
             createBtn.disabled = true;
             createBtn.innerText = "Processing...";
+
+            // ==============================================================
+            // BỘ KIỂM TRA AN TOÀN DỮ LIỆU (ĐẶT ĐÚNG VỊ TRÍ)
+            // ==============================================================
+            const startDay = document.getElementById('schedStartDay').value;
+            const startTime = document.getElementById('schedStartTime').value;
+            const endDay = document.getElementById('schedEndDay').value;
+            const schedValue = parseFloat(document.getElementById('schedValue').value || 0);
+
+            // Hàm phụ để reset lại nút nếu có lỗi
+            function resetButtonState() {
+                createBtn.disabled = false;
+                createBtn.innerText = currentRowBeingEdited ? "SAVE" : "CREATE";
+            }
+
+            // 1. Kiểm tra bắt buộc nhập Start day
+            if (!startDay) {
+                alert("Lỗi: Vui lòng chọn Ngày bắt đầu (Start day)!");
+                resetButtonState();
+                return;
+            }
+
+            // 2. Kiểm tra bắt buộc nhập Start time
+            if (!startTime) {
+                alert("Lỗi: Vui lòng chọn Giờ bắt đầu (Start time)!");
+                resetButtonState();
+                return;
+            }
+
+            // 3. Kiểm tra không được nhập số âm
+            if (schedValue < 0) {
+                alert("Lỗi: Giá trị không được là số âm!");
+                resetButtonState();
+                return;
+            }
+
+            // 4. Kiểm tra Ngày kết thúc phải sau Ngày bắt đầu
+            if (endDay && startDay && new Date(endDay) < new Date(startDay)) {
+                alert("Lỗi: Ngày kết thúc không được nhỏ hơn ngày bắt đầu!");
+                resetButtonState();
+                return;
+            }
+            // ==============================================================
 
             const mode = document.querySelector('.toggle-btn.active').getAttribute('data-mode');
             const repeatVal = repeatSelect.value;
