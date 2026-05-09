@@ -1,5 +1,5 @@
 ﻿from dataclasses import Field
-from flask import request, session, redirect, render_template, jsonify
+from flask import Flask, request, session, current_app, redirect, render_template, jsonify
 from datetime import datetime, timedelta
 from authentication import Authentication
 from email_otp import OTPManager
@@ -24,6 +24,8 @@ class Routes:
         self.sensor = sensor
         self.field = field
         self.logger = logger
+        self.running_jobs = {}
+        self.executed_keys = set()
         
     def require_login(self):
         if 'username' not in session:
@@ -185,15 +187,393 @@ class Routes:
             return jsonify(result)
 
         new_state = result["new_state"]
+        
+        device_info = self.field.get_device_controller_by_id(field_id, device_id)
+        print(f"DEBUG: Lấy type cho field_id {field_id}, device_id {device_id} => {device_info}")
 
-        type_state = self.field.get_type_and_state_by_field(field_idq)
-        print(f"DEBUG: Lấy type và state cho field_id {field_id} => {type_state}")
-        if type_state["success"]:
-            for type_, state in type_state["data"]:
-                if type_.lower() == "valve":
-                    device_controller.send_state(int(field_id), new_state)
+        if device_info["success"]:
+            device = device_info["device"]
+            type = device[2]  
+            device_controller.send_state(field_id, new_state, type)
+            self.logger.log_set_device_state(field_id, device_id, new_state)
 
         return jsonify({"success": True, "new_state": new_state})
+
+    def get_schedulers_by_field(self):
+        field_id = request.args.get("field_id")
+        if not field_id:
+            return jsonify({
+                "success": False,
+                "message": "Missing field_id"
+            })
+        try:
+            result = self.field.get_schedulers_by_field_id(field_id)
+            return jsonify(result)
+        except Exception as e:
+            return jsonify({
+                "success": False,
+                "message": str(e)
+            })
+
+    def create_scheduler(self):
+        data = request.json
+        try:
+            result = self.field.create_scheduler(
+                field_id=data.get("field_id"),
+                device_id=data.get("device_id"),
+                name=data.get("name"),
+                event_date=data.get("event_date"),
+                event_time=data.get("event_time"),
+                event_type=data.get("event_type"),
+                mode=data.get("mode"),
+                duration=data.get("duration"),
+                consumption=data.get("consumption"),
+                repeat_enabled=data.get("repeat_enabled", False),
+                type_repeat=data.get("type_repeat"),
+                repeat_value=data.get("repeat_value")
+            )
+
+            if result["success"]:
+                scheduler_id = result.get("scheduler_id")
+                if data.get("mode") == "time":
+                    self.logger.log_create_job_no_threshold(
+                        scheduler_id,
+                        data.get("field_id"),
+                        data.get("device_id"),
+                        data.get("duration"),
+                        data.get("event_date"),
+                        data.get("event_time")
+                    )
+                else: 
+                    self.logger.log_create_job(
+                        scheduler_id,
+                        data.get("field_id"),
+                        data.get("device_id"),
+                        data.get("consumption"),
+                        data.get("event_date"),
+                        data.get("event_time")
+                    )
+                
+            return jsonify(result)
+        except Exception as e:
+            return jsonify({
+                "success": False,
+                "message": str(e)
+            })
+
+    def update_scheduler(self):
+        data = request.json
+        try:
+            result = self.field.update_scheduler(
+                scheduler_id=data.get("scheduler_id"),
+                field_id=data.get("field_id"),
+                device_id=data.get("device_id"),
+                name=data.get("name"),
+                event_date=data.get("event_date"),
+                event_time=data.get("event_time"),
+                event_type=data.get("event_type"),
+                mode=data.get("mode"),
+                duration=data.get("duration"),
+                consumption=data.get("consumption"),
+                repeat_enabled=data.get("repeat_enabled", False),
+                type_repeat=data.get("type_repeat"),
+                repeat_value=data.get("repeat_value"),
+                enabled=data.get("enabled", True)
+            )
+            if result["success"]:
+                scheduler_id = data.get("scheduler_id")
+                if data.get("mode") == "time":
+                    self.logger.log_update_job_no_threshold(
+                        scheduler_id,
+                        data.get("field_id"),
+                        data.get("device_id"),
+                        data.get("duration"),
+                        data.get("event_date"),
+                        data.get("event_time")
+                    )
+                else: 
+                    self.logger.log_update_job(
+                        scheduler_id,
+                        data.get("field_id"),
+                        data.get("device_id"),
+                        data.get("consumption"),
+                        data.get("event_date"),
+                        data.get("event_time")
+                    )
+
+            return jsonify(result)
+        except Exception as e:
+            return jsonify({
+                "success": False,
+                "message": str(e)
+            })
+    
+    def delete_scheduler(self):
+        data = request.json
+        scheduler_id = data.get("scheduler_id")
+        try:
+            result = self.field.delete_scheduler(scheduler_id)
+            if result["success"]:
+                self.logger.log_delete_job(scheduler_id)
+            return jsonify(result)
+        except Exception as e:
+            return jsonify({
+                "success": False,
+                "message": str(e)
+            })
+        
+    def execute_scheduler(self, device_id, state):
+        device_info = self.field.get_device_controller_by_device_id(device_id)
+        if not device_info["success"]:
+            print(f"[EXEC ERROR] Device not found: {device_id}")
+            return
+
+        device = device_info["data"]
+        field_id = device["field_id"]
+        device_type = device["type"]
+        self.field.set_device_state(device_id, state)
+        device_controller.send_device_command(field_id, device_type, state)
+        print(f"[EXEC] {state} -> {device_type} (field {field_id})")
+
+    def calculate_next_date(self, row):
+        event_date = datetime.strptime(row["event_date"], "%Y-%m-%d")
+        repeat_type = row["type_repeat"]
+        repeat_value = row["repeat_value"]
+
+        if repeat_type == "Daily":
+            next_date = event_date + timedelta(days=1)
+
+        elif repeat_type == "Every N days":
+            next_date = event_date + timedelta(days=repeat_value)
+
+        elif repeat_type == "Weekly":
+            next_date = event_date + timedelta(days=7)
+
+        elif repeat_type == "Every N weeks":
+            next_date = event_date + timedelta(weeks=repeat_value)
+
+        elif repeat_type == "Monthly":
+            next_date = event_date + timedelta(days=30)
+
+        elif repeat_type == "Yearly":
+            next_date = event_date + timedelta(days=365)
+
+        else:
+            next_date = event_date
+
+        return next_date.strftime("%Y-%m-%d")
+        
+    def check_and_run_schedulers(self):
+        now = datetime.now()
+        current_time = now.strftime("%H:%M")
+        current_date = now.strftime("%Y-%m-%d")
+
+        try:
+            result = self.field.get_all_schedulers()
+            if not result["success"]:
+                return
+
+            rows = result["data"]
+
+            if not hasattr(self, "executed_keys"):
+                self.executed_keys = set()
+
+            if not hasattr(self, "running_jobs"):
+                self.running_jobs = {}
+
+            for row in rows:
+                scheduler_id = row["scheduler_id"]
+                mode = row.get("mode")
+                event_time = (row.get("event_time") or "")[:5]
+                event_date = row.get("event_date")
+
+                if not event_date:
+                    continue
+
+                event_date = str(event_date).split(" ")[0].strip()
+                if event_date != current_date:
+                    continue
+
+                if event_time and event_time[:5] != current_time[:5]:
+                    continue
+
+                job = None
+                if mode == "time":
+
+                    base_key = f"{scheduler_id}_{event_date}_{event_time}"
+                    if base_key in self.executed_keys:
+                        continue
+
+                    job = self.handle_time_scheduler(row, now, current_date, current_time)
+                    if job:
+                        self.executed_keys.add(base_key)
+
+                elif mode == "consumption":
+                    job = self.handle_consumption_scheduler(row, now, current_date, current_time)
+
+                if job:
+                    self.running_jobs[job["scheduler_id"]] = job
+
+            self.handle_done_jobs(now)
+            if len(self.executed_keys) > 10000:
+                self.executed_keys.clear()
+
+        except Exception as e:
+            print(f"[SCHEDULER ERROR] {str(e)}")
+
+    def handle_consumption_scheduler(self, row, now, current_date, current_time):
+        scheduler_id = row["scheduler_id"]
+        device_id = row["device_id"]
+        if not row["enabled"]:
+            return None
+
+        device_info = self.field.get_device_sensor_mapping(device_id)
+        if not device_info["success"]:
+            return None
+
+        device_type = (device_info["data"]["type"] or "").strip().lower()
+        sensor_id = device_info["data"]["sensor_id"]
+        if device_type not in ("valve", "co2_valve", "fertilizer"):
+            return None
+
+        event_time = row.get("event_time", "")
+
+        if event_time and event_time[:5] != current_time[:5]:
+            return None
+
+        if scheduler_id in self.running_jobs:
+            return None
+
+        start_ts = int(now.timestamp() * 1000)
+        self.execute_scheduler(device_id, "ON")
+        return {
+            "scheduler_id": scheduler_id,
+            "device_id": device_id,
+            "sensor_id": sensor_id,
+            "start_time": now,
+            "last_ts": start_ts,
+            "row": row,
+            "type": "consumption"
+        }
+    
+    def handle_time_scheduler(self, row, now, current_date, current_time):
+
+        scheduler_id = row["scheduler_id"]
+        device_id = row["device_id"]
+        event_time = row["event_time"]
+
+        if not row["enabled"]:
+            return None
+
+        if event_time[:5] != current_time[:5]:
+            return None
+
+        exec_key = f"{scheduler_id}_{current_date}_{event_time[:5]}"
+
+        if exec_key in self.executed_keys:
+            return None
+
+        self.executed_keys.add(exec_key)
+
+        self.execute_scheduler(device_id, "ON")
+
+        return {
+            "scheduler_id": scheduler_id,
+            "device_id": device_id,
+            "start_time": now,
+            "duration": row.get("duration") or 60,
+            "row": row,
+            "type": "time"
+        }   
+     
+    def handle_done_jobs(self, now):
+        for scheduler_id in list(self.running_jobs.keys()):
+            job = self.running_jobs[scheduler_id]
+            if job.get("type") == "time":
+                elapsed = (now - job["start_time"]).total_seconds()
+                if elapsed < job.get("duration", 0):
+                    continue
+
+                device_id = job["device_id"]
+                self.execute_scheduler(device_id, "DONE")
+                next_date = self.calculate_next_date(job["row"])
+                self.field.update_scheduler_date(
+                    scheduler_id,
+                    next_date
+                )
+                del self.running_jobs[scheduler_id]
+                continue
+
+            if job.get("type") != "consumption":
+                continue
+
+            sensor_id = job["sensor_id"]
+            db_max_ts = self.field.get_max_ts(sensor_id)
+            last_ts = job.get("last_ts", 0)
+            if last_ts > db_max_ts:
+                last_ts = db_max_ts
+            rows = self.field.get_new_telemetry(sensor_id, last_ts)
+
+            if not rows:
+                continue
+
+            total_delta = 0
+            max_ts = last_ts
+            prev_value = job.get("prev_value")
+            if prev_value is None:
+                try:
+                    prev_value = float(rows[0][1])
+                    job["prev_value"] = prev_value
+                except:
+                    prev_value = None
+
+            for row in rows:
+                try:
+                    value = float(row[1])
+                except:
+                    continue
+                ts = row[0]
+                if prev_value is not None:
+                    delta = value - prev_value
+                    if delta > 0:
+                        total_delta += delta
+
+                prev_value = value
+
+                job["prev_value"] = prev_value
+
+                if ts > max_ts:
+                    max_ts = ts
+
+            job["last_ts"] = max_ts
+            job["total_consumption"] = job.get("total_consumption", 0) + total_delta
+
+            threshold = float(job["row"].get("consumption") or 0)
+
+            print(
+                f"[CONS] sensor={sensor_id} "
+                f"delta={total_delta} "
+                f"total={job['total_consumption']} "
+                f"threshold={threshold}"
+            )
+
+            if threshold > 0 and job["total_consumption"] >= threshold:
+
+                device_id = job["device_id"]
+
+                self.execute_scheduler(device_id, "DONE")
+
+                next_date = self.calculate_next_date(job["row"])
+
+                self.field.update_scheduler_date(
+                    scheduler_id,
+                    next_date
+                )
+
+                del self.running_jobs[scheduler_id]
+                
+    def reset_daily_cache(self):
+        self.executed_keys.clear()
 
     # 1. TRANG RENDER HTML
     def user_management_page(self):
@@ -760,31 +1140,14 @@ class Routes:
         device_id = request.args.get('device_id')
         name = request.args.get('name')
         
-        # Kết nối Database
+
         if not device_id or not name:
             return jsonify({"success": False, "message": "Thiếu tham số device_id hoặc name"}), 400
         result = self.field.send_chart(device_id, name)
         if isinstance(result, dict):
             return jsonify(result)
         return result
-    
-    # def get_data(self):
-    #     fake_temp = round(random.uniform(10.0, 45.0), 1)
-    #     fake_humid = random.randint(30, 100)
-    #     fake_light = random.randint(100, 500)
-    #     soil_moisture = 0
-    #     test = routes.send_telemetry()
-    #     for item in test:
-    #         for device_name, telemetry in item.items():
-    #             if 'moisture' in telemetry:
-    #                 moisture_data = telemetry['moisture']
-    #                 soil_moisture = moisture_data.get('value')
-    #     return jsonify({
-    #         "temperature": fake_temp,
-    #         "humidity": fake_humid,
-    #         "light": fake_light,
-    #         "moisture": soil_moisture
-    # })
+
     def check_anomaly(self):
         result = self.field.check_anomaly()
         if isinstance(result, dict):
@@ -813,6 +1176,7 @@ class Routes:
             return jsonify({"success": False, "message": "Chưa đăng nhập"}), 401
         
 
+
 #################################################################################################################################
 
 
@@ -836,6 +1200,25 @@ log = UserLogger()
 routes = Routes(auth,otp,sensor,field,log)
 scheduler = BackgroundScheduler()
 
+app = Flask(__name__)
+
+
+def job_update_status():
+    with app.app_context():
+        routes.update_status()
+
+def job_check_scheduler():
+    with app.app_context():
+        routes.check_and_run_schedulers()
+
+def job_update_out_date_status():
+    with app.app_context():
+        routes.update_out_date_status()
+
+def job_reset_daily_cache():
+    with app.app_context():
+        routes.reset_daily_cache()
+    
 server.add_route('/api/get_devices_controller', routes.toggle_and_send, methods=['POST'])
 server.add_route('/', routes.home_page, methods=['GET'])
 server.add_route('/login', routes.login_page, methods=['GET'])
@@ -875,12 +1258,16 @@ server.add_route('/api/admin/clear_fields', routes.api_admin_clear_fields, metho
 server.add_route('/api/admin/edit_greenhouse', routes.api_admin_edit_greenhouse, methods=['POST'])
 server.add_route('/api/admin/delete_greenhouse_fields', routes.api_admin_delete_greenhouse_fields, methods=['POST'])
 
-scheduler.add_job(routes.update_status, 'interval', seconds=10)
-# scheduler.add_job(routes.update_out_date_status, 'interval', seconds=5)
+scheduler.add_job(job_reset_daily_cache, 'cron', hour=0, minute=0)
+scheduler.add_job(job_update_status, 'interval', seconds=10)
+scheduler.add_job(job_check_scheduler,'interval',seconds=1,max_instances=1,coalesce=True)
+
+#scheduler.add_job(job_update_out_date_status, 'interval', seconds=5)
 
 
 if __name__ == '__main__':
     import os
+    os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
     import sys
     import subprocess
     

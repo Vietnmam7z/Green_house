@@ -220,7 +220,14 @@ class FieldDB:
             conn.commit()
     
     def get_telemetry(self, device_name: str):
+        special_counters = [
+            "fertilizerCounter",
+            "co2Counter",
+            "pulseCounter"
+        ]
+
         with self.connect() as conn:
+
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -231,18 +238,64 @@ class FieldDB:
                 AND t.ts = (
                     SELECT MAX(ts)
                     FROM telemetry
-                    WHERE device_id = t.device_id AND name = t.name
+                    WHERE device_id = t.device_id
+                    AND name = t.name
                 )
                 """,
                 (device_name,)
             )
 
-            rows = cursor.fetchall()
-            telemetry_dict = {}
-            for name, ts, value in rows:
-                telemetry_dict[name] = {"ts": ts, "value": value}
+            latest_rows = cursor.fetchall()
 
-            return {device_name: telemetry_dict}
+            telemetry_dict = {}
+
+            for name, ts, value in latest_rows:
+
+                telemetry_dict[name] = {
+                    "ts": ts,
+                    "value": value
+                }
+
+            cursor.execute(
+                f"""
+                SELECT t.name, t.ts, t.value
+                FROM telemetry t
+                JOIN device d ON t.device_id = d.device_id
+                WHERE d.device_name = ?
+                AND DATE(t.ts / 1000, 'unixepoch', 'localtime')
+                    = DATE('now', 'localtime')
+                AND t.name IN ({",".join(["?"] * len(special_counters))})
+                ORDER BY t.name, t.ts ASC
+                """,
+                [device_name] + special_counters
+            )
+
+            rows = cursor.fetchall()
+            from collections import defaultdict
+            grouped = defaultdict(list)
+            for name, ts, value in rows:
+                grouped[name].append(float(value))
+
+            for name, values in grouped.items():
+                if len(values) < 2:
+                    consumption = 0
+                else:
+                    total = 0
+                    prev = values[0]
+                    for current in values[1:]:
+                        delta = current - prev
+                        if delta > 0:
+                            total += delta
+                        prev = current
+
+                    consumption = total
+
+                if name in telemetry_dict:
+                    telemetry_dict[name]["daily_consumption"] = consumption
+
+            return {
+                device_name: telemetry_dict
+            }
 
     def get_all_telemetry_status(self, device_id: str, telemetry_name: str, time_range: str):
         now = datetime.now()
@@ -632,6 +685,31 @@ class FieldDB:
                 conn.rollback()
                 return {"success": False, "message": str(e)}
 
+    def set_device_state(self, device_id: int, state: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    UPDATE device_controller
+                    SET state = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE device_id = ?
+                """, (state, device_id))
+
+                conn.commit()
+
+                return {
+                    "success": True,
+                    "device_id": device_id,
+                    "new_state": state
+                }
+
+            except Exception as e:
+                conn.rollback()
+                return {
+                    "success": False,
+                    "message": str(e)
+                }
+            
     def get_type_and_state_by_field(self, field_id: int):
         with self.connect() as conn:
             cursor = conn.cursor()
@@ -645,7 +723,24 @@ class FieldDB:
                 return {"success": True, "data": rows}
             except Exception as e:
                 return {"success": False, "message": str(e)}
-            
+
+    def get_device_controller_by_id(self, field_id: int, device_id: int):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    SELECT device_id, device_name, type, state, created_at, updated_at
+                    FROM device_controller
+                    WHERE field_id = ? AND device_id = ?
+                """, (field_id, device_id))
+                row = cursor.fetchone()
+                if row:
+                    return {"success": True, "device": row}
+                else:
+                    return {"success": False, "message": "Device not found"}
+            except Exception as e:
+                return {"success": False, "message": str(e)}
+
     def send_chart(self, device_id: str, name: str):
         with self.connect() as conn:
             cursor = conn.cursor()
@@ -664,8 +759,6 @@ class FieldDB:
             return jsonify({"success": True, "data": data_list})
         except Exception as e:
                 return {"success": False, "message": str(e)}
-        
-
 
     def check_anomaly(self):
         with self.connect() as conn:
@@ -696,3 +789,425 @@ class FieldDB:
         except Exception as e:
                 return {"success": False, "message": str(e)}
 
+    def get_all_schedulers(self):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    SELECT
+                        s.scheduler_id,
+                        s.field_id,
+                        f.field_name,
+                        s.device_id,
+                        s.name,
+                        s.event_date,
+                        s.event_time,
+                        s.event_type,
+                        s.mode,
+                        s.duration,
+                        s.consumption,
+                        s.repeat_enabled,
+                        s.type_repeat,
+                        s.repeat_value,
+                        s.enabled,
+                        s.created_at
+                    FROM scheduler s
+                    JOIN field f
+                        ON s.field_id = f.field_id
+                    ORDER BY s.scheduler_id DESC
+                """)
+                rows = cursor.fetchall()
+                schedulers = []
+                for row in rows:
+                    schedulers.append({
+                        "scheduler_id": row[0],
+                        "field_id": row[1],
+                        "field_name": row[2],
+                        "device_id": row[3],   
+                        "name": row[4],
+                        "event_date": row[5],
+                        "event_time": row[6],
+                        "event_type": row[7],
+                        "mode": row[8],
+                        "duration": row[9],
+                        "consumption": row[10],
+                        "repeat_enabled": bool(row[11]) if row[11] is not None else False,
+                        "type_repeat": row[12],
+                        "repeat_value": row[13],
+                        "enabled": bool(row[14]) if row[14] is not None else False,
+                        "created_at": row[15]
+                    })
+
+                return {
+                    "success": True,
+                    "data": schedulers
+                }
+
+            except Exception as e:
+
+                return {
+                    "success": True,
+                    "data": rows
+                }
+            
+    def get_schedulers_by_field_id(self, field_id):
+
+        with self.connect() as conn:
+            cursor = conn.cursor()
+
+            try:
+
+                cursor.execute("""
+                    SELECT
+                        s.scheduler_id,
+                        s.field_id,
+                        f.field_name,
+                        s.device_id,
+                        s.name,
+                        s.event_date,
+                        s.event_time,
+                        s.event_type,
+                        s.mode,
+                        s.duration,
+                        s.consumption,
+                        s.repeat_enabled,
+                        s.type_repeat,
+                        s.repeat_value,
+                        s.enabled,
+                        s.created_at
+                    FROM scheduler s
+                    JOIN field f
+                        ON s.field_id = f.field_id
+                    WHERE s.field_id = ?
+                    ORDER BY s.scheduler_id DESC
+                """, (field_id,))
+
+                rows = cursor.fetchall()
+
+                schedulers = []
+
+                for row in rows:
+
+                    schedulers.append({
+                        "scheduler_id": row[0],
+                        "field_id": row[1],
+                        "field_name": row[2],
+
+                        "device_id": row[3],   # ✔ ADDED
+
+                        "name": row[4],
+                        "event_date": row[5],
+                        "event_time": row[6],
+                        "event_type": row[7],
+                        "mode": row[8],
+                        "duration": row[9],
+                        "consumption": row[10],
+                        "repeat_enabled": bool(row[11]) if row[11] is not None else False,
+                        "type_repeat": row[12],
+                        "repeat_value": row[13],
+                        "enabled": bool(row[14]) if row[14] is not None else False,
+                        "created_at": row[15]
+                    })
+
+                return {
+                    "success": True,
+                    "data": schedulers
+                }
+
+            except Exception as e:
+
+                return {
+                    "success": True,
+                    "data": rows
+                }
+
+    def create_scheduler(
+        self,
+        field_id,
+        device_id,   
+        name,
+        event_date,
+        event_time,
+        event_type,
+        mode,
+        duration=None,
+        consumption=None,
+        repeat_enabled=False,
+        type_repeat=None,
+        repeat_value=None
+    ):
+
+        with self.connect() as conn:
+            cursor = conn.cursor()
+
+            try:
+
+                cursor.execute("""
+                    INSERT INTO scheduler (
+                        field_id,
+                        device_id,
+                        name,
+                        event_date,
+                        event_time,
+                        event_type,
+                        mode,
+                        duration,
+                        consumption,
+                        repeat_enabled,
+                        type_repeat,
+                        repeat_value,
+                        enabled
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                """, (
+                    field_id,
+                    device_id,   # ✔ ADD
+                    name,
+                    event_date,
+                    event_time,
+                    event_type,
+                    mode,
+                    duration,
+                    consumption,
+                    int(repeat_enabled),
+                    type_repeat,
+                    repeat_value
+                ))
+
+                conn.commit()
+
+                return {
+                    "success": True,
+                    "message": "Scheduler created successfully"
+                }
+
+            except Exception as e:
+
+                return {
+                    "success": False,
+                    "message": str(e)
+                }
+
+    def delete_scheduler(self, scheduler_id):
+
+        with self.connect() as conn:
+            cursor = conn.cursor()
+
+            try:
+
+                cursor.execute("""
+                    DELETE FROM scheduler
+                    WHERE scheduler_id = ?
+                """, (scheduler_id,))
+
+                conn.commit()
+
+                return {
+                    "success": True,
+                    "message": "Scheduler deleted successfully"
+                }
+
+            except Exception as e:
+
+                return {
+                    "success": False,
+                    "message": str(e)
+                }
+
+    def update_scheduler(
+        self,
+        scheduler_id,
+        field_id,
+        device_id,   # ✔ ADD
+        name,
+        event_date,
+        event_time,
+        event_type,
+        mode,
+        duration=None,
+        consumption=None,
+        repeat_enabled=False,
+        type_repeat=None,
+        repeat_value=None,
+        enabled=True
+    ):
+
+        with self.connect() as conn:
+            cursor = conn.cursor()
+
+            try:
+
+                cursor.execute("""
+                    UPDATE scheduler
+                    SET
+                        field_id = ?,
+                        device_id = ?,   -- ✔ ADD
+                        name = ?,
+                        event_date = ?,
+                        event_time = ?,
+                        event_type = ?,
+                        mode = ?,
+                        duration = ?,
+                        consumption = ?,
+                        repeat_enabled = ?,
+                        type_repeat = ?,
+                        repeat_value = ?,
+                        enabled = ?
+                    WHERE scheduler_id = ?
+                """, (
+                    field_id,
+                    device_id,   # ✔ ADD
+                    name,
+                    event_date,
+                    event_time,
+                    event_type,
+                    mode,
+                    duration,
+                    consumption,
+                    int(repeat_enabled),
+                    type_repeat,
+                    repeat_value,
+                    int(enabled),
+                    scheduler_id
+                ))
+
+                conn.commit()
+
+                return {
+                    "success": True,
+                    "message": "Scheduler updated successfully"
+                }
+
+            except Exception as e:
+
+                return {
+                    "success": False,
+                    "message": str(e)
+                }
+            
+    def disable_scheduler(self, scheduler_id):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    UPDATE scheduler
+                    SET enabled = 0
+                    WHERE scheduler_id = ?
+                """, (scheduler_id,))
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": "Scheduler disabled successfully",
+                    "scheduler_id": scheduler_id
+                }
+            except Exception as e:
+                return {
+                    "success": False,
+                    "message": str(e)
+                }
+            
+    def get_device_controller_by_device_id(self, device_id):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    SELECT
+                        device_id,
+                        field_id,
+                        type
+                    FROM device_controller
+                    WHERE device_id = ?
+                    LIMIT 1
+                """, (device_id,))
+                row = cursor.fetchone()
+                if not row:
+                    return {
+                        "success": False,
+                        "message": "Device not found"
+                    }
+                return {
+                    "success": True,
+                    "data": {
+                        "device_id": row[0],
+                        "field_id": row[1],
+                        "type": row[2]
+                    }
+                }
+            except Exception as e:
+                return {
+                    "success": False,
+                    "message": str(e)
+                }
+            
+    def update_scheduler_date(self, scheduler_id, next_date):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE scheduler
+                SET event_date = ?
+                WHERE scheduler_id = ?
+            """, (next_date, scheduler_id))
+            conn.commit()
+
+    def get_device_sensor_mapping(self, device_id):
+        try:
+            with self.connect() as conn:
+                cursor = conn.cursor()
+
+                query = """
+                SELECT 
+                    device_id,
+                    type,
+                    sensor_id
+                FROM device_controller
+                WHERE device_id = ?
+                LIMIT 1
+                """
+
+                cursor.execute(query, (device_id,))
+                row = cursor.fetchone()
+
+                if not row:
+                    return {
+                        "success": False,
+                        "message": "Device not found"
+                    }
+
+                return {
+                    "success": True,
+                    "data": {
+                        "device_id": row[0],
+                        "type": row[1],
+                        "sensor_id": row[2]
+                    }
+                }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "message": str(e)
+            }
+            
+    def get_new_telemetry(self, device_id, last_ts):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT ts, value, name
+                FROM telemetry
+                WHERE device_id = ?
+                AND CAST(ts AS INTEGER) > ?
+                ORDER BY ts ASC
+            """, (device_id, last_ts))
+
+            return cursor.fetchall()
+        
+    def get_max_ts(self, device_id):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT MAX(ts)
+                FROM telemetry
+                WHERE device_id = ?
+            """, (device_id,))
+            return cursor.fetchone()[0] or 0
