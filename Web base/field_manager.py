@@ -926,7 +926,7 @@ class FieldDB:
         device_id,   
         name,
         event_date,
-        end_date,         # ✔ Thêm end_date
+        end_date,        
         event_time,
         event_type,
         mode,
@@ -962,7 +962,7 @@ class FieldDB:
                     device_id,   
                     name,
                     event_date,
-                    end_date,     # ✔ Thêm end_date vào biến truyền xuống
+                    end_date,     
                     event_time,
                     event_type,
                     mode,
@@ -984,7 +984,6 @@ class FieldDB:
                 }
 
     def delete_scheduler(self, scheduler_id):
-
         with self.connect() as conn:
             cursor = conn.cursor()
 
@@ -1202,3 +1201,375 @@ class FieldDB:
                 WHERE device_id = ?
             """, (device_id,))
             return cursor.fetchone()[0] or 0
+        
+    def create_billing_item(self, field_id, title, amount):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO billing_items (
+                        field_id,
+                        title,
+                        amount
+                    )
+                    VALUES (?, ?, ?)
+                """, (field_id, title, amount))
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": "Tạo billing item thành công"
+                }
+            except Exception as e:
+                conn.rollback()
+                return {
+                    "success": False,
+                    "message": str(e)
+                }
+
+    def get_unpaid_bills(self, field_id):   
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT *
+                    FROM billing_items
+                    WHERE field_id = ?
+                    AND status = 'unpaid'
+                """, (field_id,))
+                rows = cursor.fetchall()
+                return {
+                    "success": True,
+                    "message": "Lấy unpaid bills thành công",
+                    "data": rows
+                }
+            except Exception as e:
+                return {
+                    "success": False,
+                    "message": str(e),
+                    "data": []
+                }
+
+    def mark_bills_as_paid(self, field_id):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE billing_items
+                    SET
+                        status = 'paid',
+                        paid_at = CURRENT_TIMESTAMP
+                    WHERE field_id = ?
+                    AND status = 'unpaid'
+                """, (field_id,))
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": "Cập nhật bill thành paid thành công"
+                }
+            except Exception as e:
+                conn.rollback()
+                return {
+                    "success": False,
+                    "message": str(e)
+                }
+
+    def mark_bill_as_unpaid(self, bill_id):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE billing_items
+                    SET
+                        status = 'unpaid',
+                        paid_at = NULL
+                    WHERE id = ?
+                """, (bill_id,))
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": "Đánh dấu bill về unpaid thành công",
+                    "data": {
+                        "bill_id": bill_id
+                    }
+                }
+            except Exception as e:
+                conn.rollback()
+                return {
+                    "success": False,
+                    "message": "Lỗi khi cập nhật bill",
+                    "error": str(e)
+                }
+
+    def delete_billing_item(self, bill_id):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    DELETE FROM billing_items
+                    WHERE id = ?
+                """, (bill_id,))
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": "Xoá billing item thành công",
+                    "data": {
+                        "bill_id": bill_id
+                    }
+                }
+            except Exception as e:
+                conn.rollback()
+                return {
+                    "success": False,
+                    "message": "Lỗi khi xoá billing item",
+                    "error": str(e)
+                }
+            
+    def create_transaction(self, user_id, field_id, order_id, request_id, amount, status="pending"):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO payment_transactions (
+                    user_id,
+                    field_id,
+                    order_id,
+                    request_id,
+                    amount,
+                    status
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                user_id,
+                field_id,
+                order_id,
+                request_id,
+                amount,
+                status
+            ))
+            conn.commit()
+    
+    def create_transaction_item(self, transaction_id, billing_item_id, title, amount):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO payment_transaction_items (
+                        transaction_id,
+                        billing_item_id,
+                        title,
+                        amount
+                    )
+                    VALUES (?, ?, ?, ?)
+                """, (transaction_id, billing_item_id, title, amount))
+
+                conn.commit()
+
+                return {
+                    "success": True,
+                    "message": "Tạo transaction item thành công"
+                }
+
+            except Exception as e:
+                conn.rollback()
+                return {
+                    "success": False,
+                    "message": str(e)
+                }
+        
+    def get_transaction_by_order_id(self, order_id):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT *
+                    FROM payment_transactions
+                    WHERE order_id = ?
+                """, (order_id,))
+                row = cursor.fetchone()
+                return {
+                    "success": True,
+                    "message": "Lấy transaction thành công",
+                    "data": row
+                }
+            except Exception as e:
+                return {
+                    "success": False,
+                    "message": "Lỗi lấy transaction",
+                    "error": str(e)
+                }
+            
+    def update_transaction_status(self, order_id, status):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE payment_transactions
+                    SET
+                        status = ?,
+                        paid_at = CURRENT_TIMESTAMP
+                    WHERE order_id = ?
+                """, (
+                    status,
+                    order_id
+                ))
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": "Cập nhật transaction thành công",
+                    "data": {
+                        "order_id": order_id,
+                        "status": status
+                    }
+                }
+            except Exception as e:
+                conn.rollback()
+                return {
+                    "success": False,
+                    "message": "Lỗi update transaction",
+                    "error": str(e)
+                }
+            
+    def save_response(self, order_id, raw_response):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE payment_transactions
+                    SET raw_response = ?
+                    WHERE order_id = ?
+                """, (
+                    str(raw_response),
+                    order_id
+                ))
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": "Lưu response thành công"
+                }
+            except Exception as e:
+                conn.rollback()
+                return {
+                    "success": False,
+                    "message": "Lỗi lưu response",
+                    "error": str(e)
+                }
+    
+    def get_transactions_by_field(self, field_id):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT *
+                    FROM payment_transactions
+                    WHERE field_id = ?
+                    ORDER BY created_at DESC
+                """, (field_id,))
+
+                rows = cursor.fetchall()
+                return {
+                    "success": True,
+                    "message": "Lấy danh sách transaction",
+                    "data": rows
+                }
+            except Exception as e:
+                return {
+                    "success": False,
+                    "message": "Lỗi lấy transaction theo field",
+                    "error": str(e)
+                }
+            
+    def delete_all_payment_by_field(self, field_id):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    DELETE FROM payment_transaction_items
+                    WHERE transaction_id IN (
+                        SELECT id
+                        FROM payment_transactions
+                        WHERE field_id = ?
+                    )
+                """, (field_id,))
+                cursor.execute("""
+                    DELETE FROM payment_transactions
+                    WHERE field_id = ?
+                """, (field_id,))
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": "Đã xoá toàn bộ payment theo field",
+                    "data": {
+                        "field_id": field_id
+                    }
+                }
+            except Exception as e:
+                conn.rollback()
+                return {
+                    "success": False,
+                    "message": "Lỗi xoá payment theo field",
+                    "error": str(e)
+                }
+            
+    def create_automation(self, field_id):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO field_automation (
+                    field_id,
+                    status,
+                    scheduler_id
+                )
+                VALUES (?, 'off', NULL)
+            """, (field_id,))
+            conn.commit()
+
+    def set_automation_status(self, field_id, status):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                UPDATE field_automation
+                SET
+                    status = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE field_id = ?
+            """, (status, field_id))
+            conn.commit()
+
+    def set_scheduler(self, field_id, scheduler_id):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                UPDATE field_automation
+                SET
+                    scheduler_id = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE field_id = ?
+            """, (scheduler_id, field_id))
+            conn.commit()
+
+    def get_automation_status(self, field_id):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT 
+                    field_id,
+                    scheduler_id,
+                    status
+                FROM field_automation
+                WHERE field_id = ?
+            """, (field_id,))
+            row = cur.fetchone()
+
+        if not row:
+            return {
+                "success": False,
+                "message": "Không tìm thấy automation của field"
+            }
+
+        return {
+            "success": True,
+            "data": {
+                "field_id": row[0],
+                "scheduler_id": row[1],
+                "status": row[2]
+            }
+        }

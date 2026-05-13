@@ -1,11 +1,12 @@
 ﻿from dataclasses import Field
 from flask import Flask, request, session, current_app, redirect, render_template, jsonify
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from authentication import Authentication
 from email_otp import OTPManager
 from sensor_API import Sensor_API
 from field_manager import FieldDB
 from logger import UserLogger
+import payment
 import requests
 import config
 import pandas as pd
@@ -16,6 +17,7 @@ import sys
 import sqlite3
 import json
 import device_controller
+
 
 class Routes:
     def __init__(self, auth: Authentication, otp: OTPManager, sensor: Sensor_API, field: FieldDB, logger: UserLogger):
@@ -193,7 +195,6 @@ class Routes:
     def get_devices_controller(self):
         field_id = request.args.get("field_id") 
         result = self.field.get_devices_controller_by_field(field_id)
-
         if result["success"]:
             return jsonify({
                 "success": True,
@@ -389,7 +390,6 @@ class Routes:
         elif repeat_type == "every_n_weeks":
             next_run = current_run + timedelta(weeks=int(repeat_value))
 
-        # Trả về cùng lúc (Ngày, Giờ)
         return next_run.strftime("%Y-%m-%d"), next_run.strftime("%H:%M:%S")
         
     def check_and_run_schedulers(self):
@@ -715,6 +715,7 @@ class Routes:
         data = request.get_json()
         field_id = data.get('field_id', '').strip()
         result = field.add_field(field_id, None, None)
+        field.create_automation(field_id)
         self.logger.log_add_field(field_id)
         self.field.create_AI_management_record(field_id)
         return jsonify(result)
@@ -1237,8 +1238,220 @@ class Routes:
         else:
             return jsonify({"success": False, "message": "Chưa đăng nhập"}), 401
         
+# FIELD BILLING & PAYMENT
+    def create_billing(self):
+        data = request.get_json()
+        field_id = data.get("field_id")
+        title = data.get("title")
+        amount = data.get("amount")
+        return self.field.create_billing_item(field_id, title, amount)
 
+    def get_unpaid_bills(self):
+        field_id = request.get_json().get("field_id")
+        return self.field.get_unpaid_bills(field_id)
+    
+    def mark_bills_paid(self):
+        field_id = request.get_json().get("field_id")
+        return self.field.mark_bills_as_paid(field_id)
+    
+    def delete_bill(self):
+        bill_id = request.get_json().get("bill_id")
+        return self.field.delete_billing_item(bill_id)
+    
+    def create_payment(self):
+        username = session.get("username")
+        field_id = request.get_json().get("field_id")
+        user_id = self.auth.get_user_id(username)
+        bills_result = self.field.get_unpaid_bills(field_id)
+        bills = bills_result["data"]
 
+        if not bills:
+            return {
+                "success": False,
+                "message": "Không có hóa đơn chưa thanh toán"
+            }
+        total = sum([b[3] for b in bills])
+        momo_data, order_id, request_id = payment.create_momo_payment(total)
+        if momo_data.get("resultCode") != 0:
+            return {
+                "success": False,
+                "message": "Tạo thanh toán MoMo thất bại",
+                "data": momo_data
+            }
+        self.field.create_transaction(
+            user_id,
+            field_id,
+            order_id,
+            request_id,
+            total
+        )
+        field_transaction = self.field.get_transaction_by_order_id(order_id)
+        transaction_id = field_transaction["data"][0]
+        for bill in bills:
+            self.field.create_transaction_item(
+                transaction_id,
+                bill[0],
+                bill[1],
+                bill[3]
+            )
+        return {
+            "success": True,
+            "order_id": order_id,
+            "amount": total,
+            "payUrl": momo_data.get("payUrl")
+        }
+    
+    def get_payment_status(self):
+        order_id = request.get_json().get("order_id")
+        return self.field.get_transaction_by_order_id(order_id)
+    
+    def update_payment_status(self):
+        data = request.get_json()
+        order_id = data.get("order_id")
+        status = data.get("status")
+        raw_response = data.get("raw_response")
+        result = self.field.update_transaction_status(order_id, status)
+        if status == "success":
+            txn = self.field.get_transaction_by_order_id(order_id)
+            transaction = txn["data"] if txn["success"] else None
+            if transaction:
+                field_id = transaction[1]
+                request_id = transaction[3]
+                amount = transaction[4]
+                username = session.get("username")
+                user_id = self.auth.get_user_id(username)
+                bills = self.field.get_unpaid_bills(field_id)["data"]
+                self.auth.save_payment_history(user_id, field_id, order_id, request_id, amount, bills, raw_response)
+                self.field.mark_bills_as_paid(field_id)
+        return result
+    
+    def delete_payment_by_field(self):
+        field_id = request.get_json().get("field_id")
+        result = self.field.delete_all_payment_by_field(field_id)
+        if result["success"]:
+            return jsonify(result), 200
+        return jsonify(result), 400
+    
+    def momo_ipn(self):
+        data = request.json or {}
+
+        order_id = data.get("orderId")
+        result_code = data.get("resultCode")
+
+        status = "success" if result_code == 0 else "failed"
+
+        return self.update_payment_status_internal(order_id, status, data)
+    
+    def update_payment_status_internal(self, order_id, status, raw_response=None):
+        result = self.field.update_transaction_status(order_id, status)
+        if status == "success":
+            txn = self.field.get_transaction_by_order_id(order_id)
+            transaction = txn["data"] if txn["success"] else None
+            if transaction:
+                transaction_id = transaction[0]
+                user_id = transaction[1]    
+                field_id = transaction[2]
+                request_id = transaction[4]
+                amount = transaction[5]
+                bills = self.field.get_unpaid_bills(field_id)["data"]
+                self.auth.save_payment_history(user_id, field_id, order_id,request_id, amount, bills, raw_response)
+                self.field.mark_bills_as_paid(field_id)
+        return result
+
+# USER TRANSACTION HISTORY
+################################################################################################################################        
+    
+    def get_transactions_of_user(self):
+        username = session.get('username')
+        user_id = self.auth.get_user_id(username)
+        return self.auth.get_transaction_detail(user_id)
+    
+    def get_transactions_items(self):
+        transaction_id = request.get_json().get("transaction_id")
+        return self.auth.get_transactions_items(transaction_id)
+
+# AI AUTOMATION
+################################################################################################################################ 
+    
+    def create_automation_field(self, field_id, target_type, action):
+        selected = self.select_event_type(field_id, target_type, action)
+        if not selected:
+            return {
+                "success": False,
+                "message": "Không tìm thấy thiết bị phù hợp để tạo automation"
+            }
+        device_id = selected["device_id"]
+        event_type = selected["event_type"]
+        now = datetime.now()
+        event_date = now.strftime("%Y-%m-%d")
+        end_date = event_date
+        event_time = now.strftime("%H:%M")
+        name = f"{field_id}_automation"
+        scheduler_id = self.field.create_scheduler(field_id, device_id, name, event_date, end_date, event_time, event_type, "time", duration=1)
+        self.field.set_scheduler(field_id, scheduler_id)
+        return {
+            "success": True,
+            "message": "Tạo automation scheduler thành công",
+            "data": {
+                "field_id": field_id,
+                "device_id": device_id,
+                "scheduler_id": scheduler_id,
+                "target_type": target_type,
+                "action": action
+            }
+        }
+
+    def select_event_type(self, field_id, target_type, action):
+        result = self.field.get_devices_controller_by_field(field_id)
+        if not result["success"]:
+            return None
+        devices = result["devices"]
+        device_priority = []
+
+        if target_type == "temperature" and action == "increase":
+            device_priority = ["cooling_pad", "vent", "fan"]
+        elif target_type == "temperature" and action == "decrease":
+            device_priority = ["heater"]
+        elif target_type == "moisture" and action == "increase":
+            device_priority = ["valve"]
+        else:
+          return None
+
+        for device_type in device_priority:
+            for device in devices:
+                if device.get("type") == device_type:
+                    return {
+                        "device_id": device.get("device_id"),
+                        "event_type": "turn_on"
+                    }
+        return None
+    
+    def set_automation_status(self):
+        data = request.get_json()
+        field_id = data.get("field_id")
+        status = data.get("status")
+
+        if status not in ["on", "off"]:
+            return {
+                "success": False,
+                "message": "Status chỉ được là on hoặc off"
+            }
+
+        self.field.set_automation_status(field_id, status)
+
+        return {
+            "success": True,
+            "message": "Cập nhật trạng thái automation thành công",
+            "data": {
+                "field_id": field_id,
+                "status": status
+            }
+        }
+    
+    def get_automation_status(self):
+        field_id = request.get_json().get("field_id")
+        return self.field.get_automation_status(field_id)
+    
 #################################################################################################################################
 
 
@@ -1280,7 +1493,19 @@ def job_update_out_date_status():
 def job_reset_daily_cache():
     with app.app_context():
         routes.reset_daily_cache()
-    
+
+server.add_route('/api/billing/create', routes.create_billing, methods=['POST'])
+server.add_route('/api/billing/unpaid', routes.get_unpaid_bills, methods=['POST'])
+server.add_route('/api/billing/mark_paid', routes.mark_bills_paid, methods=['POST'])
+server.add_route('/api/billing/delete', routes.delete_bill, methods=['POST'])
+server.add_route('/api/payment/create', routes.create_payment, methods=['POST'])
+server.add_route('/api/payment/status', routes.get_payment_status, methods=['POST'])
+server.add_route('/api/payment/update', routes.update_payment_status, methods=['POST'])
+server.add_route('/ipn', routes.momo_ipn, methods=['POST'])
+server.add_route('/api/payment/history', routes.get_transactions_of_user, methods=['GET'])
+server.add_route('/api/payment/items', routes.get_transactions_items, methods=['POST'])
+
+server.add_route('/api/payment/delete_by_field', routes.delete_payment_by_field, methods=['POST'])
 server.add_route('/api/get_devices_controller', routes.toggle_and_send, methods=['POST'])
 server.add_route('/api/devices_list', routes.get_devices_controller, methods=['GET'])
 server.add_route('/', routes.home_page, methods=['GET'])

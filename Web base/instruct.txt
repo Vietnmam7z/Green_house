@@ -674,6 +674,7 @@ Chạy pip install apscheduler
 Chạy pip install flask
 Chạy pip install requests
 Chạy pip install pandas
+Chạy pip install flask requests python-dotenv flask-cors
 
 from webserver import FlaskServer
 from user_manager import UserManager

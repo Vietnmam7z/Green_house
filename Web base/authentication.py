@@ -9,8 +9,7 @@ class Authentication:
         self.user_manager = user_manager
         self.logger = logger
         self.email_otp = email_otp
-
-    
+  
     def login_user(self, username: str, password: str):
         if not self.user_manager.find_user(username):
             return {"success": False, "message": "Tài khoản hoặc mật khẩu không đúng."}
@@ -110,9 +109,17 @@ class Authentication:
     def get_username(self, user_id: int):
         return self.user_manager.get_username(user_id)
 
+    def get_user_id(self, username: str):
+        return self.user_manager.get_user_id(username)
+
     def get_all_user_information(self):
         return self.user_manager.get_all_user_information()
-        
 
+    def save_payment_history(self, user_id, field_id, order_id, request_id, amount, bills, raw_response):
+        self.user_manager.save_payment_history(user_id, field_id, order_id, request_id, amount, bills, raw_response)
 
-    
+    def get_transaction_detail(self, user_id):
+        return self.user_manager.get_transaction_detail_by_user_id(user_id)
+
+    def get_transactions_items(self, transaction_id):
+        return self.user_manager.get_transaction_items(transaction_id)
