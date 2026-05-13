@@ -1407,24 +1407,19 @@ class Routes:
     def run_service_plan_billing(self):
         plans = self.field.get_active_service_plans()
         today = datetime.now().date()
-
         for plan in plans:
             plan_id = plan["id"]
             field_id = plan["field_id"]
             daily_price = plan["daily_price"]
             expired_date = datetime.strptime(plan["expired_date"], "%Y-%m-%d").date()
-
             new_amount = plan["accumulated_amount"] + daily_price
-
             self.field.update_accumulated_amount(plan_id, new_amount)
-
             if today >= expired_date:
                 self.field.create_billing_item(
                     field_id,
                     "Phí dịch vụ tự động",
                     new_amount
                 )
-
                 self.field.expire_service_plan(plan_id)
 
         return {
@@ -1687,7 +1682,7 @@ if __name__ == '__main__':
             
     try:
         # Lệnh chạy Web Server
-        server.run(port=8080)
+        server.run()
     except KeyboardInterrupt:
         # Bắt sự kiện khi bạn nhấn Ctrl + C
         print("\n[HỆ THỐNG] Nhận lệnh tắt từ người dùng...")
