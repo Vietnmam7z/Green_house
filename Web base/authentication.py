@@ -90,6 +90,13 @@ class Authentication:
         else:
             return None
         
+    def get_email(self, username: str):
+        email = self.user_manager.find_email(username)
+        if email:
+            return email
+        else:
+            return None
+        
     def change_email(self, email: str):
         username = self.user_manager.find_email(email)
         if not username:

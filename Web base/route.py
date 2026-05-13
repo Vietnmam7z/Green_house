@@ -1217,6 +1217,32 @@ class Routes:
             return jsonify(result)
         return result
     
+    def get_notification_status(self):
+        username = session.get('username')
+        return jsonify(self.field.get_notification_status(username))
+    
+    def set_notification_status(self):
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "message": "Không nhận được dữ liệu"})
+
+        status = data.get('status')
+        username = session.get('username')
+        self.logger.log_set_notification_status(username, status)
+        result = self.field.set_notification_status(username, status)
+        return jsonify(result)
+    
+    def set_notification_email_status(self):
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "message": "Không nhận được dữ liệu"})
+
+        status = data.get('status')
+        username = session.get('username')
+        self.logger.log_set_notification_email_status(username, status)
+        result = self.field.set_email_notification_status(username, status)
+        return jsonify(result)
+    
     def save_notification(self):
         data = request.get_json()
         if not data:
@@ -1227,6 +1253,10 @@ class Routes:
         ts = data.get('ts')
         username = data.get('username')
         result = self.field.insert_notification(status, device_id, ts, username)
+        notif = self.field.get_notification_status(username)
+        if notif["data"]["email_status"] == "ON":
+            email = self.auth.get_email(username)
+            self.otp.send_notification_email(email, device_id, status, ts, username)
         return jsonify(result)
 
     def get_current_user(self):
@@ -1356,6 +1386,7 @@ class Routes:
                 bills = self.field.get_unpaid_bills(field_id)["data"]
                 self.auth.save_payment_history(user_id, field_id, order_id,request_id, amount, bills, raw_response)
                 self.field.mark_bills_as_paid(field_id)
+                self.logger.log_payment_transaction(user_id, field_id, order_id, request_id, amount, bills, raw_response)
         return result
 
 # USER TRANSACTION HISTORY
@@ -1369,6 +1400,72 @@ class Routes:
     def get_transactions_items(self):
         transaction_id = request.get_json().get("transaction_id")
         return self.auth.get_transactions_items(transaction_id)
+
+# FIELD SERVICE PLAN BILLING
+################################################################################################################################ 
+
+    def run_service_plan_billing(self):
+        plans = self.field.get_active_service_plans()
+        today = datetime.now().date()
+
+        for plan in plans:
+            plan_id = plan["id"]
+            field_id = plan["field_id"]
+            daily_price = plan["daily_price"]
+            expired_date = datetime.strptime(plan["expired_date"], "%Y-%m-%d").date()
+
+            new_amount = plan["accumulated_amount"] + daily_price
+
+            self.field.update_accumulated_amount(plan_id, new_amount)
+
+            if today >= expired_date:
+                self.field.create_billing_item(
+                    field_id,
+                    "Phí dịch vụ tự động",
+                    new_amount
+                )
+
+                self.field.expire_service_plan(plan_id)
+
+        return {
+            "success": True,
+            "message": "Đã chạy tính phí dịch vụ"
+        }
+    
+    def create_service_plan_route(self):
+        data = request.get_json()
+
+        field_id = data.get("field_id")
+        service_days = data.get("service_days")
+        daily_price = data.get("daily_price")
+        self.logger.log_create_service_plan(field_id, service_days, daily_price)
+        return self.field.create_service_plan(
+            field_id,
+            service_days,
+            daily_price
+        )
+    
+    def update_service_plan_route(self):
+        data = request.get_json()
+        plan_id = data.get("plan_id")
+        service_days = data.get("service_days")
+        daily_price = data.get("daily_price")
+        self.logger.log_update_service_plan(plan_id, service_days, daily_price)
+        return self.field.update_service_plan(
+            plan_id,
+            service_days,
+            daily_price
+        )
+    
+    def delete_service_plan_route(self):
+        data = request.get_json()
+        plan_id = data.get("plan_id")
+        self.logger.log_delete_service_plan(plan_id)
+        return self.field.delete_service_plan(plan_id)
+    
+    def run_service_plan_billing_route(self):
+        return self.run_service_plan_billing()
+
 
 # AI AUTOMATION
 ################################################################################################################################ 
@@ -1438,7 +1535,6 @@ class Routes:
             }
 
         self.field.set_automation_status(field_id, status)
-
         return {
             "success": True,
             "message": "Cập nhật trạng thái automation thành công",
@@ -1494,6 +1590,10 @@ def job_reset_daily_cache():
     with app.app_context():
         routes.reset_daily_cache()
 
+def job_service_plan_billing():
+    with app.app_context():
+        routes.run_service_plan_billing()
+
 server.add_route('/api/billing/create', routes.create_billing, methods=['POST'])
 server.add_route('/api/billing/unpaid', routes.get_unpaid_bills, methods=['POST'])
 server.add_route('/api/billing/mark_paid', routes.mark_bills_paid, methods=['POST'])
@@ -1504,6 +1604,11 @@ server.add_route('/api/payment/update', routes.update_payment_status, methods=['
 server.add_route('/ipn', routes.momo_ipn, methods=['POST'])
 server.add_route('/api/payment/history', routes.get_transactions_of_user, methods=['GET'])
 server.add_route('/api/payment/items', routes.get_transactions_items, methods=['POST'])
+
+server.add_route('/api/service_plan/create', routes.create_service_plan_route, methods=['POST'])
+server.add_route('/api/service_plan/update', routes.update_service_plan_route, methods=['POST'])
+server.add_route('/api/service_plan/delete', routes.delete_service_plan_route, methods=['POST'])
+server.add_route('/api/service_plan/run', routes.run_service_plan_billing_route, methods=['POST'])
 
 server.add_route('/api/payment/delete_by_field', routes.delete_payment_by_field, methods=['POST'])
 server.add_route('/api/get_devices_controller', routes.toggle_and_send, methods=['POST'])
@@ -1554,7 +1659,7 @@ server.add_route('/api/delete_scheduler', routes.delete_scheduler, methods=['POS
 scheduler.add_job(job_reset_daily_cache, 'cron', hour=0, minute=0)
 scheduler.add_job(job_update_status, 'interval', seconds=10)
 scheduler.add_job(job_check_scheduler,'interval',seconds=1,max_instances=1,coalesce=True)
-
+scheduler.add_job(job_service_plan_billing,trigger='cron',hour=0,minute=0,id='service_plan_billing_job',replace_existing=True)
 
 #scheduler.add_job(job_update_out_date_status, 'interval', seconds=5)
 
@@ -1582,7 +1687,7 @@ if __name__ == '__main__':
             
     try:
         # Lệnh chạy Web Server
-        server.run()
+        server.run(port=8080)
     except KeyboardInterrupt:
         # Bắt sự kiện khi bạn nhấn Ctrl + C
         print("\n[HỆ THỐNG] Nhận lệnh tắt từ người dùng...")

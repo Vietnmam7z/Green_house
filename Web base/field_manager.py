@@ -595,9 +595,10 @@ class FieldDB:
             cursor = conn.cursor()
             try:
                 cursor.execute("""
-                    INSERT INTO notification_management (status, username)
-                    VALUES (?, ?)
-                """, ("OFF", username))
+                    INSERT INTO notification_management (status, username, email_status)
+                    VALUES (?, ?, ?)
+                """, ("OFF", username, "OFF"))  
+
                 conn.commit()
                 return {"success": True, "message": "Tạo notification_management thành công"}
             except Exception as e:
@@ -609,14 +610,23 @@ class FieldDB:
             cursor = conn.cursor()
             try:
                 cursor.execute("""
-                    SELECT status
+                    SELECT status, email_status
                     FROM notification_management
                     WHERE username = ?
                 """, (username,))
+
                 row = cursor.fetchone()
-                
+
                 if row:
-                    return {"status": row[0]}
+                    return {
+                        "success": True,
+                        "data": {
+                            "status": row[0],
+                            "email_status": row[1]
+                        }
+                    }
+
+                return {"success": False, "message": "Không tìm thấy user"}
 
             except Exception as e:
                 return {"success": False, "message": str(e)}
@@ -636,6 +646,30 @@ class FieldDB:
                 conn.rollback()
                 return {"success": False, "message": str(e)}
 
+    def set_email_notification_status(self, username: str, email_status: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                if email_status not in ["ON", "OFF"]:
+                    return {"success": False, "message": "email_status phải là ON hoặc OFF"}
+
+                cursor.execute("""
+                    UPDATE notification_management
+                    SET email_status = ?
+                    WHERE username = ?
+                """, (email_status, username))
+
+                conn.commit()
+
+                return {
+                    "success": True,
+                    "message": f"Đã cập nhật email_status = {email_status} cho {username}"
+                }
+
+            except Exception as e:
+                conn.rollback()
+                return {"success": False, "message": str(e)}
+        
     def insert_notification(self, status: str, device_id: str, ts: int, username: str):
         with self.connect() as conn:
             cursor = conn.cursor()
@@ -1573,3 +1607,149 @@ class FieldDB:
                 "status": row[2]
             }
         }
+    
+    def create_service_plan(self, field_id, service_days, daily_price):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            start_date = datetime.now().date()
+            expired_date = start_date + timedelta(days=int(service_days))
+            cursor.execute("""
+                INSERT INTO field_service_plan (
+                    field_id,
+                    service_days,
+                    daily_price,
+                    start_date,
+                    expired_date,
+                    accumulated_amount,
+                    status
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                field_id,
+                service_days,
+                daily_price,
+                start_date,
+                expired_date,
+                0,
+                "active"
+            ))
+            conn.commit()
+            return {
+                "success": True,
+                "message": "Tạo gói dịch vụ thành công"
+            }
+        
+    def update_service_plan(self, plan_id, service_days, daily_price):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+
+            start_date = datetime.now().date()
+            expired_date = start_date + timedelta(days=int(service_days))
+
+            cursor.execute("""
+                UPDATE field_service_plan
+                SET
+                    service_days = ?,
+                    daily_price = ?,
+                    start_date = ?,
+                    expired_date = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (
+                service_days,
+                daily_price,
+                start_date,
+                expired_date,
+                plan_id
+            ))
+            conn.commit()
+            return {
+                "success": True,
+                "message": "Cập nhật gói dịch vụ thành công"
+            }
+        
+    def delete_service_plan(self, plan_id):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                DELETE FROM field_service_plan
+                WHERE id = ?
+            """, (plan_id,))
+
+            conn.commit()
+
+            return {
+                "success": True,
+                "message": "Xóa gói dịch vụ thành công"
+            }
+        
+    def get_active_service_plans(self):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT
+                    id,
+                    field_id,
+                    service_days,
+                    daily_price,
+                    start_date,
+                    expired_date,
+                    accumulated_amount,
+                    status
+                FROM field_service_plan
+                WHERE status = 'active'
+            """)
+            rows = cursor.fetchall()
+
+        return [
+            {
+                "id": row[0],
+                "field_id": row[1],
+                "service_days": row[2],
+                "daily_price": row[3],
+                "start_date": row[4],
+                "expired_date": row[5],
+                "accumulated_amount": row[6],
+                "status": row[7]
+            }
+            for row in rows
+        ]
+    
+    def update_accumulated_amount(self, plan_id, amount):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE field_service_plan
+                SET
+                    accumulated_amount = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (amount, plan_id))
+            conn.commit()
+
+    def update_accumulated_amount(self, plan_id, amount):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE field_service_plan
+                SET
+                    accumulated_amount = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (amount, plan_id))
+            conn.commit()
+
+    def expire_service_plan(self, plan_id):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE field_service_plan
+                SET
+                    status = 'expired',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (plan_id,))
+
+            conn.commit()
