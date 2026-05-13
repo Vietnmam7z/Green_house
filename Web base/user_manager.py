@@ -2,6 +2,7 @@
 import hashlib
 import datetime
 import config 
+import json
 
 class UserManager:
     def __init__(self, user_db_path = config.user_db_path):
@@ -171,5 +172,119 @@ class UserManager:
             result = cur.fetchone()
         return result[0] if result else None
     
+    def get_user_id(self, username: str):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT id FROM user_data WHERE username = ?", (username,))
+            result = cur.fetchone()
+        return result[0] if result else None
 
+    def save_payment_history(self, user_id, field_id, order_id, request_id, amount, bills, raw_response=None):
+        with self.connect() as conn:
+            cur = conn.cursor()
 
+            cur.execute("""
+                INSERT INTO user_payment_transactions (
+                    user_id,
+                    field_id,
+                    order_id,
+                    request_id,
+                    amount,
+                    status,
+                    raw_response,
+                    paid_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """, (
+                user_id,
+                field_id,
+                order_id,
+                request_id,
+                amount,
+                "success",
+                json.dumps(raw_response)
+            ))
+
+            transaction_id = cur.lastrowid
+
+            for bill in bills:
+                cur.execute("""
+                    INSERT INTO user_payment_transaction_items (
+                        transaction_id,
+                        billing_title,
+                        billing_amount
+                    )
+                    VALUES (?, ?, ?)
+                """, (
+                    transaction_id,
+                    bill[1],
+                    bill[3]
+                ))
+
+            conn.commit()
+
+    def get_transaction_detail_by_user_id(self, user_id):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT 
+                    id,
+                    user_id,
+                    field_id,
+                    order_id,
+                    request_id,
+                    amount,
+                    status,
+                    raw_response,
+                    created_at,
+                    paid_at
+                FROM user_payment_transactions
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+            """, (user_id,))
+
+            rows = cur.fetchall()
+
+            transactions = []
+
+            for row in rows:
+                transactions.append({
+                    "transaction_id": row[0],
+                    "user_id": row[1],
+                    "field_id": row[2],
+                    "order_id": row[3],
+                    "request_id": row[4],
+                    "amount": row[5],
+                    "status": row[6],
+                    "raw_response": row[7],
+                    "created_at": row[8],
+                    "paid_at": row[9]
+                })
+
+            return transactions
+        
+    def get_transaction_items(self, transaction_id):
+        with self.connect() as conn:
+            cur = conn.cursor()
+
+            cur.execute("""
+                SELECT 
+                    id,
+                    billing_title,
+                    billing_amount
+                FROM user_payment_transaction_items
+                WHERE transaction_id = ?
+            """, (transaction_id,))
+
+            rows = cur.fetchall()
+
+            items = [
+                {
+                    "item_id": r[0],
+                    "title": r[1],
+                    "amount": r[2]
+                }
+                for r in rows
+            ]
+
+            return items

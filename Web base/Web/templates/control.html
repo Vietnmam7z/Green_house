@@ -193,55 +193,18 @@
                         <thead>
                             <tr>
                                 <th>Name <i class="fa-solid fa-arrow-up" style="font-size: 10px; margin-left: 5px;"></i></th>
+                                <th>Device</th>
                                 <th>Start day</th>
                                 <th>Start time</th>
                                 <th>Repeat</th>
                                 <th>End day</th>
                                 <th>Duration</th>
                                 <th>Volume</th>
-                                <th></th> </tr>
+                                <th></th> 
+                            </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td><span class="badge badge-name">Evening</span></td>
-                                <td>6 May</td>
-                                <td><span class="badge badge-time">14:04</span></td>
-                                <td>Daily</td>
-                                <td>1 Jan 2030</td>
-                                <td><span class="badge badge-duration">1 min</span></td>
-                                <td><span class="badge badge-empty">-</span></td>
-                                <td class="action-cells">
-                                    <i class="fa-solid fa-pen action-icon-btn"></i>
-                                    <i class="fa-solid fa-trash action-icon-btn"></i>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><span class="badge badge-name">Morning</span></td>
-                                <td>4 Oct<br>2022</td>
-                                <td><span class="badge badge-time">17:00</span></td>
-                                <td>Daily</td>
-                                <td>1 Jan 2030</td>
-                                <td><span class="badge badge-duration">60 min</span></td>
-                                <td><span class="badge badge-empty">-</span></td>
-                                <td class="action-cells">
-                                    <i class="fa-solid fa-pen action-icon-btn"></i>
-                                    <i class="fa-solid fa-trash action-icon-btn"></i>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><span class="badge badge-name">TEST</span></td>
-                                <td>6 May</td>
-                                <td><span class="badge badge-time">03:31</span></td>
-                                <td>—</td>
-                                <td>—</td>
-                                <td><span class="badge badge-duration">1 min</span></td>
-                                <td><span class="badge badge-empty">-</span></td>
-                                <td class="action-cells">
-                                    <i class="fa-solid fa-pen action-icon-btn"></i>
-                                    <i class="fa-solid fa-trash action-icon-btn"></i>
-                                </td>
-                            </tr>
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
 
@@ -277,15 +240,20 @@
                     <label>Name*</label>
                     <input type="text" id="schedName" placeholder="Enter schedule name" autocomplete="off">
                 </div>
+
+                <div class="input-group">
+                    <label>Device*</label>
+                    <select id="schedDevice">
+                        </select>
+                </div>
                 
                 <div class="row-inputs">
                     <div class="input-group">
-                        <label>Start day</label>
-                        <input type="date" id="schedStartDay">
+                        <label>Start day*</label> <input type="date" id="schedStartDay" required>
                     </div>
                     <div class="input-group">
-                        <label>Start time</label>
-                        <input type="time" id="schedStartTime">
+                        <label>Start time*</label>
+                        <input type="time" id="schedStartTime" required>
                     </div>
                 </div>
 
@@ -305,14 +273,14 @@
                     <input type="number" id="schedRepeatN" placeholder="Enter number" min="1">
                 </div>
 
-                <div class="input-group">
+                <div class="input-group hidden" id="endDayGroup">
                     <label>End day</label>
                     <input type="date" id="schedEndDay">
                 </div>
 
                 <div class="input-group" id="valueInputGroup">
                     <label id="valueLabel">Consumption (Liters)</label>
-                    <input type="number" id="schedValue" placeholder="0">
+                    <input type="number" id="schedValue" placeholder="0" min="0"> 
                 </div>
 
                 <div class="modal-footer">

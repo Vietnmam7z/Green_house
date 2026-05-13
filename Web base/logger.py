@@ -100,3 +100,21 @@ class UserLogger:
 
     def log_update_job_no_threshold(self, job_id: str, field_id: str, device_id: str, duration: int, event_date: str, event_time: str):
         self.logger.warning(f"Cập nhật công việc {job_id} cho ruộng {field_id} vào ngày {event_date} lúc {event_time} với thiết bị {device_id} trong {duration} giây")   
+
+    def log_set_notification_email_status(self, username: str, status: str):
+        self.logger.warning(f"Đặt trạng thái email thông báo cho user {username} thành {status}")
+    
+    def log_set_automatic_status(self, field_id: str, status: str):
+        self.logger.warning(f"Đặt trạng thái tự động cho ruộng {field_id} thành {status}")
+
+    def log_payment_transaction(self, user_id: int, field_id: str, order_id: str, request_id: str, amount: float, bills: list, raw_response=None):
+        self.logger.info(f"Giao dịch thanh toán - User ID: {user_id}, Field ID: {field_id}, Order ID: {order_id}, Request ID: {request_id}, Amount: {amount}, Bills: {bills}, Raw Response: {raw_response}")
+
+    def log_create_service_plan(self, field_id: str, service_days: int, daily_price: float):
+        self.logger.info(f"Tạo gói dịch vụ - Field ID: {field_id}, Service Days: {service_days}, Daily Price: {daily_price}")
+
+    def log_update_service_plan(self, field_id: str, service_days: int, daily_price: float):
+        self.logger.info(f"Cập nhật gói dịch vụ - Field ID: {field_id}, Service Days: {service_days}, Daily Price: {daily_price}")
+
+    def log_delete_service_plan(self, field_id: str):
+        self.logger.info(f"Xóa gói dịch vụ - Field ID: {field_id}")

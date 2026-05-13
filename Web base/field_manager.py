@@ -595,9 +595,10 @@ class FieldDB:
             cursor = conn.cursor()
             try:
                 cursor.execute("""
-                    INSERT INTO notification_management (status, username)
-                    VALUES (?, ?)
-                """, ("OFF", username))
+                    INSERT INTO notification_management (status, username, email_status)
+                    VALUES (?, ?, ?)
+                """, ("OFF", username, "OFF"))  
+
                 conn.commit()
                 return {"success": True, "message": "Tạo notification_management thành công"}
             except Exception as e:
@@ -609,14 +610,23 @@ class FieldDB:
             cursor = conn.cursor()
             try:
                 cursor.execute("""
-                    SELECT status
+                    SELECT status, email_status
                     FROM notification_management
                     WHERE username = ?
                 """, (username,))
+
                 row = cursor.fetchone()
-                
+
                 if row:
-                    return {"status": row[0]}
+                    return {
+                        "success": True,
+                        "data": {
+                            "status": row[0],
+                            "email_status": row[1]
+                        }
+                    }
+
+                return {"success": False, "message": "Không tìm thấy user"}
 
             except Exception as e:
                 return {"success": False, "message": str(e)}
@@ -636,6 +646,30 @@ class FieldDB:
                 conn.rollback()
                 return {"success": False, "message": str(e)}
 
+    def set_email_notification_status(self, username: str, email_status: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                if email_status not in ["ON", "OFF"]:
+                    return {"success": False, "message": "email_status phải là ON hoặc OFF"}
+
+                cursor.execute("""
+                    UPDATE notification_management
+                    SET email_status = ?
+                    WHERE username = ?
+                """, (email_status, username))
+
+                conn.commit()
+
+                return {
+                    "success": True,
+                    "message": f"Đã cập nhật email_status = {email_status} cho {username}"
+                }
+
+            except Exception as e:
+                conn.rollback()
+                return {"success": False, "message": str(e)}
+        
     def insert_notification(self, status: str, device_id: str, ts: int, username: str):
         with self.connect() as conn:
             cursor = conn.cursor()
@@ -801,6 +835,7 @@ class FieldDB:
                         s.device_id,
                         s.name,
                         s.event_date,
+                        s.end_date,
                         s.event_time,
                         s.event_type,
                         s.mode,
@@ -826,16 +861,17 @@ class FieldDB:
                         "device_id": row[3],   
                         "name": row[4],
                         "event_date": row[5],
-                        "event_time": row[6],
-                        "event_type": row[7],
-                        "mode": row[8],
-                        "duration": row[9],
-                        "consumption": row[10],
-                        "repeat_enabled": bool(row[11]) if row[11] is not None else False,
-                        "type_repeat": row[12],
-                        "repeat_value": row[13],
-                        "enabled": bool(row[14]) if row[14] is not None else False,
-                        "created_at": row[15]
+                        "end_date": row[6],
+                        "event_time": row[7],
+                        "event_type": row[8],
+                        "mode": row[9],
+                        "duration": row[10],
+                        "consumption": row[11],
+                        "repeat_enabled": bool(row[12]) if row[12] is not None else False,
+                        "type_repeat": row[13],
+                        "repeat_value": row[14],
+                        "enabled": bool(row[15]) if row[15] is not None else False,
+                        "created_at": row[16]
                     })
 
                 return {
@@ -851,12 +887,10 @@ class FieldDB:
                 }
             
     def get_schedulers_by_field_id(self, field_id):
-
         with self.connect() as conn:
             cursor = conn.cursor()
-
             try:
-
+                # Dùng LEFT JOIN để móc nối lấy dc.device_name
                 cursor.execute("""
                     SELECT
                         s.scheduler_id,
@@ -865,6 +899,7 @@ class FieldDB:
                         s.device_id,
                         s.name,
                         s.event_date,
+                        s.end_date,
                         s.event_time,
                         s.event_type,
                         s.mode,
@@ -874,39 +909,38 @@ class FieldDB:
                         s.type_repeat,
                         s.repeat_value,
                         s.enabled,
-                        s.created_at
+                        s.created_at,
+                        dc.device_name   -- ✔ THÊM CỘT TÊN THIẾT BỊ (Index 17)
                     FROM scheduler s
-                    JOIN field f
-                        ON s.field_id = f.field_id
+                    JOIN field f ON s.field_id = f.field_id
+                    LEFT JOIN device_controller dc ON s.device_id = dc.device_id
                     WHERE s.field_id = ?
                     ORDER BY s.scheduler_id DESC
                 """, (field_id,))
 
                 rows = cursor.fetchall()
-
                 schedulers = []
 
                 for row in rows:
-
                     schedulers.append({
                         "scheduler_id": row[0],
                         "field_id": row[1],
                         "field_name": row[2],
-
-                        "device_id": row[3],   # ✔ ADDED
-
+                        "device_id": row[3],
                         "name": row[4],
                         "event_date": row[5],
-                        "event_time": row[6],
-                        "event_type": row[7],
-                        "mode": row[8],
-                        "duration": row[9],
-                        "consumption": row[10],
-                        "repeat_enabled": bool(row[11]) if row[11] is not None else False,
-                        "type_repeat": row[12],
-                        "repeat_value": row[13],
-                        "enabled": bool(row[14]) if row[14] is not None else False,
-                        "created_at": row[15]
+                        "end_date": row[6],
+                        "event_time": row[7],
+                        "event_type": row[8],
+                        "mode": row[9],
+                        "duration": row[10],
+                        "consumption": row[11],
+                        "repeat_enabled": bool(row[12]) if row[12] is not None else False,
+                        "type_repeat": row[13],
+                        "repeat_value": row[14],
+                        "enabled": bool(row[15]) if row[15] is not None else False,
+                        "created_at": row[16],
+                        "device_name": row[17] if row[17] else "Unknown" # ✔ GÁN TÊN VÀO JSON
                     })
 
                 return {
@@ -915,10 +949,9 @@ class FieldDB:
                 }
 
             except Exception as e:
-
                 return {
-                    "success": True,
-                    "data": rows
+                    "success": False,
+                    "message": str(e)
                 }
 
     def create_scheduler(
@@ -927,6 +960,7 @@ class FieldDB:
         device_id,   
         name,
         event_date,
+        end_date,        
         event_time,
         event_type,
         mode,
@@ -936,18 +970,16 @@ class FieldDB:
         type_repeat=None,
         repeat_value=None
     ):
-
         with self.connect() as conn:
             cursor = conn.cursor()
-
             try:
-
                 cursor.execute("""
                     INSERT INTO scheduler (
                         field_id,
                         device_id,
                         name,
                         event_date,
+                        end_date,
                         event_time,
                         event_type,
                         mode,
@@ -958,12 +990,13 @@ class FieldDB:
                         repeat_value,
                         enabled
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
                 """, (
                     field_id,
-                    device_id,   # ✔ ADD
+                    device_id,   
                     name,
                     event_date,
+                    end_date,     
                     event_time,
                     event_type,
                     mode,
@@ -973,23 +1006,18 @@ class FieldDB:
                     type_repeat,
                     repeat_value
                 ))
-
                 conn.commit()
-
                 return {
                     "success": True,
                     "message": "Scheduler created successfully"
                 }
-
             except Exception as e:
-
                 return {
                     "success": False,
                     "message": str(e)
                 }
 
     def delete_scheduler(self, scheduler_id):
-
         with self.connect() as conn:
             cursor = conn.cursor()
 
@@ -1018,9 +1046,10 @@ class FieldDB:
         self,
         scheduler_id,
         field_id,
-        device_id,   # ✔ ADD
+        device_id,   
         name,
         event_date,
+        end_date,         # ✔ Thêm end_date
         event_time,
         event_type,
         mode,
@@ -1031,19 +1060,17 @@ class FieldDB:
         repeat_value=None,
         enabled=True
     ):
-
         with self.connect() as conn:
             cursor = conn.cursor()
-
             try:
-
                 cursor.execute("""
                     UPDATE scheduler
                     SET
                         field_id = ?,
-                        device_id = ?,   -- ✔ ADD
+                        device_id = ?,   
                         name = ?,
                         event_date = ?,
+                        end_date = ?,
                         event_time = ?,
                         event_type = ?,
                         mode = ?,
@@ -1056,9 +1083,10 @@ class FieldDB:
                     WHERE scheduler_id = ?
                 """, (
                     field_id,
-                    device_id,   # ✔ ADD
+                    device_id,   
                     name,
                     event_date,
+                    end_date,     
                     event_time,
                     event_type,
                     mode,
@@ -1070,16 +1098,12 @@ class FieldDB:
                     int(enabled),
                     scheduler_id
                 ))
-
                 conn.commit()
-
                 return {
                     "success": True,
                     "message": "Scheduler updated successfully"
                 }
-
             except Exception as e:
-
                 return {
                     "success": False,
                     "message": str(e)
@@ -1139,14 +1163,14 @@ class FieldDB:
                     "message": str(e)
                 }
             
-    def update_scheduler_date(self, scheduler_id, next_date):
+    def update_scheduler_date(self, scheduler_id, next_date, next_time):
         with self.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE scheduler
-                SET event_date = ?
+                SET event_date = ?, event_time = ?
                 WHERE scheduler_id = ?
-            """, (next_date, scheduler_id))
+            """, (next_date, next_time, scheduler_id))
             conn.commit()
 
     def get_device_sensor_mapping(self, device_id):
@@ -1211,3 +1235,521 @@ class FieldDB:
                 WHERE device_id = ?
             """, (device_id,))
             return cursor.fetchone()[0] or 0
+        
+    def create_billing_item(self, field_id, title, amount):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO billing_items (
+                        field_id,
+                        title,
+                        amount
+                    )
+                    VALUES (?, ?, ?)
+                """, (field_id, title, amount))
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": "Tạo billing item thành công"
+                }
+            except Exception as e:
+                conn.rollback()
+                return {
+                    "success": False,
+                    "message": str(e)
+                }
+
+    def get_unpaid_bills(self, field_id):   
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT *
+                    FROM billing_items
+                    WHERE field_id = ?
+                    AND status = 'unpaid'
+                """, (field_id,))
+                rows = cursor.fetchall()
+                return {
+                    "success": True,
+                    "message": "Lấy unpaid bills thành công",
+                    "data": rows
+                }
+            except Exception as e:
+                return {
+                    "success": False,
+                    "message": str(e),
+                    "data": []
+                }
+
+    def mark_bills_as_paid(self, field_id):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE billing_items
+                    SET
+                        status = 'paid',
+                        paid_at = CURRENT_TIMESTAMP
+                    WHERE field_id = ?
+                    AND status = 'unpaid'
+                """, (field_id,))
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": "Cập nhật bill thành paid thành công"
+                }
+            except Exception as e:
+                conn.rollback()
+                return {
+                    "success": False,
+                    "message": str(e)
+                }
+
+    def mark_bill_as_unpaid(self, bill_id):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE billing_items
+                    SET
+                        status = 'unpaid',
+                        paid_at = NULL
+                    WHERE id = ?
+                """, (bill_id,))
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": "Đánh dấu bill về unpaid thành công",
+                    "data": {
+                        "bill_id": bill_id
+                    }
+                }
+            except Exception as e:
+                conn.rollback()
+                return {
+                    "success": False,
+                    "message": "Lỗi khi cập nhật bill",
+                    "error": str(e)
+                }
+
+    def delete_billing_item(self, bill_id):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    DELETE FROM billing_items
+                    WHERE id = ?
+                """, (bill_id,))
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": "Xoá billing item thành công",
+                    "data": {
+                        "bill_id": bill_id
+                    }
+                }
+            except Exception as e:
+                conn.rollback()
+                return {
+                    "success": False,
+                    "message": "Lỗi khi xoá billing item",
+                    "error": str(e)
+                }
+            
+    def create_transaction(self, user_id, field_id, order_id, request_id, amount, status="pending"):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO payment_transactions (
+                    user_id,
+                    field_id,
+                    order_id,
+                    request_id,
+                    amount,
+                    status
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                user_id,
+                field_id,
+                order_id,
+                request_id,
+                amount,
+                status
+            ))
+            conn.commit()
+    
+    def create_transaction_item(self, transaction_id, billing_item_id, title, amount):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO payment_transaction_items (
+                        transaction_id,
+                        billing_item_id,
+                        title,
+                        amount
+                    )
+                    VALUES (?, ?, ?, ?)
+                """, (transaction_id, billing_item_id, title, amount))
+
+                conn.commit()
+
+                return {
+                    "success": True,
+                    "message": "Tạo transaction item thành công"
+                }
+
+            except Exception as e:
+                conn.rollback()
+                return {
+                    "success": False,
+                    "message": str(e)
+                }
+        
+    def get_transaction_by_order_id(self, order_id):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT *
+                    FROM payment_transactions
+                    WHERE order_id = ?
+                """, (order_id,))
+                row = cursor.fetchone()
+                return {
+                    "success": True,
+                    "message": "Lấy transaction thành công",
+                    "data": row
+                }
+            except Exception as e:
+                return {
+                    "success": False,
+                    "message": "Lỗi lấy transaction",
+                    "error": str(e)
+                }
+            
+    def update_transaction_status(self, order_id, status):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE payment_transactions
+                    SET
+                        status = ?,
+                        paid_at = CURRENT_TIMESTAMP
+                    WHERE order_id = ?
+                """, (
+                    status,
+                    order_id
+                ))
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": "Cập nhật transaction thành công",
+                    "data": {
+                        "order_id": order_id,
+                        "status": status
+                    }
+                }
+            except Exception as e:
+                conn.rollback()
+                return {
+                    "success": False,
+                    "message": "Lỗi update transaction",
+                    "error": str(e)
+                }
+            
+    def save_response(self, order_id, raw_response):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE payment_transactions
+                    SET raw_response = ?
+                    WHERE order_id = ?
+                """, (
+                    str(raw_response),
+                    order_id
+                ))
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": "Lưu response thành công"
+                }
+            except Exception as e:
+                conn.rollback()
+                return {
+                    "success": False,
+                    "message": "Lỗi lưu response",
+                    "error": str(e)
+                }
+    
+    def get_transactions_by_field(self, field_id):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT *
+                    FROM payment_transactions
+                    WHERE field_id = ?
+                    ORDER BY created_at DESC
+                """, (field_id,))
+
+                rows = cursor.fetchall()
+                return {
+                    "success": True,
+                    "message": "Lấy danh sách transaction",
+                    "data": rows
+                }
+            except Exception as e:
+                return {
+                    "success": False,
+                    "message": "Lỗi lấy transaction theo field",
+                    "error": str(e)
+                }
+            
+    def delete_all_payment_by_field(self, field_id):
+        with self.connect() as conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    DELETE FROM payment_transaction_items
+                    WHERE transaction_id IN (
+                        SELECT id
+                        FROM payment_transactions
+                        WHERE field_id = ?
+                    )
+                """, (field_id,))
+                cursor.execute("""
+                    DELETE FROM payment_transactions
+                    WHERE field_id = ?
+                """, (field_id,))
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": "Đã xoá toàn bộ payment theo field",
+                    "data": {
+                        "field_id": field_id
+                    }
+                }
+            except Exception as e:
+                conn.rollback()
+                return {
+                    "success": False,
+                    "message": "Lỗi xoá payment theo field",
+                    "error": str(e)
+                }
+            
+    def create_automation(self, field_id):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO field_automation (
+                    field_id,
+                    status,
+                    scheduler_id
+                )
+                VALUES (?, 'off', NULL)
+            """, (field_id,))
+            conn.commit()
+
+    def set_automation_status(self, field_id, status):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                UPDATE field_automation
+                SET
+                    status = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE field_id = ?
+            """, (status, field_id))
+            conn.commit()
+
+    def set_scheduler(self, field_id, scheduler_id):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                UPDATE field_automation
+                SET
+                    scheduler_id = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE field_id = ?
+            """, (scheduler_id, field_id))
+            conn.commit()
+
+    def get_automation_status(self, field_id):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT 
+                    field_id,
+                    scheduler_id,
+                    status
+                FROM field_automation
+                WHERE field_id = ?
+            """, (field_id,))
+            row = cur.fetchone()
+
+        if not row:
+            return {
+                "success": False,
+                "message": "Không tìm thấy automation của field"
+            }
+
+        return {
+            "success": True,
+            "data": {
+                "field_id": row[0],
+                "scheduler_id": row[1],
+                "status": row[2]
+            }
+        }
+    
+    def create_service_plan(self, field_id, service_days, daily_price):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            start_date = datetime.now().date()
+            expired_date = start_date + timedelta(days=int(service_days))
+            cursor.execute("""
+                INSERT INTO field_service_plan (
+                    field_id,
+                    service_days,
+                    daily_price,
+                    start_date,
+                    expired_date,
+                    accumulated_amount,
+                    status
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                field_id,
+                service_days,
+                daily_price,
+                start_date,
+                expired_date,
+                0,
+                "active"
+            ))
+            conn.commit()
+            return {
+                "success": True,
+                "message": "Tạo gói dịch vụ thành công"
+            }
+        
+    def update_service_plan(self, plan_id, service_days, daily_price):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+
+            start_date = datetime.now().date()
+            expired_date = start_date + timedelta(days=int(service_days))
+
+            cursor.execute("""
+                UPDATE field_service_plan
+                SET
+                    service_days = ?,
+                    daily_price = ?,
+                    start_date = ?,
+                    expired_date = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (
+                service_days,
+                daily_price,
+                start_date,
+                expired_date,
+                plan_id
+            ))
+            conn.commit()
+            return {
+                "success": True,
+                "message": "Cập nhật gói dịch vụ thành công"
+            }
+        
+    def delete_service_plan(self, plan_id):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                DELETE FROM field_service_plan
+                WHERE id = ?
+            """, (plan_id,))
+
+            conn.commit()
+
+            return {
+                "success": True,
+                "message": "Xóa gói dịch vụ thành công"
+            }
+        
+    def get_active_service_plans(self):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT
+                    id,
+                    field_id,
+                    service_days,
+                    daily_price,
+                    start_date,
+                    expired_date,
+                    accumulated_amount,
+                    status
+                FROM field_service_plan
+                WHERE status = 'active'
+            """)
+            rows = cursor.fetchall()
+
+        return [
+            {
+                "id": row[0],
+                "field_id": row[1],
+                "service_days": row[2],
+                "daily_price": row[3],
+                "start_date": row[4],
+                "expired_date": row[5],
+                "accumulated_amount": row[6],
+                "status": row[7]
+            }
+            for row in rows
+        ]
+    
+    def update_accumulated_amount(self, plan_id, amount):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE field_service_plan
+                SET
+                    accumulated_amount = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (amount, plan_id))
+            conn.commit()
+
+    def update_accumulated_amount(self, plan_id, amount):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE field_service_plan
+                SET
+                    accumulated_amount = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (amount, plan_id))
+            conn.commit()
+
+    def expire_service_plan(self, plan_id):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE field_service_plan
+                SET
+                    status = 'expired',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (plan_id,))
+
+            conn.commit()

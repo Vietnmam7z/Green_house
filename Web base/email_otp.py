@@ -77,3 +77,39 @@ class OTPManager:
         self.user_manager.set_otp_used(otp)
 
         return {"success": True, "message": "Mã OTP hợp lệ và đã được xác nhận."}
+
+    def send_notification_email(self, receiver_email: str, device_id: str, status: str, ts: str, username: str):
+        sender_email = config.sender_email
+        app_password = config.app_password
+
+        subject = "📢 Thông báo từ hệ thống IoT"
+
+        body = f"""
+        Xin chào {username},
+
+        Hệ thống vừa ghi nhận một sự kiện:
+
+        - Thiết bị: {device_id}
+        - Trạng thái: {status}
+        - Thời gian: {ts}
+
+        Vui lòng kiểm tra hệ thống nếu cần.
+
+        Trân trọng,
+        Hệ thống IoT
+        """
+
+        msg = EmailMessage()
+        msg["Subject"] = subject
+        msg["From"] = sender_email
+        msg["To"] = receiver_email
+        msg.set_content(body)
+
+        try:
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+                smtp.login(sender_email, app_password)
+                smtp.send_message(msg)
+            return True
+        except Exception as e:
+            print("Lỗi gửi email:", e)
+            return False

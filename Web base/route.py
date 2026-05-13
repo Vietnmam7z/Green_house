@@ -1,11 +1,12 @@
 ﻿from dataclasses import Field
 from flask import Flask, request, session, current_app, redirect, render_template, jsonify
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from authentication import Authentication
 from email_otp import OTPManager
 from sensor_API import Sensor_API
 from field_manager import FieldDB
 from logger import UserLogger
+import payment
 import requests
 import config
 import pandas as pd
@@ -16,6 +17,7 @@ import sys
 import sqlite3
 import json
 import device_controller
+
 
 class Routes:
     def __init__(self, auth: Authentication, otp: OTPManager, sensor: Sensor_API, field: FieldDB, logger: UserLogger):
@@ -69,7 +71,7 @@ class Routes:
         data = request.get_json()
         
         field_id = data.get('field_id')
-        device_name = data.get('device_name')
+        device_name = data.get('device_name') # VD: 'Light', 'Irrigation' từ UI
         action = data.get('action') # 'ON' hoặc 'OFF'
 
         # 1. KIỂM TRA QUYỀN
@@ -79,56 +81,83 @@ class Routes:
 
         print(f"User {username} ra lệnh: {action} thiết bị {device_name} tại {field_id}")
 
-        # 2. LƯU TRẠNG THÁI VÀO DATABASE ĐỂ ĐỒNG BỘ
+        # 2. BẢN ĐỒ MAP GIAO DIỆN (UI) SANG TYPE TRONG DATABASE
+        ui_to_db_type = {
+            "Light": "light",
+            "Vent": "vent",
+            "Irrigation": "valve",
+            "Cooling pad": "cooling_pad",
+            "Heater": "heater",
+            "CO2 valve": "co2_valve",
+            "Fan": "fan",
+            "Fertigation": "fertilizer"
+        }
+        
+        db_type = ui_to_db_type.get(device_name)
+        if not db_type:
+            return jsonify({"success": False, "message": "Thiết bị không hợp lệ"}), 400
+
+        # Chuyển đổi trạng thái cho khớp với DB (OFF tương đương với DONE)
+        db_state = "ON" if action == "ON" else "DONE"
+
+        # 3. LƯU VÀO BẢNG DEVICE_CONTROLLER & GỬI MQTT
         try:
-            # Thêm timeout=5.0 để nếu DB bị khóa, nó sẽ chờ tối đa 5 giây thay vì báo lỗi ngay
             conn = sqlite3.connect('field.db', timeout=5.0)
             cur = conn.cursor()
-            
-            # KHÓA ĐỘC QUYỀN (EXCLUSIVE LOCK): Ngăn luồng khác đọc/ghi xen ngang
             cur.execute("BEGIN EXCLUSIVE")
             
-            # Lấy trạng thái hiện tại (nếu có)
-            cur.execute("SELECT status FROM field_status WHERE field_id = ?", (field_id,))
+            # Tìm ID của thiết bị theo type
+            cur.execute("SELECT device_id FROM device_controller WHERE field_id = ? AND type = ?", (field_id, db_type))
             row = cur.fetchone()
-
-            states = {}
-            if row and row[0]:
-                try:
-                    states = json.loads(row[0])
-                except json.JSONDecodeError:
-                    pass
-
-            # Cập nhật trạng thái của thiết bị vừa được bấm
-            states[device_name] = action
-
-            # Lưu ngược lại vào database
-            if row is not None:
-                cur.execute("UPDATE field_status SET status = ? WHERE field_id = ?", (json.dumps(states), field_id))
-            else:
-                cur.execute("INSERT INTO field_status (field_id, status) VALUES (?, ?)", (field_id, json.dumps(states)))
+            
+            if row:
+                device_id = row[0]
+                # Cập nhật trạng thái
+                cur.execute("UPDATE device_controller SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE device_id = ?", (db_state, device_id))
+                conn.commit()
                 
-            conn.commit()
+                # Gửi lệnh MQTT xuống phần cứng
+                device_controller.send_device_command(field_id, db_type, db_state)
+
+                if db_state == "DONE":
+                    jobs_to_remove = []
+                    # Tìm xem có lịch nào của thiết bị này đang chạy ngầm không
+                    for sched_id, job in self.running_jobs.items():
+                        if str(job["device_id"]) == str(device_id):
+                            row = job["row"]
+                            end_date_str = row.get("end_date") # Lấy ngày kết thúc
+                            
+                            # Tính chu kỳ lặp kế tiếp
+                            next_date, next_time = self.calculate_next_date(row)
+                            
+                            # KIỂM TRA HẾT HẠN KHI TẮT THỦ CÔNG
+                            if end_date_str and next_date > end_date_str:
+                                self.field.delete_scheduler(sched_id)
+                                print(f"[MANUAL OFF - EXPIRED] Lịch {sched_id} đã hết hạn. Đã xóa.")
+                            else:
+                                self.field.update_scheduler_date(sched_id, next_date, next_time)
+                                print(f"[MANUAL OFF] Đã đóng sớm lịch {sched_id} do người dùng tắt tay.")
+                                
+                            jobs_to_remove.append(sched_id)
+                    
+                    # Dọn dẹp bộ nhớ
+                    for sched_id in jobs_to_remove:
+                        del self.running_jobs[sched_id]
+                # ========================================================
+
+            else:
+                conn.rollback()
+                return jsonify({"success": False, "message": "Không tìm thấy thiết bị này trong CSDL"}), 404
+                
             conn.close()
+            return jsonify({"success": True, "message": f"Đã {action} {device_name}"})
             
         except sqlite3.OperationalError as e:
-            # Nếu 2 người bấm thật sự cùng lúc và timeout không cứu được, báo cho Web biết
             print(f"Lỗi khóa DB: {e}")
-            return jsonify({"success": False, "message": "Hệ thống đang bận xử lý lệnh khác, vui lòng thử lại!"}), 503
+            return jsonify({"success": False, "message": "Hệ thống đang bận, vui lòng thử lại!"}), 503
         except Exception as e:
-            print(f"Lỗi Database trong control_device: {e}")
+            print(f"Lỗi hệ thống: {e}")
             return jsonify({"success": False, "message": f"Lỗi server: {e}"}), 500
-
-        # ==========================================================
-        # 3. TRẢ VỀ KẾT QUẢ CHO FRONTEND
-        # CHÚ Ý: Các dòng dưới đây phải thẳng hàng với chữ 'try' phía trên
-        # ==========================================================
-        is_success = True 
-        
-        if is_success:
-            return jsonify({"success": True, "message": f"Đã {action} {device_name}"})
-        else:
-            return jsonify({"success": False, "message": "Thiết bị không phản hồi"})
 	
     # API CHO TRANG CONTROL
     def get_control_status(self):
@@ -166,7 +195,6 @@ class Routes:
     def get_devices_controller(self):
         field_id = request.args.get("field_id") 
         result = self.field.get_devices_controller_by_field(field_id)
-
         if result["success"]:
             return jsonify({
                 "success": True,
@@ -217,12 +245,18 @@ class Routes:
 
     def create_scheduler(self):
         data = request.json
+        start = data.get("event_date")
+        end = data.get("end_date")
+        
+        if end and start and end < start:
+            return jsonify({"success": False, "message": "End date must be >= Start date"})
         try:
             result = self.field.create_scheduler(
                 field_id=data.get("field_id"),
                 device_id=data.get("device_id"),
                 name=data.get("name"),
                 event_date=data.get("event_date"),
+                end_date=data.get("end_date"),
                 event_time=data.get("event_time"),
                 event_type=data.get("event_type"),
                 mode=data.get("mode"),
@@ -270,6 +304,7 @@ class Routes:
                 device_id=data.get("device_id"),
                 name=data.get("name"),
                 event_date=data.get("event_date"),
+                end_date=data.get("end_date"),
                 event_time=data.get("event_time"),
                 event_type=data.get("event_type"),
                 mode=data.get("mode"),
@@ -336,32 +371,26 @@ class Routes:
         print(f"[EXEC] {state} -> {device_type} (field {field_id})")
 
     def calculate_next_date(self, row):
-        event_date = datetime.strptime(row["event_date"], "%Y-%m-%d")
+        event_date_str = row["event_date"]
+        event_time_str = row["event_time"]
         repeat_type = row["type_repeat"]
-        repeat_value = row["repeat_value"]
+        repeat_value = row.get("repeat_value") or 1
 
-        if repeat_type == "Daily":
-            next_date = event_date + timedelta(days=1)
+        # Kết hợp ngày và giờ hiện tại thành đối tượng datetime
+        current_run = datetime.strptime(f"{event_date_str} {event_time_str[:5]}", "%Y-%m-%d %H:%M")
+        
+        next_run = current_run # Mặc định
 
-        elif repeat_type == "Every N days":
-            next_date = event_date + timedelta(days=repeat_value)
+        if repeat_type == "daily":
+            next_run = current_run + timedelta(days=1)
+        elif repeat_type == "every_n_days":
+            next_run = current_run + timedelta(days=int(repeat_value))
+        elif repeat_type == "weekly":
+            next_run = current_run + timedelta(days=7)
+        elif repeat_type == "every_n_weeks":
+            next_run = current_run + timedelta(weeks=int(repeat_value))
 
-        elif repeat_type == "Weekly":
-            next_date = event_date + timedelta(days=7)
-
-        elif repeat_type == "Every N weeks":
-            next_date = event_date + timedelta(weeks=repeat_value)
-
-        elif repeat_type == "Monthly":
-            next_date = event_date + timedelta(days=30)
-
-        elif repeat_type == "Yearly":
-            next_date = event_date + timedelta(days=365)
-
-        else:
-            next_date = event_date
-
-        return next_date.strftime("%Y-%m-%d")
+        return next_run.strftime("%Y-%m-%d"), next_run.strftime("%H:%M:%S")
         
     def check_and_run_schedulers(self):
         now = datetime.now()
@@ -409,7 +438,13 @@ class Routes:
                         self.executed_keys.add(base_key)
 
                 elif mode == "consumption":
+                    base_key = f"{scheduler_id}_{event_date}_{event_time}"
+                    if base_key in self.executed_keys:
+                        continue
+
                     job = self.handle_consumption_scheduler(row, now, current_date, current_time)
+                    if job:
+                        self.executed_keys.add(base_key) 
 
                 if job:
                     self.running_jobs[job["scheduler_id"]] = job
@@ -444,14 +479,30 @@ class Routes:
         if scheduler_id in self.running_jobs:
             return None
 
+        initial_value = None
+        telemetry_name = "fertilizerCounter" if device_type == "fertilizer" else "pulseCounter"
+        try:
+            current_data = self.field.get_telemetry(sensor_id)
+            if current_data and sensor_id in current_data:
+                if telemetry_name in current_data[sensor_id]:
+                    initial_value = float(current_data[sensor_id][telemetry_name]["value"])
+        except Exception as e:
+            print(f"Lỗi lấy giá trị ban đầu: {e}")
+
+        if initial_value is None:
+            initial_value = 0.0
+
         start_ts = int(now.timestamp() * 1000)
         self.execute_scheduler(device_id, "ON")
+        
         return {
             "scheduler_id": scheduler_id,
             "device_id": device_id,
             "sensor_id": sensor_id,
+            "device_type": device_type,  # Thêm dòng này để dùng ở hàm dưới
             "start_time": now,
             "last_ts": start_ts,
+            "prev_value": initial_value, # Nạp số mốc vào đây
             "row": row,
             "type": "consumption"
         }
@@ -489,25 +540,39 @@ class Routes:
     def handle_done_jobs(self, now):
         for scheduler_id in list(self.running_jobs.keys()):
             job = self.running_jobs[scheduler_id]
+            row = job["row"]
+            end_date_str = row.get("end_date") # Lấy ngày kết thúc từ Database
+
+            # --- PHẦN XỬ LÝ THEO THỜI GIAN (TIME) ---
             if job.get("type") == "time":
                 elapsed = (now - job["start_time"]).total_seconds()
-                if elapsed < job.get("duration", 0):
+                if elapsed < (job.get("duration", 0) * 60):
                     continue
 
                 device_id = job["device_id"]
                 self.execute_scheduler(device_id, "DONE")
-                next_date = self.calculate_next_date(job["row"])
-                self.field.update_scheduler_date(
-                    scheduler_id,
-                    next_date
-                )
+                
+                # 1. Tính ngày giờ lặp lại
+                next_date, next_time = self.calculate_next_date(row)
+                
+                # 2. KIỂM TRA HẾT HẠN
+                if end_date_str and next_date > end_date_str:
+                    self.field.delete_scheduler(scheduler_id)
+                    print(f"[EXPIRED] Lịch {scheduler_id} (Time) đã hết hạn (Next: {next_date} > End: {end_date_str}). Đã xóa.")
+                else:
+                    self.field.update_scheduler_date(scheduler_id, next_date, next_time)
+                
                 del self.running_jobs[scheduler_id]
                 continue
 
+            # --- PHẦN XỬ LÝ THEO LƯU LƯỢNG (CONSUMPTION) ---
             if job.get("type") != "consumption":
                 continue
 
             sensor_id = job["sensor_id"]
+            device_type = job.get("device_type", "valve")
+            telemetry_name = "fertilizerCounter" if device_type == "fertilizer" else "pulseCounter"
+
             db_max_ts = self.field.get_max_ts(sensor_id)
             last_ts = job.get("last_ts", 0)
             if last_ts > db_max_ts:
@@ -520,26 +585,26 @@ class Routes:
             total_delta = 0
             max_ts = last_ts
             prev_value = job.get("prev_value")
-            if prev_value is None:
-                try:
-                    prev_value = float(rows[0][1])
-                    job["prev_value"] = prev_value
-                except:
-                    prev_value = None
 
-            for row in rows:
+            for r in rows:
+                ts = r[0]
+                value_str = r[1]
+                name = r[2]
+
+                if name != telemetry_name:
+                    continue
+
                 try:
-                    value = float(row[1])
+                    value = float(value_str)
                 except:
                     continue
-                ts = row[0]
+                
                 if prev_value is not None:
                     delta = value - prev_value
                     if delta > 0:
                         total_delta += delta
 
                 prev_value = value
-
                 job["prev_value"] = prev_value
 
                 if ts > max_ts:
@@ -548,29 +613,26 @@ class Routes:
             job["last_ts"] = max_ts
             job["total_consumption"] = job.get("total_consumption", 0) + total_delta
 
-            threshold = float(job["row"].get("consumption") or 0)
+            threshold = float(row.get("consumption") or 0)
 
-            print(
-                f"[CONS] sensor={sensor_id} "
-                f"delta={total_delta} "
-                f"total={job['total_consumption']} "
-                f"threshold={threshold}"
-            )
+            print(f"[CONS] Cảm biến {sensor_id} | Chảy thêm: {total_delta}L | Tổng đã tưới: {job['total_consumption']}L / Mục tiêu: {threshold}L")
 
+            # NẾU ĐÃ TƯỚI ĐỦ (HOẶC VƯỢT) NGƯỠNG
             if threshold > 0 and job["total_consumption"] >= threshold:
-
                 device_id = job["device_id"]
-
-                self.execute_scheduler(device_id, "DONE")
-
-                next_date = self.calculate_next_date(job["row"])
-
-                self.field.update_scheduler_date(
-                    scheduler_id,
-                    next_date
-                )
-
-                del self.running_jobs[scheduler_id]
+                self.execute_scheduler(device_id, "DONE") # Tắt máy bơm
+                
+                # 1. Tính ngày lặp lại tiếp theo
+                next_date, next_time = self.calculate_next_date(row)
+                
+                # 2. KIỂM TRA HẾT HẠN
+                if end_date_str and next_date > end_date_str:
+                    self.field.delete_scheduler(scheduler_id)
+                    print(f"[EXPIRED] Lịch {scheduler_id} (Cons) đã hết hạn (Next: {next_date} > End: {end_date_str}). Đã xóa.")
+                else:
+                    self.field.update_scheduler_date(scheduler_id, next_date, next_time)
+                
+                del self.running_jobs[scheduler_id] # Kết thúc tiến trình
                 
     def reset_daily_cache(self):
         self.executed_keys.clear()
@@ -653,6 +715,7 @@ class Routes:
         data = request.get_json()
         field_id = data.get('field_id', '').strip()
         result = field.add_field(field_id, None, None)
+        field.create_automation(field_id)
         self.logger.log_add_field(field_id)
         self.field.create_AI_management_record(field_id)
         return jsonify(result)
@@ -1154,6 +1217,32 @@ class Routes:
             return jsonify(result)
         return result
     
+    def get_notification_status(self):
+        username = session.get('username')
+        return jsonify(self.field.get_notification_status(username))
+    
+    def set_notification_status(self):
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "message": "Không nhận được dữ liệu"})
+
+        status = data.get('status')
+        username = session.get('username')
+        self.logger.log_set_notification_status(username, status)
+        result = self.field.set_notification_status(username, status)
+        return jsonify(result)
+    
+    def set_notification_email_status(self):
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "message": "Không nhận được dữ liệu"})
+
+        status = data.get('status')
+        username = session.get('username')
+        self.logger.log_set_notification_email_status(username, status)
+        result = self.field.set_email_notification_status(username, status)
+        return jsonify(result)
+    
     def save_notification(self):
         data = request.get_json()
         if not data:
@@ -1164,6 +1253,10 @@ class Routes:
         ts = data.get('ts')
         username = data.get('username')
         result = self.field.insert_notification(status, device_id, ts, username)
+        notif = self.field.get_notification_status(username)
+        if notif["data"]["email_status"] == "ON":
+            email = self.auth.get_email(username)
+            self.otp.send_notification_email(email, device_id, status, ts, username)
         return jsonify(result)
 
     def get_current_user(self):
@@ -1175,8 +1268,281 @@ class Routes:
         else:
             return jsonify({"success": False, "message": "Chưa đăng nhập"}), 401
         
+# FIELD BILLING & PAYMENT
+    def create_billing(self):
+        data = request.get_json()
+        field_id = data.get("field_id")
+        title = data.get("title")
+        amount = data.get("amount")
+        return self.field.create_billing_item(field_id, title, amount)
+
+    def get_unpaid_bills(self):
+        field_id = request.get_json().get("field_id")
+        return self.field.get_unpaid_bills(field_id)
+    
+    def mark_bills_paid(self):
+        field_id = request.get_json().get("field_id")
+        return self.field.mark_bills_as_paid(field_id)
+    
+    def delete_bill(self):
+        bill_id = request.get_json().get("bill_id")
+        return self.field.delete_billing_item(bill_id)
+    
+    def create_payment(self):
+        username = session.get("username")
+        field_id = request.get_json().get("field_id")
+        user_id = self.auth.get_user_id(username)
+        bills_result = self.field.get_unpaid_bills(field_id)
+        bills = bills_result["data"]
+
+        if not bills:
+            return {
+                "success": False,
+                "message": "Không có hóa đơn chưa thanh toán"
+            }
+        total = sum([b[3] for b in bills])
+        momo_data, order_id, request_id = payment.create_momo_payment(total)
+        if momo_data.get("resultCode") != 0:
+            return {
+                "success": False,
+                "message": "Tạo thanh toán MoMo thất bại",
+                "data": momo_data
+            }
+        self.field.create_transaction(
+            user_id,
+            field_id,
+            order_id,
+            request_id,
+            total
+        )
+        field_transaction = self.field.get_transaction_by_order_id(order_id)
+        transaction_id = field_transaction["data"][0]
+        for bill in bills:
+            self.field.create_transaction_item(
+                transaction_id,
+                bill[0],
+                bill[1],
+                bill[3]
+            )
+        return {
+            "success": True,
+            "order_id": order_id,
+            "amount": total,
+            "payUrl": momo_data.get("payUrl")
+        }
+    
+    def get_payment_status(self):
+        order_id = request.get_json().get("order_id")
+        return self.field.get_transaction_by_order_id(order_id)
+    
+    def update_payment_status(self):
+        data = request.get_json()
+        order_id = data.get("order_id")
+        status = data.get("status")
+        raw_response = data.get("raw_response")
+        result = self.field.update_transaction_status(order_id, status)
+        if status == "success":
+            txn = self.field.get_transaction_by_order_id(order_id)
+            transaction = txn["data"] if txn["success"] else None
+            if transaction:
+                field_id = transaction[1]
+                request_id = transaction[3]
+                amount = transaction[4]
+                username = session.get("username")
+                user_id = self.auth.get_user_id(username)
+                bills = self.field.get_unpaid_bills(field_id)["data"]
+                self.auth.save_payment_history(user_id, field_id, order_id, request_id, amount, bills, raw_response)
+                self.field.mark_bills_as_paid(field_id)
+        return result
+    
+    def delete_payment_by_field(self):
+        field_id = request.get_json().get("field_id")
+        result = self.field.delete_all_payment_by_field(field_id)
+        if result["success"]:
+            return jsonify(result), 200
+        return jsonify(result), 400
+    
+    def momo_ipn(self):
+        data = request.json or {}
+
+        order_id = data.get("orderId")
+        result_code = data.get("resultCode")
+
+        status = "success" if result_code == 0 else "failed"
+
+        return self.update_payment_status_internal(order_id, status, data)
+    
+    def update_payment_status_internal(self, order_id, status, raw_response=None):
+        result = self.field.update_transaction_status(order_id, status)
+        if status == "success":
+            txn = self.field.get_transaction_by_order_id(order_id)
+            transaction = txn["data"] if txn["success"] else None
+            if transaction:
+                transaction_id = transaction[0]
+                user_id = transaction[1]    
+                field_id = transaction[2]
+                request_id = transaction[4]
+                amount = transaction[5]
+                bills = self.field.get_unpaid_bills(field_id)["data"]
+                self.auth.save_payment_history(user_id, field_id, order_id,request_id, amount, bills, raw_response)
+                self.field.mark_bills_as_paid(field_id)
+                self.logger.log_payment_transaction(user_id, field_id, order_id, request_id, amount, bills, raw_response)
+        return result
+
+# USER TRANSACTION HISTORY
+################################################################################################################################        
+    
+    def get_transactions_of_user(self):
+        username = session.get('username')
+        user_id = self.auth.get_user_id(username)
+        return self.auth.get_transaction_detail(user_id)
+    
+    def get_transactions_items(self):
+        transaction_id = request.get_json().get("transaction_id")
+        return self.auth.get_transactions_items(transaction_id)
+
+# FIELD SERVICE PLAN BILLING
+################################################################################################################################ 
+
+    def run_service_plan_billing(self):
+        plans = self.field.get_active_service_plans()
+        today = datetime.now().date()
+        for plan in plans:
+            plan_id = plan["id"]
+            field_id = plan["field_id"]
+            daily_price = plan["daily_price"]
+            expired_date = datetime.strptime(plan["expired_date"], "%Y-%m-%d").date()
+            new_amount = plan["accumulated_amount"] + daily_price
+            self.field.update_accumulated_amount(plan_id, new_amount)
+            if today >= expired_date:
+                self.field.create_billing_item(
+                    field_id,
+                    "Phí dịch vụ tự động",
+                    new_amount
+                )
+                self.field.expire_service_plan(plan_id)
+
+        return {
+            "success": True,
+            "message": "Đã chạy tính phí dịch vụ"
+        }
+    
+    def create_service_plan_route(self):
+        data = request.get_json()
+
+        field_id = data.get("field_id")
+        service_days = data.get("service_days")
+        daily_price = data.get("daily_price")
+        self.logger.log_create_service_plan(field_id, service_days, daily_price)
+        return self.field.create_service_plan(
+            field_id,
+            service_days,
+            daily_price
+        )
+    
+    def update_service_plan_route(self):
+        data = request.get_json()
+        plan_id = data.get("plan_id")
+        service_days = data.get("service_days")
+        daily_price = data.get("daily_price")
+        self.logger.log_update_service_plan(plan_id, service_days, daily_price)
+        return self.field.update_service_plan(
+            plan_id,
+            service_days,
+            daily_price
+        )
+    
+    def delete_service_plan_route(self):
+        data = request.get_json()
+        plan_id = data.get("plan_id")
+        self.logger.log_delete_service_plan(plan_id)
+        return self.field.delete_service_plan(plan_id)
+    
+    def run_service_plan_billing_route(self):
+        return self.run_service_plan_billing()
 
 
+# AI AUTOMATION
+################################################################################################################################ 
+    
+    def create_automation_field(self, field_id, target_type, action):
+        selected = self.select_event_type(field_id, target_type, action)
+        if not selected:
+            return {
+                "success": False,
+                "message": "Không tìm thấy thiết bị phù hợp để tạo automation"
+            }
+        device_id = selected["device_id"]
+        event_type = selected["event_type"]
+        now = datetime.now()
+        event_date = now.strftime("%Y-%m-%d")
+        end_date = event_date
+        event_time = now.strftime("%H:%M")
+        name = f"{field_id}_automation"
+        scheduler_id = self.field.create_scheduler(field_id, device_id, name, event_date, end_date, event_time, event_type, "time", duration=1)
+        self.field.set_scheduler(field_id, scheduler_id)
+        return {
+            "success": True,
+            "message": "Tạo automation scheduler thành công",
+            "data": {
+                "field_id": field_id,
+                "device_id": device_id,
+                "scheduler_id": scheduler_id,
+                "target_type": target_type,
+                "action": action
+            }
+        }
+
+    def select_event_type(self, field_id, target_type, action):
+        result = self.field.get_devices_controller_by_field(field_id)
+        if not result["success"]:
+            return None
+        devices = result["devices"]
+        device_priority = []
+
+        if target_type == "temperature" and action == "increase":
+            device_priority = ["cooling_pad", "vent", "fan"]
+        elif target_type == "temperature" and action == "decrease":
+            device_priority = ["heater"]
+        elif target_type == "moisture" and action == "increase":
+            device_priority = ["valve"]
+        else:
+          return None
+
+        for device_type in device_priority:
+            for device in devices:
+                if device.get("type") == device_type:
+                    return {
+                        "device_id": device.get("device_id"),
+                        "event_type": "turn_on"
+                    }
+        return None
+    
+    def set_automation_status(self):
+        data = request.get_json()
+        field_id = data.get("field_id")
+        status = data.get("status")
+
+        if status not in ["on", "off"]:
+            return {
+                "success": False,
+                "message": "Status chỉ được là on hoặc off"
+            }
+
+        self.field.set_automation_status(field_id, status)
+        return {
+            "success": True,
+            "message": "Cập nhật trạng thái automation thành công",
+            "data": {
+                "field_id": field_id,
+                "status": status
+            }
+        }
+    
+    def get_automation_status(self):
+        field_id = request.get_json().get("field_id")
+        return self.field.get_automation_status(field_id)
+    
 #################################################################################################################################
 
 
@@ -1218,8 +1584,30 @@ def job_update_out_date_status():
 def job_reset_daily_cache():
     with app.app_context():
         routes.reset_daily_cache()
-    
+
+def job_service_plan_billing():
+    with app.app_context():
+        routes.run_service_plan_billing()
+
+server.add_route('/api/billing/create', routes.create_billing, methods=['POST'])
+server.add_route('/api/billing/unpaid', routes.get_unpaid_bills, methods=['POST'])
+server.add_route('/api/billing/mark_paid', routes.mark_bills_paid, methods=['POST'])
+server.add_route('/api/billing/delete', routes.delete_bill, methods=['POST'])
+server.add_route('/api/payment/create', routes.create_payment, methods=['POST'])
+server.add_route('/api/payment/status', routes.get_payment_status, methods=['POST'])
+server.add_route('/api/payment/update', routes.update_payment_status, methods=['POST'])
+server.add_route('/ipn', routes.momo_ipn, methods=['POST'])
+server.add_route('/api/payment/history', routes.get_transactions_of_user, methods=['GET'])
+server.add_route('/api/payment/items', routes.get_transactions_items, methods=['POST'])
+
+server.add_route('/api/service_plan/create', routes.create_service_plan_route, methods=['POST'])
+server.add_route('/api/service_plan/update', routes.update_service_plan_route, methods=['POST'])
+server.add_route('/api/service_plan/delete', routes.delete_service_plan_route, methods=['POST'])
+server.add_route('/api/service_plan/run', routes.run_service_plan_billing_route, methods=['POST'])
+
+server.add_route('/api/payment/delete_by_field', routes.delete_payment_by_field, methods=['POST'])
 server.add_route('/api/get_devices_controller', routes.toggle_and_send, methods=['POST'])
+server.add_route('/api/devices_list', routes.get_devices_controller, methods=['GET'])
 server.add_route('/', routes.home_page, methods=['GET'])
 server.add_route('/login', routes.login_page, methods=['GET'])
 server.add_route('/login', routes.login, methods=['POST'])
@@ -1258,9 +1646,15 @@ server.add_route('/api/admin/clear_fields', routes.api_admin_clear_fields, metho
 server.add_route('/api/admin/edit_greenhouse', routes.api_admin_edit_greenhouse, methods=['POST'])
 server.add_route('/api/admin/delete_greenhouse_fields', routes.api_admin_delete_greenhouse_fields, methods=['POST'])
 
+server.add_route('/api/get_schedulers', routes.get_schedulers_by_field, methods=['GET'])
+server.add_route('/api/create_scheduler', routes.create_scheduler, methods=['POST'])
+server.add_route('/api/update_scheduler', routes.update_scheduler, methods=['POST'])
+server.add_route('/api/delete_scheduler', routes.delete_scheduler, methods=['POST'])
+
 scheduler.add_job(job_reset_daily_cache, 'cron', hour=0, minute=0)
 scheduler.add_job(job_update_status, 'interval', seconds=10)
 scheduler.add_job(job_check_scheduler,'interval',seconds=1,max_instances=1,coalesce=True)
+scheduler.add_job(job_service_plan_billing,trigger='cron',hour=0,minute=0,id='service_plan_billing_job',replace_existing=True)
 
 #scheduler.add_job(job_update_out_date_status, 'interval', seconds=5)
 
