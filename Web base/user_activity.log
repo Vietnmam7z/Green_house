@@ -656,3 +656,17 @@
 2026-05-13 21:12:47,517 - INFO - Đăng nhập: 1
 2026-05-13 21:13:28,575 - WARNING - Tạo công việc None cho ruộng 001 vào ngày 2026-05-13 lúc 01:01:00 với thiết bị 1 trong 1 giây
 2026-05-13 22:26:35,576 - INFO - Đăng nhập: 1
+2026-05-15 10:17:18,935 - INFO - Đăng nhập: admin
+2026-05-15 10:17:41,622 - WARNING - Xóa tài khoản: f
+2026-05-15 10:17:41,623 - WARNING - Xóa tài khoản: f
+2026-05-15 10:18:51,887 - WARNING - Thêm user trung vào ruộng 002
+2026-05-15 10:19:17,879 - WARNING - Thêm user HNAT vào ruộng 002
+2026-05-15 10:36:52,914 - INFO - Đăng nhập: admin
+2026-05-15 10:42:30,662 - INFO - Đăng nhập: admin
+2026-05-15 10:44:18,207 - INFO - Đăng nhập: admin
+2026-05-15 10:57:51,613 - WARNING - Thêm user HNAT vào ruộng 002
+2026-05-15 10:58:14,743 - WARNING - Xóa ruộng: 003
+2026-05-15 10:59:22,696 - INFO - Đăng xuất: admin
+2026-05-15 10:59:24,602 - INFO - Đăng nhập: 1
+2026-05-15 11:00:06,266 - WARNING - Xóa công việc 28
+2026-05-15 11:16:45,344 - WARNING - Tạo công việc None cho ruộng 001 vào ngày 2026-05-15 lúc 11:17:00 với thiết bị 1 trong 1 giây

@@ -160,6 +160,19 @@ class FieldDB:
             conn.commit()
             return {"success": True, "message": "Đổi tên thiết bị thành công."}
         
+    def remove_users_from_field(self, field_id: str, usernames: list):
+        """Xóa một hoặc nhiều user cụ thể khỏi ruộng (bảng field_user)."""
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            
+            # Xóa các liên kết user cụ thể của ruộng đó
+            query = "DELETE FROM field_user WHERE field_id = ? AND username = ?"
+            for user in usernames:
+                cursor.execute(query, (field_id, user))
+                
+            conn.commit()
+            return {"success": True, "message": f"Đã xóa {len(usernames)} user khỏi ruộng."}
+        
     def find_user_id(self, field_id: str, username: str):
         with self.connect() as conn:
             cursor = conn.cursor()

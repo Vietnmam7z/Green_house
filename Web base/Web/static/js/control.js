@@ -40,9 +40,14 @@ function syncControlStates() {
                         const stateFromDB = matchingDevice[3];
                         const isChecked = (stateFromDB === 'ON');
                         
-                        // Nếu Lịch tưới bật -> công tắc trên web cũng tự động gạt sang ON
+                        // Nếu trạng thái DB khác với giao diện -> Cập nhật lại giao diện
                         if (toggle.checked !== isChecked) {
                             toggle.checked = isChecked;
+                        }
+                    } else {
+                        // [QUAN TRỌNG]: Nếu không tìm thấy thiết bị đang ON ở ruộng này, ép công tắc về OFF
+                        if (toggle.checked === true) {
+                            toggle.checked = false;
                         }
                     }
                 });

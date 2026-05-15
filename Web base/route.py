@@ -1041,6 +1041,33 @@ class Routes:
                 "success": result['success'],
                 "message": result['message'],
             })
+    
+    def remove_users_from_field(self):
+        """API: Xóa danh sách user cụ thể khỏi một ruộng."""
+        # 1. Kiểm tra xem người dùng đã đăng nhập chưa
+        if 'username' not in session:
+            return jsonify({"success": False, "message": "Bạn chưa đăng nhập."}), 401
+            
+        # 2. Lấy role từ database để kiểm tra quyền Admin (Giống logic các hàm khác)
+        username = session['username']
+        role = self.auth.get_role(username)
+        if role not in ['admin', 'administrator']:
+            return jsonify({"success": False, "message": "Bạn không có quyền thực hiện hành động này."}), 403
+        
+        # 3. Xử lý logic xóa user
+        data = request.get_json()
+        field_id = data.get('field_id')
+        usernames = data.get('usernames') # Đây là một list các username từ JS gửi lên
+        
+        if not field_id or not usernames:
+            return jsonify({"success": False, "message": "Thiếu thông tin Field ID hoặc danh sách User."})
+        
+        try:
+            # Gọi hàm xóa trong field_manager.py
+            result = self.field.remove_users_from_field(field_id, usernames)
+            return jsonify(result)
+        except Exception as e:
+            return jsonify({"success": False, "message": f"Lỗi hệ thống: {str(e)}"})
         
     def get_device(self):
         field_id =  request.get_json().get("field_id")
@@ -1153,7 +1180,7 @@ class Routes:
                 "success": True,
                 "message": "Người dùng đã được cấp quyền",
             })
-     
+    
     def update_status(self):
         data = self.sensor.update()
         if data:
@@ -1645,6 +1672,7 @@ server.add_route('/api/admin/add_greenhouse', routes.api_admin_add_greenhouse, m
 server.add_route('/api/admin/clear_fields', routes.api_admin_clear_fields, methods=['POST'])
 server.add_route('/api/admin/edit_greenhouse', routes.api_admin_edit_greenhouse, methods=['POST'])
 server.add_route('/api/admin/delete_greenhouse_fields', routes.api_admin_delete_greenhouse_fields, methods=['POST'])
+server.add_route('/api/admin/remove_users_from_field', routes.remove_users_from_field, methods=['POST'])
 
 server.add_route('/api/get_schedulers', routes.get_schedulers_by_field, methods=['GET'])
 server.add_route('/api/create_scheduler', routes.create_scheduler, methods=['POST'])

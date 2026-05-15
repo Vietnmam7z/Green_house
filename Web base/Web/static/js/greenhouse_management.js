@@ -43,39 +43,86 @@ document.addEventListener("DOMContentLoaded", () => {
         updateToolbar();
     });
 
-    // 2. Chức năng Clear icon (Dọn dẹp dữ liệu Plant và Username)
-    document.getElementById('btn-clear-icon').addEventListener('click', async () => {
+    // --- XỬ LÝ POPUP REMOVE SPECIFIC USER ---
+    const removeUserModal = document.getElementById('removeUserModal');
+    const closeRemoveUserModal = document.getElementById('closeRemoveUserModal');
+    const userListContainer = document.getElementById('userListContainer');
+    const btnSubmitRemoveUser = document.getElementById('btn-submit-remove-user');
+    const displayTargetFieldId = document.getElementById('displayTargetFieldId');
+
+    document.getElementById('btn-clear-icon').addEventListener('click', () => {
         const checkedBoxes = document.querySelectorAll('.field-checkbox:checked');
-        const fieldIds = Array.from(checkedBoxes).map(cb => cb.value);
-
-        if (fieldIds.length === 0) return;
-
-        // Bật hộp thoại xác nhận trước khi xóa dữ liệu
-        const confirmMsg = `Bạn có chắc chắn muốn dọn dẹp dữ liệu Plant và Username của ${fieldIds.length} ruộng đã chọn?\n(Field ID vẫn sẽ được giữ lại)`;
-        if (!confirm(confirmMsg)) {
-            return; // Nếu bấm Hủy (Cancel) thì dừng lại
+        if (checkedBoxes.length !== 1) {
+            alert("Vui lòng chỉ chọn 1 ruộng để quản lý danh sách User!");
+            return;
         }
 
-        // Gọi API lên Backend
+        const fieldId = checkedBoxes[0].value;
+        displayTargetFieldId.innerText = fieldId;
+        
+        // Tìm thông tin ruộng trong mảng allFields
+        const fieldData = allFields.find(f => f.field_id === fieldId);
+        if (!fieldData || fieldData.username === '---') {
+            alert("Ruộng này hiện không có người quản lý!");
+            return;
+        }
+
+        // Tách danh sách user (giả định phân cách bằng dấu phẩy từ loadFields)
+        const users = fieldData.username.split(',').map(u => u.trim());
+        
+        userListContainer.innerHTML = '';
+        users.forEach(user => {
+            const div = document.createElement('div');
+            div.style.padding = '8px 0';
+            div.style.borderBottom = '1px solid #f9f9f9';
+            div.innerHTML = `
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" class="remove-user-cb" value="${user}">
+                    <span>${user}</span>
+                </label>
+            `;
+            userListContainer.appendChild(div);
+        });
+
+        removeUserModal.classList.remove('hidden');
+    });
+
+    // Đóng modal
+    closeRemoveUserModal.addEventListener('click', () => removeUserModal.classList.add('hidden'));
+
+    // Đóng popup khi ấn ra vùng nền đen
+    window.addEventListener('click', (e) => {
+        if(e.target === removeUserModal) removeUserModal.classList.add('hidden');
+    });
+
+    // Xử lý gửi lệnh xóa user cụ thể
+    btnSubmitRemoveUser.addEventListener('click', async () => {
+        const fieldId = displayTargetFieldId.innerText;
+        const selectedUsers = Array.from(document.querySelectorAll('.remove-user-cb:checked')).map(cb => cb.value);
+
+        if (selectedUsers.length === 0) {
+            alert("Vui lòng chọn ít nhất một user để xóa!");
+            return;
+        }
+
+        if (!confirm(`Bạn có chắc chắn muốn xóa ${selectedUsers.length} user khỏi ruộng ${fieldId}?`)) return;
+
         try {
-            const response = await fetch('/api/admin/clear_fields', {
+            const response = await fetch('/api/admin/remove_users_from_field', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ field_ids: fieldIds })
+                body: JSON.stringify({ field_id: fieldId, usernames: selectedUsers })
             });
             const result = await response.json();
             
             if (result.success) {
-                // Thành công thì tải lại bảng
-                loadFields(); 
-                // loadFields() sẽ tự động gọi renderTable() và updateToolbar() 
-                // -> Các ô sẽ tự động bỏ chọn và giao diện về trạng thái gốc.
+                removeUserModal.classList.add('hidden');
+                loadFields(); // Tải lại bảng
             } else {
-                alert("Lỗi khi dọn dẹp: " + result.message);
+                alert("Lỗi: " + result.message);
             }
         } catch (error) {
             console.error("Lỗi:", error);
-            alert("Lỗi hệ thống khi dọn dẹp Field!");
         }
     });
     
@@ -157,9 +204,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // 2. Fetch danh sách User từ backend để đổ vào Dropdown Username
         try {
-            const res = await fetch('/api/admin/users'); // Tận dụng API trang User
+            const res = await fetch('/api/admin/users'); 
             const users = await res.json();
-            editUsernameSelect.innerHTML = '<option value="">Choose username</option><option value="---">--- (Bỏ trống)</option>';
+            
+            editUsernameSelect.innerHTML = '<option value="">-- Choose username --</option>';
+            
             users.forEach(u => {
                 const opt = document.createElement('option');
                 opt.value = u.username;
@@ -173,7 +222,8 @@ document.addEventListener("DOMContentLoaded", () => {
         // 3. Hiển thị thông tin Plant và Username hiện tại của Field
         const currentField = allFields.find(f => f.field_id === selectedFieldId);
         if (currentField) {
-            editUsernameSelect.value = (currentField.username !== '---') ? currentField.username : "---";
+            // Cập nhật lại logic chọn username mặc định nếu có
+            editUsernameSelect.value = (currentField.username !== '---') ? currentField.username : "";
             editPlantInput.value = (currentField.plant !== '---') ? currentField.plant : '';
         }
 
@@ -279,7 +329,7 @@ function updateToolbar() {
     } else if (checkedCount === 1) {
         [addIcon, editIcon, deleteIcon, clearIcon].forEach(icon => icon.classList.remove('hidden'));
     } else if (checkedCount >= 2) {
-        [deleteIcon, clearIcon].forEach(icon => icon.classList.remove('hidden'));
+        deleteIcon.classList.remove('hidden');
     }
     
     // CẬP NHẬT TRẠNG THÁI CHECKBOX TỔNG: (Trống) / (Dấu trừ) / (Tích V)
