@@ -690,3 +690,17 @@
 2026-05-15 16:15:38,922 - INFO - Đăng nhập: 1
 2026-05-15 16:41:25,817 - INFO - Đăng nhập: 1
 2026-05-15 16:42:33,224 - INFO - Đăng nhập: admin
+2026-05-15 19:02:02,597 - INFO - Đăng nhập: 1
+2026-05-15 19:12:37,458 - INFO - Đăng nhập: 1
+2026-05-15 19:20:28,716 - INFO - Giao dịch thanh toán - User ID: 001, Field ID: 1778847385370, Order ID: 1778847385370, Request ID: None, Amount: 1400000, Bills: [], Raw Response: {'orderId': '1778847385370', 'resultCode': 0}
+2026-05-15 19:24:06,580 - INFO - Đăng nhập: 1
+2026-05-15 19:24:27,792 - INFO - Giao dịch thanh toán - User ID: 001, Field ID: 1778847851341, Order ID: 1778847851341, Request ID: None, Amount: 1400000, Bills: [], Raw Response: {'orderId': '1778847851341', 'resultCode': 0}
+2026-05-15 19:25:53,205 - INFO - Đăng nhập: 1
+2026-05-15 19:26:16,743 - INFO - Giao dịch thanh toán - User ID: 001, Field ID: 1778847956867, Order ID: 1778847956867, Request ID: None, Amount: 1400000, Bills: [], Raw Response: {'orderId': '1778847956867', 'resultCode': 0}
+2026-05-15 19:29:35,863 - INFO - Đăng nhập: 1
+2026-05-15 19:29:57,126 - INFO - Giao dịch thanh toán - User ID: 12, Field ID: 001, Order ID: 1778848181742, Request ID: None, Amount: 1400000, Bills: [(1, '001', 'Thuê nhà kính T5', 500000, 'unpaid', '2026-05-13 07:41:36', '2026-05-13 13:32:56'), (2, '001', 'Điện', 120000, 'unpaid', '2026-05-13 07:41:36', '2026-05-13 13:32:56'), (3, '001', 'Dinh dưỡng', 80000, 'unpaid', '2026-05-13 07:41:36', '2026-05-13 13:32:56'), (4, '001', 'Tien dien', 200000, 'unpaid', '2026-05-13 13:43:23', None), (5, '001', 'Tien nuoc', 500000, 'unpaid', '2026-05-13 13:43:30', None)], Raw Response: {'orderId': '1778848181742', 'resultCode': 0}
+2026-05-15 19:30:18,956 - INFO - Đăng xuất: 1
+2026-05-15 19:30:23,484 - INFO - Đăng nhập: admin
+2026-05-15 19:32:32,378 - WARNING - Tạo ruộng: 002
+2026-05-15 19:34:03,288 - INFO - Đăng xuất: admin
+2026-05-15 19:34:05,347 - INFO - Đăng nhập: 1

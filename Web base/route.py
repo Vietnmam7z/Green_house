@@ -1410,10 +1410,10 @@ class Routes:
         if status == "success":
             txn = self.field.get_transaction_by_order_id(order_id)
             transaction = txn["data"] if txn["success"] else None
+            print(transaction)
             if transaction:
-                transaction_id = transaction[0]
-                user_id = transaction[1]    
-                field_id = transaction[2]
+                user_id = transaction[10]    
+                field_id = transaction[1]
                 request_id = transaction[4]
                 amount = transaction[5]
                 bills = self.field.get_unpaid_bills(field_id)["data"]
