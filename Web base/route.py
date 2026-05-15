@@ -61,6 +61,12 @@ class Routes:
         self.pop_reset_session()
         return ("", 204)
     
+    def profile_page(self):
+        resp = self.require_login()
+        if resp:
+            return resp
+        return render_template('profile.html')
+    
     def control_device(self):
         # Yêu cầu phải đăng nhập mới được điều khiển
         if 'username' not in session:
@@ -1647,6 +1653,7 @@ server.add_route('/verify-otp', routes.verify_otp, methods=['POST'])
 # server.add_route('/resend-otp', routes.resend_otp, methods=['POST'])
 server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
 server.add_route('/reset-password', routes.reset_password, methods=['POST'])
+server.add_route('/profile', routes.profile_page, methods=['GET'])
 server.add_route('/control', routes.control_page, methods=['GET'])
 server.add_route('/dashboard', routes.dashboard_page, methods=['GET'])
 server.add_route('/manage', routes.manage_page, methods=['GET'])

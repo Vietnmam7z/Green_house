@@ -24,13 +24,25 @@ window.chartInstances = {};
 // ==========================================
 document.addEventListener('DOMContentLoaded', function () {
 // --- LẤY THÔNG TIN TÀI KHOẢN ĐANG ĐĂNG NHẬP ---
-  fetch('/api/current_user')
+fetch('/api/current_user')
     .then(res => res.json())
     .then(data => {
       if (data.success) {
         // Điền tên và role vào HTML
         document.getElementById('userName').innerText = data.username;
         document.getElementById('userRole').innerText = data.role;
+        
+        // --- ĐOẠN MÃ THÊM MỚI BẮT ĐẦU TỪ ĐÂY ---
+        const profileBox = document.querySelector('.user-profile');
+        if (profileBox) {
+            profileBox.style.cursor = 'pointer'; // Hiển thị con trỏ dạng bàn tay
+            profileBox.title = "Xem thông tin cá nhân và thanh toán"; // Gợi ý khi di chuột
+            profileBox.addEventListener('click', () => {
+                window.location.href = '/profile'; // Chuyển hướng sang trang profile
+            });
+        }
+        // --- KẾT THÚC ĐOẠN MÃ THÊM MỚI ---
+
       } else {
         // Nếu server báo chưa đăng nhập, tự động đẩy ra trang login
         window.location.href = '/login'; 

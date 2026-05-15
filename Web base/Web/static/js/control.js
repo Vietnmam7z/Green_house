@@ -127,6 +127,17 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const userRoleEl = document.getElementById('userRole');
             if (userRoleEl) userRoleEl.innerText = displayRole;
+
+            // --- ĐOẠN MÃ THÊM MỚI BẮT ĐẦU TỪ ĐÂY ---
+            const profileBox = document.querySelector('.user-profile');
+            if (profileBox) {
+                profileBox.style.cursor = 'pointer'; // Hiển thị con trỏ dạng bàn tay
+                profileBox.title = "Xem thông tin cá nhân và thanh toán"; // Gợi ý khi di chuột
+                profileBox.addEventListener('click', () => {
+                    window.location.href = '/profile'; // Chuyển hướng sang trang profile
+                });
+            }
+            // --- KẾT THÚC ĐOẠN MÃ THÊM MỚI ---
         }
       })
       .catch(err => console.error("Lỗi lấy thông tin user:", err));

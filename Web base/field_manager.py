@@ -72,8 +72,24 @@ class FieldDB:
     def delete_field(self, field_id: str):
         with self.connect() as conn:
             cursor = conn.cursor()
+            
+            # 1. Xóa tất cả các thiết bị thuộc Field này
+            cursor.execute("DELETE FROM device_controller WHERE field_id = ?", (field_id,))
+            
+            # 2. Xóa các liên kết người dùng quản lý Field này
+            cursor.execute("DELETE FROM field_user WHERE field_id = ?", (field_id,))
+            
+            # 3. Xóa toàn bộ lịch trình (scheduler) của Field này
+            cursor.execute("DELETE FROM scheduler WHERE field_id = ?", (field_id,))
+            
+            # (Tùy chọn) Xóa thêm dữ liệu lịch sử cảm biến hoặc hóa đơn liên quan nếu cần
+            # cursor.execute("DELETE FROM telemetry WHERE ...")
+            
+            # 4. Cuối cùng, mới tiến hành xóa Field ID
             cursor.execute("DELETE FROM field WHERE field_id = ?", (field_id,))
+            
             conn.commit()
+            return {"success": True, "message": "Đã xóa hoàn toàn Field và các dữ liệu liên quan."}
 
     def rename_field_id(self, old_field_id: str, new_field_id: str):
         with self.connect() as conn:
