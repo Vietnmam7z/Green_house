@@ -1537,7 +1537,7 @@ class Routes:
             device_priority = ["cooling_pad", "vent", "fan"]
         elif target_type == "temperature" and action == "decrease":
             device_priority = ["heater"]
-        elif target_type == "moisture" and action == "increase":
+        elif target_type == "moisture" and action == "decrease":
             device_priority = ["valve"]
         else:
           return None
@@ -1556,10 +1556,10 @@ class Routes:
         field_id = data.get("field_id")
         status = data.get("status")
 
-        if status not in ["on", "off"]:
+        if status not in ["ON", "OFF"]:
             return {
                 "success": False,
-                "message": "Status chỉ được là on hoặc off"
+                "message": "Status chỉ được là ON hoặc OFF"
             }
 
         self.field.set_automation_status(field_id, status)
