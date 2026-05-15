@@ -34,8 +34,30 @@ class FieldDB:
                 VALUES (?, ?)
             """, (field_id, username))
 
+            # =========================================================
+            # THÊM TỰ ĐỘNG 8 THIẾT BỊ MẶC ĐỊNH VÀO DEVICE_CONTROLLER
+            # =========================================================
+            default_devices = [
+                ("Máy bơm nước", "valve"),
+                ("Đèn", "light"),
+                ("Thông gió", "vent"),
+                ("Quạt", "fan"),
+                ("Màng giải nhiệt", "cooling_pad"),
+                ("Van điện từ CO2", "co2_valve"),
+                ("Hệ thống sưởi", "heater"),
+                ("Phân bón", "fertilizer")
+            ]
+
+            # Khi không chèn dữ liệu vào cột sensor_id, SQLite sẽ tự động để giá trị là NULL
+            for device_name, dev_type in default_devices:
+                cursor.execute("""
+                    INSERT INTO device_controller (field_id, device_name, type, state)
+                    VALUES (?, ?, ?, 'DONE')
+                """, (field_id, device_name, dev_type))
+            # =========================================================
+
             conn.commit()
-            return {"success": True, "message": "Thêm ruộng thành công."}
+            return {"success": True, "message": "Thêm ruộng và khởi tạo thiết bị thành công."}
         
     # 1. Hàm lấy ruộng cho User thường (Đã khôi phục)
     def get_fields(self, username: str):

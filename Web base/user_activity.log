@@ -704,3 +704,22 @@
 2026-05-15 19:32:32,378 - WARNING - Tạo ruộng: 002
 2026-05-15 19:34:03,288 - INFO - Đăng xuất: admin
 2026-05-15 19:34:05,347 - INFO - Đăng nhập: 1
+2026-05-15 20:28:22,545 - INFO - Đăng nhập: 1
+2026-05-15 20:35:50,046 - INFO - Giao dịch thanh toán - User ID: 12, Field ID: 001, Order ID: 1778851765266, Request ID: None, Amount: 620000, Bills: [(1, '001', 'Thuê nhà kính T5', 500000, 'unpaid', '2026-05-13 07:41:36', '2026-05-15 12:29:57'), (2, '001', 'Điện', 120000, 'unpaid', '2026-05-13 07:41:36', '2026-05-15 12:29:57')], Raw Response: {'orderId': '1778851765266', 'resultCode': 0}
+2026-05-15 20:36:45,593 - INFO - Đăng nhập: 1
+2026-05-15 20:37:39,580 - INFO - Giao dịch thanh toán - User ID: 12, Field ID: 001, Order ID: 1778852208666, Request ID: None, Amount: 620000, Bills: [(1, '001', 'Thuê nhà kính T5', 500000, 'unpaid', '2026-05-13 07:41:36', '2026-05-15 12:29:57'), (2, '001', 'Điện', 120000, 'unpaid', '2026-05-13 07:41:36', '2026-05-15 12:29:57')], Raw Response: {'orderId': '1778852208666', 'resultCode': 0}
+2026-05-15 20:41:18,424 - INFO - Đăng nhập: admin
+2026-05-15 20:41:38,525 - WARNING - Thêm user HNAT vào ruộng 002
+2026-05-15 20:41:47,185 - WARNING - Thêm user a vào ruộng 002
+2026-05-15 20:52:16,231 - WARNING - Đổi tên thiết bị SI Outdoor Sensor 1 thành SI Soil Moisture 5
+2026-05-15 20:52:21,904 - WARNING - Đổi tên thiết bị SI Soil Moisture 1 thành SI Soil Moisture 8
+2026-05-15 20:54:33,741 - WARNING - Đổi tên thiết bị SI Soil Moisture 8 thành SI Soil Moisture 8
+2026-05-15 20:59:49,048 - WARNING - Xóa ruộng: 002
+2026-05-15 21:00:15,242 - WARNING - Tạo ruộng: 002
+2026-05-15 21:01:17,088 - WARNING - Xóa ruộng: 002
+2026-05-15 21:06:59,339 - WARNING - Tạo ruộng: 002
+2026-05-15 21:22:15,030 - INFO - Đăng nhập: admin
+2026-05-15 21:22:18,588 - WARNING - Xóa ruộng: 002
+2026-05-15 21:22:25,842 - WARNING - Tạo ruộng: 002
+2026-05-15 21:22:42,176 - WARNING - Xóa ruộng: 002
+2026-05-15 21:22:50,378 - WARNING - Tạo ruộng: 002

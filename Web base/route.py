@@ -720,10 +720,11 @@ class Routes:
     def api_admin_add_greenhouse(self):
         data = request.get_json()
         field_id = data.get('field_id', '').strip()
-        result = field.add_field(field_id, None, None)
-        field.create_automation(field_id)
+        result = self.field.add_field(field_id, None, None)
+        self.field.create_automation(field_id)
         self.logger.log_add_field(field_id)
         self.field.create_AI_management_record(field_id)
+        
         return jsonify(result)
 
     # API DỌN DẸP DỮ LIỆU FIELD (CLEAR)
