@@ -74,6 +74,8 @@ async function loadBills() {
         container.innerHTML = "<p style='text-align:center; color:#777; padding:20px;'>Bạn không có hóa đơn nào cần thanh toán.</p>";
         document.getElementById('payment-box').style.display = 'none';
     }
+
+    loadServicePlans(fields[0].field_id);
 }
 
 // ============================================================
@@ -245,4 +247,54 @@ function startPolling(orderId) {
             clearInterval(interval);
         }
     }, 3000);
+}
+
+// ============================================================
+// HÀM MỚI: TẢI THÔNG TIN CÁC GÓI ĐANG THUÊ CỦA RUỘNG
+// ============================================================
+async function loadServicePlans(fieldId) {
+    const container = document.getElementById('service-plan-list');
+    try {
+        const res = await fetch('/api/service_plan/list', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ field_id: fieldId })
+        });
+        const result = await res.json();
+
+        if (result.success && result.data.length > 0) {
+            container.innerHTML = result.data.map(plan => {
+                // Xác định trạng thái để hiển thị màu sắc huy hiệu (badge)
+                let isActive = plan.status === 'active';
+                let statusBadgeColor = isActive ? '#2e7d32' : '#7f8c8d';
+                let statusBadgeBg = isActive ? '#e8f5e9' : '#f5f5f5';
+                let statusText = isActive ? 'ĐANG KÍCH HOẠT' : 'ĐÃ HẾT HẠN';
+
+                return `
+                    <div class="bill-item" style="border-left: 5px solid ${statusBadgeColor}; flex-direction: column; align-items: flex-start; gap: 10px;">
+                        <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                            <span style="font-weight: 700; font-size: 1.15rem; color: #2c3e50;">
+                                <i class="fa-solid fa-cubes" style="color: #3498db; margin-right: 8px;"></i> Gói thuê Ruộng ${plan.field_id}
+                            </span>
+                            <span style="padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; background: ${statusBadgeBg}; color: ${statusBadgeColor};">
+                                ${statusText}
+                            </span>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; font-size: 0.95rem; color: #555; padding-left: 25px;">
+                            <div><i class="fa-regular fa-calendar-play"></i> Ngày bắt đầu: <strong>${plan.start_date}</strong></div>
+                            <div><i class="fa-solid fa-money-bill-wave"></i> Đơn giá hằng ngày: <strong>${plan.daily_price.toLocaleString()} đ/ngày</strong></div>
+                            <div><i class="fa-regular fa-calendar-xmark"></i> Ngày hết hạn: <strong>${plan.expired_date}</strong> (${plan.service_days} ngày)</div>
+                            <div><i class="fa-solid fa-calculator"></i> Phí tích lũy hiện tại: <strong style="color: #e74c3c;">${plan.accumulated_amount.toLocaleString()} đ</strong></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = "<p style='text-align:center; color:#777; padding:20px;'>Ruộng này chưa được thiết lập gói dịch vụ thuê nào.</p>";
+        }
+    } catch (err) {
+        console.error(err);
+        container.innerHTML = "<p style='text-align:center; color:red; padding:20px;'>Lỗi hệ thống khi tải thông tin gói dịch vụ.</p>";
+    }
 }

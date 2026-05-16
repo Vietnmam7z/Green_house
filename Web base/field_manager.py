@@ -1804,3 +1804,32 @@ class FieldDB:
             """, (plan_id,))
 
             conn.commit()
+
+    def get_service_plans_by_field(self, field_id):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            # Lấy tất cả gói thuê của ruộng này, gói mới nhất lên đầu
+            cursor.execute("""
+                SELECT id, field_id, service_days, daily_price, start_date, expired_date, accumulated_amount, status
+                FROM field_service_plan
+                WHERE field_id = ?
+                ORDER BY id DESC
+            """, (field_id,))
+            rows = cursor.fetchall()
+            
+        return {
+            "success": True,
+            "data": [
+                {
+                    "id": row[0],
+                    "field_id": row[1],
+                    "service_days": row[2],
+                    "daily_price": row[3],
+                    "start_date": row[4],
+                    "expired_date": row[5],
+                    "accumulated_amount": row[6],
+                    "status": row[7]
+                }
+                for row in rows
+            ]
+        }

@@ -1566,6 +1566,15 @@ class Routes:
         self.logger.log_delete_service_plan(plan_id)
         return self.field.delete_service_plan(plan_id)
     
+    def get_service_plans_route(self):
+        data = request.get_json() or {}
+        field_id = data.get("field_id")
+        if not field_id:
+            return jsonify({"success": False, "message": "Thiếu mã ruộng (field_id)"})
+        
+        result = self.field.get_service_plans_by_field(field_id)
+        return jsonify(result)
+    
     def run_service_plan_billing_route(self):
         return self.run_service_plan_billing()
 
@@ -1712,6 +1721,7 @@ server.add_route('/api/user/transactions', routes.get_transactions_of_user, meth
 server.add_route('/api/service_plan/create', routes.create_service_plan_route, methods=['POST'])
 server.add_route('/api/service_plan/update', routes.update_service_plan_route, methods=['POST'])
 server.add_route('/api/service_plan/delete', routes.delete_service_plan_route, methods=['POST'])
+server.add_route('/api/service_plan/list', routes.get_service_plans_route, methods=['POST'])
 server.add_route('/api/service_plan/run', routes.run_service_plan_billing_route, methods=['POST'])
 
 server.add_route('/api/payment/delete_by_field', routes.delete_payment_by_field, methods=['POST'])
