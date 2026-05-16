@@ -8,7 +8,19 @@ document.addEventListener("DOMContentLoaded", () => {
     fetch('/api/current_user')
       .then(res => res.json())
       .then(data => {
-        if (data.success) { document.getElementById('userName').innerText = data.username; }
+        if (data.success) { 
+            document.getElementById('userName').innerText = data.username; 
+            
+            // XỬ LÝ ĐỔI TÊN ROLE
+            let displayRole = data.role;
+            if (displayRole === 'admin') displayRole = 'administrator';
+            const userRoleEl = document.getElementById('userRole');
+            if (userRoleEl) userRoleEl.innerText = displayRole;
+
+            // Điền tên vào Menu thả xuống
+            const dropdownUserName = document.getElementById('dropdown-userName');
+            if (dropdownUserName) dropdownUserName.innerText = data.username;
+        }
       });
 
     // Nút Back
@@ -75,25 +87,22 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ==========================================
-    // Chức năng Đăng xuất
+    // Chức năng Đăng xuất (Tích hợp Menu Dropdown)
     // ==========================================
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', function (e) {
-            e.preventDefault();
+    const dropdownLogoutBtn = document.getElementById('dropdown-logoutBtn');
+    if (dropdownLogoutBtn) {
+        dropdownLogoutBtn.addEventListener('click', (e) => {
+            e.preventDefault(); // Ngăn chặn hành vi nhảy trang mặc định
             
-            // Gọi API logout ở Backend
+            // Gọi API logout, không cần ép kiểu JSON để tránh lỗi parse, gọi xong là đẩy về login
             fetch('/logout', { method: 'POST' })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) { 
-                    // Chuyển hướng về trang đăng nhập
-                    window.location.href = data.redirect || '/login'; 
-                } else {
-                    alert("Có lỗi xảy ra khi đăng xuất!");
-                }
+            .then(() => {
+                window.location.href = '/login';
             })
-            .catch(error => console.error("Lỗi kết nối khi đăng xuất!", error));
+            .catch(error => {
+                console.error("Lỗi kết nối khi đăng xuất!", error);
+                window.location.href = '/login'; // Kể cả lỗi mạng cũng ép văng ra ngoài cho an toàn
+            });
         });
     }
 });

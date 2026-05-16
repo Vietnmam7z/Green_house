@@ -114,52 +114,65 @@ async function layDanhSachField() {
 // KHỞI CHẠY KHI TRANG TẢI XONG
 // ======================================================================
 document.addEventListener("DOMContentLoaded", () => {
-    // 2. LẤY THÔNG TIN USER (Đã fix hiển thị administrator)
+    // 2. LẤY THÔNG TIN USER VÀ PHÂN QUYỀN MENU
     fetch('/api/current_user')
       .then(res => res.json())
       .then(data => {
         if (data.success) {
             document.getElementById('userName').innerText = data.username;
             
-            // XỬ LÝ ĐỔI TÊN ROLE TỪ "admin" THÀNH "administrator"
-            let displayRole = data.role;
-            if (displayRole === 'admin') displayRole = 'administrator';
-            
+            let displayRole = data.role === 'admin' ? 'administrator' : data.role;
             const userRoleEl = document.getElementById('userRole');
             if (userRoleEl) userRoleEl.innerText = displayRole;
 
-            // --- ĐOẠN MÃ THÊM MỚI BẮT ĐẦU TỪ ĐÂY ---
+            const isAdmin = (data.role === 'administrator' || data.role === 'admin');
+
+            // --- CẬP NHẬT TÊN VÀ LOGIC PHÂN QUYỀN MENU ---
+            const dropdownUserName = document.getElementById('dropdown-userName');
+            if (dropdownUserName) dropdownUserName.innerText = data.username;
+
+            const menuAccount = document.getElementById('menu-account');
+            const menuBilling = document.getElementById('menu-billing');
+            const menuHistory = document.getElementById('menu-history');
+            const menuService = document.getElementById('menu-service');
+            const menuAdmin = document.getElementById('menu-admin');
+            const logoutBtn = document.getElementById('dropdown-logoutBtn');
+
+            if (isAdmin) {
+                // ADMIN: Hiện Thông tin tài khoản, Hiện Quản lý hệ thống, Ẩn các mục hóa đơn của user
+                if (menuAccount) menuAccount.style.display = 'flex';
+                if (menuAdmin) menuAdmin.style.display = 'flex';
+                if (menuBilling) menuBilling.style.display = 'none';
+                if (menuHistory) menuHistory.style.display = 'none';
+                if (menuService) menuService.style.display = 'none';
+            } else {
+                // USER: Hiện đầy đủ 4 chức năng hồ sơ cá nhân, VÀ HIỆN CẢ QUẢN LÝ HỆ THỐNG
+                if (menuAccount) menuAccount.style.display = 'flex';
+                if (menuBilling) menuBilling.style.display = 'flex';
+                if (menuHistory) menuHistory.style.display = 'flex';
+                if (menuService) menuService.style.display = 'flex';
+                if (menuAdmin) menuAdmin.style.display = 'flex'; 
+            }
+            if (logoutBtn) logoutBtn.style.display = 'flex';
+
             const profileBox = document.querySelector('.user-profile');
             if (profileBox) {
-                profileBox.style.cursor = 'pointer'; // Hiển thị con trỏ dạng bàn tay
-                profileBox.title = "Xem thông tin cá nhân và thanh toán"; // Gợi ý khi di chuột
-                profileBox.addEventListener('click', () => {
-                    window.location.href = '/profile'; // Chuyển hướng sang trang profile
-                });
+                profileBox.style.cursor = 'pointer'; 
+                profileBox.title = "Menu tài khoản"; 
             }
-            // --- KẾT THÚC ĐOẠN MÃ THÊM MỚI ---
         }
       })
       .catch(err => console.error("Lỗi lấy thông tin user:", err));
 
-    // Chức năng Đăng xuất
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', function (e) {
-            e.preventDefault();
-            fetch('/logout', { method: 'POST' })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) { window.location.href = '/login'; }
-            });
+    // LẮNG NGHE SỰ KIỆN NÚT ĐĂNG XUẤT MỚI TRONG MENU THẢ XUỐNG
+    document.getElementById('dropdown-logoutBtn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        fetch('/logout', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) { window.location.href = '/login'; }
         });
-    }
-
-    // Menu Quản lý
-    const btnSettings = document.getElementById('btn-settings');
-    if (btnSettings) {
-        btnSettings.addEventListener('click', () => { window.location.href = '/manage'; });
-    }
+    });
 
     // Nút chuyển ruộng trái/phải
     const btnPrev = document.getElementById('btn-prev-field');

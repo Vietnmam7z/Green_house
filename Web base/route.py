@@ -1297,10 +1297,41 @@ class Routes:
         # Kiểm tra xem user có trong session (đã đăng nhập) chưa
         if 'username' in session:
             username = session['username']
-            role = self.auth.get_role(username) # Gọi hàm lấy role từ Authentication
-            return jsonify({"success": True, "username": username, "role": role})
+            role = self.auth.get_role(username) 
+            
+            # Truy vấn thêm email từ userdata.db
+            email = "Chưa cập nhật"
+            try:
+                with sqlite3.connect('userdata.db') as conn:
+                    cur = conn.cursor()
+                    cur.execute("SELECT email FROM user_data WHERE username = ?", (username,))
+                    row = cur.fetchone()
+                    if row and row[0]:
+                        email = row[0]
+            except Exception as e:
+                print("Lỗi lấy email:", e)
+                
+            return jsonify({"success": True, "username": username, "role": role, "email": email})
         else:
             return jsonify({"success": False, "message": "Chưa đăng nhập"}), 401
+        
+    def change_password(self):
+        if 'username' not in session:
+            return jsonify({"success": False, "message": "Vui lòng đăng nhập lại"}), 401
+        
+        data = request.get_json()
+        username = session['username']
+        old_pw = data.get('old_password')
+        new_pw = data.get('new_password')
+        
+        # 1. Tái sử dụng hàm login để xác thực mật khẩu cũ
+        check_login = self.auth.login_user(username, old_pw)
+        if not check_login['success']:
+            return jsonify({"success": False, "message": "Mật khẩu hiện tại không chính xác!"})
+            
+        # 2. Tái sử dụng hàm reset_password để lưu mật khẩu mới
+        result = self.auth.reset_password(username, new_pw)
+        return jsonify(result)
         
 # FIELD BILLING & PAYMENT
     def create_billing(self):
@@ -1739,6 +1770,7 @@ server.add_route('/verify-otp', routes.verify_otp, methods=['POST'])
 # server.add_route('/resend-otp', routes.resend_otp, methods=['POST'])
 server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
 server.add_route('/reset-password', routes.reset_password, methods=['POST'])
+server.add_route('/api/user/change_password', routes.change_password, methods=['POST'])
 server.add_route('/profile', routes.profile_page, methods=['GET'])
 server.add_route('/control', routes.control_page, methods=['GET'])
 server.add_route('/dashboard', routes.dashboard_page, methods=['GET'])

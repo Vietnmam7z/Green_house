@@ -23,37 +23,60 @@ window.chartInstances = {};
 // KHỞI CHẠY KHI TẢI TRANG
 // ==========================================
 document.addEventListener('DOMContentLoaded', function () {
-// --- LẤY THÔNG TIN TÀI KHOẢN ĐANG ĐĂNG NHẬP ---
 fetch('/api/current_user')
     .then(res => res.json())
     .then(data => {
       if (data.success) {
-        // Điền tên và role vào HTML
         document.getElementById('userName').innerText = data.username;
         document.getElementById('userRole').innerText = data.role;
         
-        // --- ĐOẠN MÃ THÊM MỚI BẮT ĐẦU TỪ ĐÂY ---
-        const profileBox = document.querySelector('.user-profile');
-        if (profileBox) {
-            profileBox.style.cursor = 'pointer'; // Hiển thị con trỏ dạng bàn tay
-            profileBox.title = "Xem thông tin cá nhân và thanh toán"; // Gợi ý khi di chuột
-            profileBox.addEventListener('click', () => {
-                window.location.href = '/profile'; // Chuyển hướng sang trang profile
-            });
+        const dropdownUserName = document.getElementById('dropdown-userName');
+        if (dropdownUserName) dropdownUserName.innerText = data.username;
+
+        // Lấy 4 chức năng mới định danh bằng ID
+        const menuAccount = document.getElementById('menu-account');
+        const menuBilling = document.getElementById('menu-billing');
+        const menuHistory = document.getElementById('menu-history');
+        const menuService = document.getElementById('menu-service');
+        const logoutBtn = document.getElementById('dropdown-logoutBtn');
+
+        // THỰC THI QUY TẮC PHÂN QUYỀN CỦA BẠN
+        if (data.role === 'admin' || data.role === 'administrator') {
+            // ADMIN: Chỉ hiển thị phần Thông tin tài khoản, ẩn 3 chức năng còn lại
+            if (menuAccount) menuAccount.style.display = 'flex';
+            if (menuBilling) menuBilling.style.display = 'none';
+            if (menuHistory) menuHistory.style.display = 'none';
+            if (menuService) menuService.style.display = 'none';
+        } else {
+            // USER: Hiển thị đầy đủ cả 4 chức năng
+            if (menuAccount) menuAccount.style.display = 'flex';
+            if (menuBilling) menuBilling.style.display = 'flex';
+            if (menuHistory) menuHistory.style.display = 'flex';
+            if (menuService) menuService.style.display = 'flex';
         }
-        // --- KẾT THÚC ĐOẠN MÃ THÊM MỚI ---
+        if (logoutBtn) logoutBtn.style.display = 'flex';
 
       } else {
-        // Nếu server báo chưa đăng nhập, tự động đẩy ra trang login
         window.location.href = '/login'; 
       }
     })
     .catch(err => {
       console.error("Lỗi lấy thông tin user:", err);
-      document.getElementById('userName').innerText = "ERROR";
     });
 
-  const logoutBtn = document.getElementById('logoutBtn');
+  // Lắng nghe sự kiện click vào nút Đăng xuất mới trong Dropdown Menu
+    document.getElementById('dropdown-logoutBtn')?.addEventListener('click', function(e) {
+        e.preventDefault(); // Chặn hành vi nhảy hashtag # mặc định
+        
+        fetch('/logout', {
+            method: 'POST'
+        })
+        .then(response => {
+            // Chuyển hướng về trang đăng nhập sau khi xóa session thành công
+            window.location.href = '/login';
+        })
+        .catch(err => console.error("Lỗi đăng xuất:", err));
+    });
   const resultBox = document.getElementById('result');
   const summaryContainer = document.getElementById('field-summary-container');
 

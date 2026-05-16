@@ -10,22 +10,46 @@ document.addEventListener("DOMContentLoaded", () => {
             window.location.href = '/admin_management';
         });
     }
-    // Tải thông tin Admin
+    
+    // 1. Tải thông tin Admin
     fetch('/api/current_user')
       .then(res => res.json())
       .then(data => {
-        if (data.success) { document.getElementById('userName').innerText = data.username; }
-      });
+        if (data.success) { 
+            document.getElementById('userName').innerText = data.username; 
+            
+            // ĐỔI TÊN CHUỖI VAI TRÒ CHO ĐẸP GIAO DIỆN
+            let displayRole = data.role;
+            if (displayRole === 'admin') displayRole = 'administrator';
+            const userRoleEl = document.getElementById('userRole');
+            if (userRoleEl) userRoleEl.innerText = displayRole;
+
+            // Truyền dữ liệu tên vào lời chào Dropdown
+            const dropdownUserName = document.getElementById('dropdown-userName');
+            if (dropdownUserName) dropdownUserName.innerText = data.username;
+        }
+      })
+      .catch(err => console.error("Lỗi lấy thông tin:", err));
 
     loadFields();
 
-    // Logout
-    document.getElementById('logoutBtn').addEventListener('click', (e) => {
-        e.preventDefault();
-        fetch('/logout', { method: 'POST' }).then(res => res.json()).then(data => {
-            if (data.success) window.location.href = '/login';
+    // 2. LOGIC ĐĂNG XUẤT MỚI (CHỐNG LỖI)
+    const dropdownLogoutBtn = document.getElementById('dropdown-logoutBtn');
+    if (dropdownLogoutBtn) {
+        dropdownLogoutBtn.addEventListener('click', function (e) {
+            e.preventDefault(); // Chặn việc tự động thêm dấu # vào URL
+            
+            fetch('/logout', { method: 'POST' })
+            .then(() => {
+                // Không cần check JSON, cứ gọi API xong là đá văng ra login
+                window.location.href = '/login'; 
+            })
+            .catch(error => {
+                console.error("Lỗi kết nối khi đăng xuất!", error);
+                window.location.href = '/login';
+            });
         });
-    });
+    }
 
     // CHỨC NĂNG XỬ LÝ THANH TOOLBAR MỚI (UPDATE)
     // 1. Nút "Select All"

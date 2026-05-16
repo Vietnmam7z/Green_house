@@ -226,6 +226,7 @@ document.addEventListener("DOMContentLoaded", () => {
             let displayRole = data.role === 'admin' ? 'administrator' : data.role;
             document.getElementById('userRole').innerText = displayRole;
             const isAdmin = (data.role === 'administrator' || data.role === 'admin');
+            
             const btnBack = document.getElementById('goToDashboard') || document.getElementById('btn-back');
             if (btnBack) {
                 btnBack.onclick = (e) => {
@@ -234,25 +235,50 @@ document.addEventListener("DOMContentLoaded", () => {
                 };
             }
 
-            // --- ĐOẠN MÃ THÊM MỚI BẮT ĐẦU TỪ ĐÂY ---
+            // --- CẬP NHẬT TÊN VÀ LOGIC PHÂN QUYỀN MENU TRÊN DASHBOARD ---
+            const dropdownUserName = document.getElementById('dropdown-userName');
+            if (dropdownUserName) dropdownUserName.innerText = data.username;
+
+            const menuAccount = document.getElementById('menu-account');
+            const menuBilling = document.getElementById('menu-billing');
+            const menuHistory = document.getElementById('menu-history');
+            const menuService = document.getElementById('menu-service');
+            const menuAdmin = document.getElementById('menu-admin');
+            const logoutBtn = document.getElementById('dropdown-logoutBtn');
+
+            if (isAdmin) {
+                // ADMIN: Hiện Thông tin tài khoản, Hiện Quản lý hệ thống, Ẩn các mục hóa đơn của user
+                if (menuAccount) menuAccount.style.display = 'flex';
+                if (menuAdmin) menuAdmin.style.display = 'flex'; 
+                if (menuBilling) menuBilling.style.display = 'none';
+                if (menuHistory) menuHistory.style.display = 'none';
+                if (menuService) menuService.style.display = 'none';
+            } else {
+                // USER: Hiện đầy đủ 4 chức năng hồ sơ cá nhân VÀ HIỆN CẢ QUẢN LÝ HỆ THỐNG
+                if (menuAccount) menuAccount.style.display = 'flex';
+                if (menuBilling) menuBilling.style.display = 'flex';
+                if (menuHistory) menuHistory.style.display = 'flex';
+                if (menuService) menuService.style.display = 'flex';
+                if (menuAdmin) menuAdmin.style.display = 'flex';
+            }
+            if (logoutBtn) logoutBtn.style.display = 'flex';
+
             const profileBox = document.querySelector('.user-profile');
             if (profileBox) {
-                profileBox.style.cursor = 'pointer'; // Hiển thị con trỏ dạng bàn tay
-                profileBox.title = "Xem thông tin cá nhân và thanh toán"; // Gợi ý khi di chuột
-                profileBox.addEventListener('click', () => {
-                    window.location.href = '/profile'; // Chuyển hướng sang trang profile
-                });
+                profileBox.style.cursor = 'pointer'; 
+                profileBox.title = "Menu tài khoản"; 
             }
-            // --- KẾT THÚC ĐOẠN MÃ THÊM MỚI ---
         }
       })
-      .catch(err => console.error("Lỗi lấy thông tin user:", err)); // Thêm catch lỗi cho an toàn
+      .catch(err => console.error("Lỗi lấy thông tin user:", err)); 
 
+    // CHUYỂN HƯỚNG NÚT ĐIỀU KHIỂN
     document.getElementById('ControlBtn')?.addEventListener('click', () => {
         window.location.href = currentFieldId ? `/control?field_id=${currentFieldId}` : '/control';
     });
-    document.getElementById('btn-settings')?.addEventListener('click', () => window.location.href = '/manage');
-    document.getElementById('logoutBtn')?.addEventListener('click', (e) => {
+
+    // LẮNG NGHE SỰ KIỆN NÚT ĐĂNG XUẤT MỚI TRONG MENU THẢ XUỐNG
+    document.getElementById('dropdown-logoutBtn')?.addEventListener('click', (e) => {
         e.preventDefault();
         fetch('/logout', { method: 'POST' }).then(() => window.location.href = '/login');
     });

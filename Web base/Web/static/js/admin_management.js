@@ -13,14 +13,18 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           document.getElementById('userRole').innerText = displayRole;
 
+          // Điền tên vào Menu thả xuống
+          const dropdownUserName = document.getElementById('dropdown-userName');
+          if (dropdownUserName) dropdownUserName.innerText = data.username;
+
         } else {
           window.location.href = '/login';
         }
       })
       .catch(err => console.error("Lỗi lấy thông tin user:", err));
 
-    // 2. Chức năng Đăng xuất
-    const logoutBtn = document.getElementById('logoutBtn');
+    // 2. Chức năng Đăng xuất (Đã cập nhật ID nút mới)
+    const logoutBtn = document.getElementById('dropdown-logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', function (e) {
             e.preventDefault();
@@ -33,11 +37,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // 3. Chức năng chuyển trang của 2 nút vuông
-    document.getElementById('btn-user-management').addEventListener('click', () => {
+    document.getElementById('btn-user-management')?.addEventListener('click', () => {
         window.location.href = '/admin_management/users';
     });
 
-    document.getElementById('btn-greenhouse-management').addEventListener('click', () => {
+    document.getElementById('btn-greenhouse-management')?.addEventListener('click', () => {
         window.location.href = '/admin_management/greenhouses';
     });
 });

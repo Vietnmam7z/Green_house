@@ -16,21 +16,63 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
+    // --- LẤY THÔNG TIN USER VÀ PHÂN QUYỀN HIỂN THỊ TAB ---
     const userRes = await fetch('/api/current_user');
     const userData = await userRes.json();
+    let isAdmin = false;
+
     if (userData.success) {
+        document.getElementById('prof-email').innerText = userData.email;
         document.getElementById('prof-username').innerText = userData.username;
         let displayRole = userData.role;
         if (displayRole === 'admin') displayRole = 'administrator';
         document.getElementById('prof-role').innerText = displayRole;
+        
+        // Kiểm tra xem có phải là Admin không
+        isAdmin = (userData.role === 'admin' || userData.role === 'administrator');
+
+        // Lấy các nút Tab cần phân quyền
+        const tabBilling = document.getElementById('tab-btn-billing');
+        const tabHistory = document.getElementById('tab-btn-history');
+        const tabService = document.getElementById('tab-btn-service');
+
+        if (isAdmin) {
+            // ADMIN: Ẩn 3 tab của user đi
+            if (tabBilling) tabBilling.style.display = 'none';
+            if (tabHistory) tabHistory.style.display = 'none';
+            if (tabService) tabService.style.display = 'none';
+        } else {
+            // USER: Hiện lại bình thường
+            if (tabBilling) tabBilling.style.display = 'block';
+            if (tabHistory) tabHistory.style.display = 'block';
+            if (tabService) tabService.style.display = 'block';
+        }
+
     } else {
         window.location.href = '/login';
         return;
     }
 
-    // Tải cả danh sách hóa đơn mới và lịch sử cũ
-    loadBills();
-    loadHistory(); 
+    // --- CHỈ GỌI API TẢI DỮ LIỆU NẾU LÀ USER THƯỜNG ---
+    // (Admin sẽ không tải data thừa để tối ưu hiệu suất)
+    if (!isAdmin) {
+        loadBills();
+        loadHistory(); 
+    }
+
+    // --- TỰ ĐỘNG NHẢY TAB NẾU CÓ PARAM TRÊN URL ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab'); 
+    
+    if (tabParam) {
+        const targetTabId = 'tab-' + tabParam; 
+        const targetBtn = document.querySelector(`.tab-btn[data-tab="${targetTabId}"]`);
+        
+        // Kiểm tra nút Tab đó có tồn tại và không bị ẩn (đề phòng admin cố tình sửa URL)
+        if (targetBtn && targetBtn.style.display !== 'none') {
+            targetBtn.click();
+        }
+    }
 });
 
 async function loadBills() {
@@ -298,3 +340,57 @@ async function loadServicePlans(fieldId) {
         container.innerHTML = "<p style='text-align:center; color:red; padding:20px;'>Lỗi hệ thống khi tải thông tin gói dịch vụ.</p>";
     }
 }
+
+// ============================================================
+// HÀM XỬ LÝ ĐỔI MẬT KHẨU
+// ============================================================
+document.getElementById('btn-change-password').addEventListener('click', async () => {
+    const oldPw = document.getElementById('old-password').value;
+    const newPw = document.getElementById('new-password').value;
+    const confirmPw = document.getElementById('confirm-password').value;
+    const pwStatus = document.getElementById('pw-status');
+
+    pwStatus.style.display = 'block';
+
+    // Validate form
+    if (!oldPw || !newPw || !confirmPw) {
+        pwStatus.innerHTML = '<span style="color: #e74c3c;">Vui lòng điền đầy đủ thông tin!</span>';
+        return;
+    }
+
+    if (newPw !== confirmPw) {
+        pwStatus.innerHTML = '<span style="color: #e74c3c;">Mật khẩu mới không khớp!</span>';
+        return;
+    }
+
+    if (newPw.length < 6) {
+        pwStatus.innerHTML = '<span style="color: #e74c3c;">Mật khẩu mới phải từ 6 ký tự trở lên!</span>';
+        return;
+    }
+
+    pwStatus.innerHTML = '<span style="color: #3498db;"><i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...</span>';
+
+    try {
+        const res = await fetch('/api/user/change_password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ old_password: oldPw, new_password: newPw })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            pwStatus.innerHTML = '<span style="color: #2e7d32;"><i class="fa-solid fa-circle-check"></i> Đổi mật khẩu thành công!</span>';
+            // Xóa rỗng các ô nhập liệu
+            document.getElementById('old-password').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('confirm-password').value = '';
+            
+            // Tự ẩn thông báo sau 3 giây
+            setTimeout(() => { pwStatus.style.display = 'none'; }, 3000);
+        } else {
+            pwStatus.innerHTML = `<span style="color: #e74c3c;"><i class="fa-solid fa-triangle-exclamation"></i> ${data.message}</span>`;
+        }
+    } catch (err) {
+        pwStatus.innerHTML = '<span style="color: #e74c3c;">Lỗi kết nối máy chủ!</span>';
+    }
+});

@@ -16,14 +16,31 @@
         </div>
         <div class="navbar-right">
             <img src="/static/img/bell.png" alt="Notifications" class="nav-icon">
-            <div class="user-profile">
-                <img src="/static/img/user.png" alt="User" class="nav-icon">
-                <div class="user-info">
-                    <span class="user-name" id="userName">ĐANG TẢI...</span>
-                    <span class="user-role" id="userRole">administrator</span>
+            
+            <div class="user-profile-container">
+                <div class="user-profile">
+                    <img src="/static/img/user.png" alt="User" class="nav-icon">
+                    <div class="user-info">
+                        <span class="user-name" id="userName">ĐANG TẢI...</span>
+                        <span class="user-role" id="userRole">administrator</span>
+                    </div>
+                </div>
+
+                <div class="user-dropdown">
+                    <div class="dropdown-greeting">
+                        Xin chào,
+                        <span class="greet-name" id="dropdown-userName">...</span>
+                    </div>
+                    
+                    <a href="/profile?tab=account" class="dropdown-item" id="menu-account">
+                        <i class="fa-regular fa-id-badge"></i> Thông tin tài khoản
+                    </a>
+                    
+                    <a href="#" id="dropdown-logoutBtn" class="dropdown-item logout-btn">
+                        <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
+                    </a>
                 </div>
             </div>
-            <img src="/static/img/logout-icon.png" alt="Logout" id="logoutBtn" class="nav-icon" style="cursor: pointer;" title="Đăng xuất">
         </div>
     </div>
 
