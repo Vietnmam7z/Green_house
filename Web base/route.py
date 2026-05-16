@@ -1408,19 +1408,38 @@ class Routes:
     
     def update_payment_status_internal(self, order_id, status, raw_response=None):
         result = self.field.update_transaction_status(order_id, status)
+        
         if status == "success":
             txn = self.field.get_transaction_by_order_id(order_id)
-            transaction = txn["data"] if txn["success"] else None
-            print(transaction)
+            
+            # Xử lý an toàn: Lấy dữ liệu giao dịch dù trả về là List hay Tuple
+            transaction = txn["data"]
+            if isinstance(transaction, list) and len(transaction) > 0:
+                transaction = transaction[0]
+                
+            print("Dữ liệu Transaction an toàn:", transaction)
+            
             if transaction:
                 user_id = transaction[10]    
                 field_id = transaction[1]
-                request_id = transaction[4]
+                # SỬA LỖI 1: Lấy đúng vị trí số 3 thay vì 4
+                request_id = transaction[3]  
                 amount = transaction[5]
+                
                 bills = self.field.get_unpaid_bills(field_id)["data"]
-                self.auth.save_payment_history(user_id, field_id, order_id,request_id, amount, bills, raw_response)
+                
+                # SỬA LỖI 2: Ép kiểu raw_response thành chuỗi (String) trước khi lưu
+                if isinstance(raw_response, dict):
+                    response_str = json.dumps(raw_response)
+                else:
+                    response_str = str(raw_response)
+                
+                # Lưu vào userdata.db
+                self.auth.save_payment_history(user_id, field_id, order_id, request_id, amount, bills, response_str)
+                
                 self.field.mark_bills_as_paid(field_id)
-                self.logger.log_payment_transaction(user_id, field_id, order_id, request_id, amount, bills, raw_response)
+                self.logger.log_payment_transaction(user_id, field_id, order_id, request_id, amount, bills, response_str)
+                
         return result
 
 # USER TRANSACTION HISTORY
@@ -1429,11 +1448,66 @@ class Routes:
     def get_transactions_of_user(self):
         username = session.get('username')
         user_id = self.auth.get_user_id(username)
-        return self.auth.get_transaction_detail(user_id)
+        
+        with self.field.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM payment_transactions WHERE user_id = ? AND status = 'success' ORDER BY paid_at DESC", (user_id,))
+            db_rows = cur.fetchall()
+
+        # Hàm phụ trợ: Chuyển đổi chuỗi thời gian từ GMT+0 sang GMT+7
+        def to_gmt7(time_str):
+            if not time_str:
+                return ""
+            try:
+                # Cắt chuỗi lấy đúng định dạng YYYY-MM-DD HH:MM:SS (bỏ phần mili-giây nếu có)
+                clean_str = str(time_str).strip()[:19]
+                dt = datetime.strptime(clean_str, "%Y-%m-%d %H:%M:%S")
+                # Cộng thêm 7 tiếng
+                dt_gmt7 = dt + timedelta(hours=7)
+                return dt_gmt7.strftime("%Y-%m-%d %H:%M:%S")
+            except:
+                return time_str # Trả về nguyên bản nếu bị lỗi parse
+
+        rows = []
+        for r in db_rows:
+            mapped = [
+                r[0],             # 0: id
+                r[10],            # 1: user_id
+                r[1],             # 2: field_id
+                r[2],             # 3: order_id
+                r[3],             # 4: request_id
+                r[5],             # 5: amount
+                r[6],             # 6: status
+                r[9],             # 7: raw_response
+                to_gmt7(r[7]),    # 8: created_at (Đã +7)
+                to_gmt7(r[8]),    # 9: updated_at/paid_at (Đã +7)
+                to_gmt7(r[8])     # 10: paid_at (Đã +7)
+            ]
+            rows.append(mapped)
+
+        return jsonify({"success": True, "data": rows})
     
     def get_transactions_items(self):
         transaction_id = request.get_json().get("transaction_id")
-        return self.auth.get_transactions_items(transaction_id)
+        
+        with self.field.connect() as conn:
+            cur = conn.cursor()
+            # Đọc chi tiết từng món hóa đơn
+            cur.execute("SELECT * FROM payment_transaction_items WHERE transaction_id = ?", (transaction_id,))
+            db_rows = cur.fetchall()
+
+        # Ánh xạ lại cột cho khớp với profile.js
+        rows = []
+        for r in db_rows:
+            mapped = [
+                r[0], # 0: id
+                r[1], # 1: transaction_id
+                r[3], # 2: title (Tên loại phí: Điện, Thuê nhà kính...)
+                r[4]  # 3: amount (Số tiền)
+            ]
+            rows.append(mapped)
+
+        return jsonify({"success": True, "data": rows})
 
 # FIELD SERVICE PLAN BILLING
 ################################################################################################################################ 
@@ -1633,6 +1707,7 @@ server.add_route('/api/payment/update', routes.update_payment_status, methods=['
 server.add_route('/ipn', routes.momo_ipn, methods=['POST'])
 server.add_route('/api/payment/history', routes.get_transactions_of_user, methods=['GET'])
 server.add_route('/api/payment/items', routes.get_transactions_items, methods=['POST'])
+server.add_route('/api/user/transactions', routes.get_transactions_of_user, methods=['GET', 'POST'])
 
 server.add_route('/api/service_plan/create', routes.create_service_plan_route, methods=['POST'])
 server.add_route('/api/service_plan/update', routes.update_service_plan_route, methods=['POST'])
