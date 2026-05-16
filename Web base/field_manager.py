@@ -34,8 +34,30 @@ class FieldDB:
                 VALUES (?, ?)
             """, (field_id, username))
 
+            # =========================================================
+            # THÊM TỰ ĐỘNG 8 THIẾT BỊ MẶC ĐỊNH VÀO DEVICE_CONTROLLER
+            # =========================================================
+            default_devices = [
+                ("Máy bơm nước", "valve"),
+                ("Đèn", "light"),
+                ("Thông gió", "vent"),
+                ("Quạt", "fan"),
+                ("Màng giải nhiệt", "cooling_pad"),
+                ("Van điện từ CO2", "co2_valve"),
+                ("Hệ thống sưởi", "heater"),
+                ("Phân bón", "fertilizer")
+            ]
+
+            # Khi không chèn dữ liệu vào cột sensor_id, SQLite sẽ tự động để giá trị là NULL
+            for device_name, dev_type in default_devices:
+                cursor.execute("""
+                    INSERT INTO device_controller (field_id, device_name, type, state)
+                    VALUES (?, ?, ?, 'DONE')
+                """, (field_id, device_name, dev_type))
+            # =========================================================
+
             conn.commit()
-            return {"success": True, "message": "Thêm ruộng thành công."}
+            return {"success": True, "message": "Thêm ruộng và khởi tạo thiết bị thành công."}
         
     # 1. Hàm lấy ruộng cho User thường (Đã khôi phục)
     def get_fields(self, username: str):
@@ -72,8 +94,24 @@ class FieldDB:
     def delete_field(self, field_id: str):
         with self.connect() as conn:
             cursor = conn.cursor()
+            
+            # 1. Xóa tất cả các thiết bị thuộc Field này
+            cursor.execute("DELETE FROM device_controller WHERE field_id = ?", (field_id,))
+            
+            # 2. Xóa các liên kết người dùng quản lý Field này
+            cursor.execute("DELETE FROM field_user WHERE field_id = ?", (field_id,))
+            
+            # 3. Xóa toàn bộ lịch trình (scheduler) của Field này
+            cursor.execute("DELETE FROM scheduler WHERE field_id = ?", (field_id,))
+            
+            # (Tùy chọn) Xóa thêm dữ liệu lịch sử cảm biến hoặc hóa đơn liên quan nếu cần
+            # cursor.execute("DELETE FROM telemetry WHERE ...")
+            
+            # 4. Cuối cùng, mới tiến hành xóa Field ID
             cursor.execute("DELETE FROM field WHERE field_id = ?", (field_id,))
+            
             conn.commit()
+            return {"success": True, "message": "Đã xóa hoàn toàn Field và các dữ liệu liên quan."}
 
     def rename_field_id(self, old_field_id: str, new_field_id: str):
         with self.connect() as conn:
@@ -159,6 +197,19 @@ class FieldDB:
 
             conn.commit()
             return {"success": True, "message": "Đổi tên thiết bị thành công."}
+        
+    def remove_users_from_field(self, field_id: str, usernames: list):
+        """Xóa một hoặc nhiều user cụ thể khỏi ruộng (bảng field_user)."""
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            
+            # Xóa các liên kết user cụ thể của ruộng đó
+            query = "DELETE FROM field_user WHERE field_id = ? AND username = ?"
+            for user in usernames:
+                cursor.execute(query, (field_id, user))
+                
+            conn.commit()
+            return {"success": True, "message": f"Đã xóa {len(usernames)} user khỏi ruộng."}
         
     def find_user_id(self, field_id: str, username: str):
         with self.connect() as conn:
@@ -1753,3 +1804,32 @@ class FieldDB:
             """, (plan_id,))
 
             conn.commit()
+
+    def get_service_plans_by_field(self, field_id):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            # Lấy tất cả gói thuê của ruộng này, gói mới nhất lên đầu
+            cursor.execute("""
+                SELECT id, field_id, service_days, daily_price, start_date, expired_date, accumulated_amount, status
+                FROM field_service_plan
+                WHERE field_id = ?
+                ORDER BY id DESC
+            """, (field_id,))
+            rows = cursor.fetchall()
+            
+        return {
+            "success": True,
+            "data": [
+                {
+                    "id": row[0],
+                    "field_id": row[1],
+                    "service_days": row[2],
+                    "daily_price": row[3],
+                    "start_date": row[4],
+                    "expired_date": row[5],
+                    "accumulated_amount": row[6],
+                    "status": row[7]
+                }
+                for row in rows
+            ]
+        }

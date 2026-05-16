@@ -61,6 +61,12 @@ class Routes:
         self.pop_reset_session()
         return ("", 204)
     
+    def profile_page(self):
+        resp = self.require_login()
+        if resp:
+            return resp
+        return render_template('profile.html')
+    
     def control_device(self):
         # Yêu cầu phải đăng nhập mới được điều khiển
         if 'username' not in session:
@@ -714,10 +720,11 @@ class Routes:
     def api_admin_add_greenhouse(self):
         data = request.get_json()
         field_id = data.get('field_id', '').strip()
-        result = field.add_field(field_id, None, None)
-        field.create_automation(field_id)
+        result = self.field.add_field(field_id, None, None)
+        self.field.create_automation(field_id)
         self.logger.log_add_field(field_id)
         self.field.create_AI_management_record(field_id)
+        
         return jsonify(result)
 
     # API DỌN DẸP DỮ LIỆU FIELD (CLEAR)
@@ -1041,6 +1048,33 @@ class Routes:
                 "success": result['success'],
                 "message": result['message'],
             })
+    
+    def remove_users_from_field(self):
+        """API: Xóa danh sách user cụ thể khỏi một ruộng."""
+        # 1. Kiểm tra xem người dùng đã đăng nhập chưa
+        if 'username' not in session:
+            return jsonify({"success": False, "message": "Bạn chưa đăng nhập."}), 401
+            
+        # 2. Lấy role từ database để kiểm tra quyền Admin (Giống logic các hàm khác)
+        username = session['username']
+        role = self.auth.get_role(username)
+        if role not in ['admin', 'administrator']:
+            return jsonify({"success": False, "message": "Bạn không có quyền thực hiện hành động này."}), 403
+        
+        # 3. Xử lý logic xóa user
+        data = request.get_json()
+        field_id = data.get('field_id')
+        usernames = data.get('usernames') # Đây là một list các username từ JS gửi lên
+        
+        if not field_id or not usernames:
+            return jsonify({"success": False, "message": "Thiếu thông tin Field ID hoặc danh sách User."})
+        
+        try:
+            # Gọi hàm xóa trong field_manager.py
+            result = self.field.remove_users_from_field(field_id, usernames)
+            return jsonify(result)
+        except Exception as e:
+            return jsonify({"success": False, "message": f"Lỗi hệ thống: {str(e)}"})
         
     def get_device(self):
         field_id =  request.get_json().get("field_id")
@@ -1153,7 +1187,7 @@ class Routes:
                 "success": True,
                 "message": "Người dùng đã được cấp quyền",
             })
-     
+    
     def update_status(self):
         data = self.sensor.update()
         if data:
@@ -1263,10 +1297,41 @@ class Routes:
         # Kiểm tra xem user có trong session (đã đăng nhập) chưa
         if 'username' in session:
             username = session['username']
-            role = self.auth.get_role(username) # Gọi hàm lấy role từ Authentication
-            return jsonify({"success": True, "username": username, "role": role})
+            role = self.auth.get_role(username) 
+            
+            # Truy vấn thêm email từ userdata.db
+            email = "Chưa cập nhật"
+            try:
+                with sqlite3.connect('userdata.db') as conn:
+                    cur = conn.cursor()
+                    cur.execute("SELECT email FROM user_data WHERE username = ?", (username,))
+                    row = cur.fetchone()
+                    if row and row[0]:
+                        email = row[0]
+            except Exception as e:
+                print("Lỗi lấy email:", e)
+                
+            return jsonify({"success": True, "username": username, "role": role, "email": email})
         else:
             return jsonify({"success": False, "message": "Chưa đăng nhập"}), 401
+        
+    def change_password(self):
+        if 'username' not in session:
+            return jsonify({"success": False, "message": "Vui lòng đăng nhập lại"}), 401
+        
+        data = request.get_json()
+        username = session['username']
+        old_pw = data.get('old_password')
+        new_pw = data.get('new_password')
+        
+        # 1. Tái sử dụng hàm login để xác thực mật khẩu cũ
+        check_login = self.auth.login_user(username, old_pw)
+        if not check_login['success']:
+            return jsonify({"success": False, "message": "Mật khẩu hiện tại không chính xác!"})
+            
+        # 2. Tái sử dụng hàm reset_password để lưu mật khẩu mới
+        result = self.auth.reset_password(username, new_pw)
+        return jsonify(result)
         
 # FIELD BILLING & PAYMENT
     def create_billing(self):
@@ -1374,19 +1439,38 @@ class Routes:
     
     def update_payment_status_internal(self, order_id, status, raw_response=None):
         result = self.field.update_transaction_status(order_id, status)
+        
         if status == "success":
             txn = self.field.get_transaction_by_order_id(order_id)
-            transaction = txn["data"] if txn["success"] else None
+            
+            # Xử lý an toàn: Lấy dữ liệu giao dịch dù trả về là List hay Tuple
+            transaction = txn["data"]
+            if isinstance(transaction, list) and len(transaction) > 0:
+                transaction = transaction[0]
+                
+            print("Dữ liệu Transaction an toàn:", transaction)
+            
             if transaction:
-                transaction_id = transaction[0]
-                user_id = transaction[1]    
-                field_id = transaction[2]
-                request_id = transaction[4]
+                user_id = transaction[10]    
+                field_id = transaction[1]
+                # SỬA LỖI 1: Lấy đúng vị trí số 3 thay vì 4
+                request_id = transaction[3]  
                 amount = transaction[5]
+                
                 bills = self.field.get_unpaid_bills(field_id)["data"]
-                self.auth.save_payment_history(user_id, field_id, order_id,request_id, amount, bills, raw_response)
+                
+                # SỬA LỖI 2: Ép kiểu raw_response thành chuỗi (String) trước khi lưu
+                if isinstance(raw_response, dict):
+                    response_str = json.dumps(raw_response)
+                else:
+                    response_str = str(raw_response)
+                
+                # Lưu vào userdata.db
+                self.auth.save_payment_history(user_id, field_id, order_id, request_id, amount, bills, response_str)
+                
                 self.field.mark_bills_as_paid(field_id)
-                self.logger.log_payment_transaction(user_id, field_id, order_id, request_id, amount, bills, raw_response)
+                self.logger.log_payment_transaction(user_id, field_id, order_id, request_id, amount, bills, response_str)
+                
         return result
 
 # USER TRANSACTION HISTORY
@@ -1395,11 +1479,66 @@ class Routes:
     def get_transactions_of_user(self):
         username = session.get('username')
         user_id = self.auth.get_user_id(username)
-        return self.auth.get_transaction_detail(user_id)
+        
+        with self.field.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM payment_transactions WHERE user_id = ? AND status = 'success' ORDER BY paid_at DESC", (user_id,))
+            db_rows = cur.fetchall()
+
+        # Hàm phụ trợ: Chuyển đổi chuỗi thời gian từ GMT+0 sang GMT+7
+        def to_gmt7(time_str):
+            if not time_str:
+                return ""
+            try:
+                # Cắt chuỗi lấy đúng định dạng YYYY-MM-DD HH:MM:SS (bỏ phần mili-giây nếu có)
+                clean_str = str(time_str).strip()[:19]
+                dt = datetime.strptime(clean_str, "%Y-%m-%d %H:%M:%S")
+                # Cộng thêm 7 tiếng
+                dt_gmt7 = dt + timedelta(hours=7)
+                return dt_gmt7.strftime("%Y-%m-%d %H:%M:%S")
+            except:
+                return time_str # Trả về nguyên bản nếu bị lỗi parse
+
+        rows = []
+        for r in db_rows:
+            mapped = [
+                r[0],             # 0: id
+                r[10],            # 1: user_id
+                r[1],             # 2: field_id
+                r[2],             # 3: order_id
+                r[3],             # 4: request_id
+                r[5],             # 5: amount
+                r[6],             # 6: status
+                r[9],             # 7: raw_response
+                to_gmt7(r[7]),    # 8: created_at (Đã +7)
+                to_gmt7(r[8]),    # 9: updated_at/paid_at (Đã +7)
+                to_gmt7(r[8])     # 10: paid_at (Đã +7)
+            ]
+            rows.append(mapped)
+
+        return jsonify({"success": True, "data": rows})
     
     def get_transactions_items(self):
         transaction_id = request.get_json().get("transaction_id")
-        return self.auth.get_transactions_items(transaction_id)
+        
+        with self.field.connect() as conn:
+            cur = conn.cursor()
+            # Đọc chi tiết từng món hóa đơn
+            cur.execute("SELECT * FROM payment_transaction_items WHERE transaction_id = ?", (transaction_id,))
+            db_rows = cur.fetchall()
+
+        # Ánh xạ lại cột cho khớp với profile.js
+        rows = []
+        for r in db_rows:
+            mapped = [
+                r[0], # 0: id
+                r[1], # 1: transaction_id
+                r[3], # 2: title (Tên loại phí: Điện, Thuê nhà kính...)
+                r[4]  # 3: amount (Số tiền)
+            ]
+            rows.append(mapped)
+
+        return jsonify({"success": True, "data": rows})
 
 # FIELD SERVICE PLAN BILLING
 ################################################################################################################################ 
@@ -1458,6 +1597,15 @@ class Routes:
         self.logger.log_delete_service_plan(plan_id)
         return self.field.delete_service_plan(plan_id)
     
+    def get_service_plans_route(self):
+        data = request.get_json() or {}
+        field_id = data.get("field_id")
+        if not field_id:
+            return jsonify({"success": False, "message": "Thiếu mã ruộng (field_id)"})
+        
+        result = self.field.get_service_plans_by_field(field_id)
+        return jsonify(result)
+    
     def run_service_plan_billing_route(self):
         return self.run_service_plan_billing()
 
@@ -1504,7 +1652,7 @@ class Routes:
             device_priority = ["cooling_pad", "vent", "fan"]
         elif target_type == "temperature" and action == "decrease":
             device_priority = ["heater"]
-        elif target_type == "moisture" and action == "increase":
+        elif target_type == "moisture" and action == "decrease":
             device_priority = ["valve"]
         else:
           return None
@@ -1523,10 +1671,10 @@ class Routes:
         field_id = data.get("field_id")
         status = data.get("status")
 
-        if status not in ["on", "off"]:
+        if status not in ["ON", "OFF"]:
             return {
                 "success": False,
-                "message": "Status chỉ được là on hoặc off"
+                "message": "Status chỉ được là ON hoặc OFF"
             }
 
         self.field.set_automation_status(field_id, status)
@@ -1599,10 +1747,12 @@ server.add_route('/api/payment/update', routes.update_payment_status, methods=['
 server.add_route('/ipn', routes.momo_ipn, methods=['POST'])
 server.add_route('/api/payment/history', routes.get_transactions_of_user, methods=['GET'])
 server.add_route('/api/payment/items', routes.get_transactions_items, methods=['POST'])
+server.add_route('/api/user/transactions', routes.get_transactions_of_user, methods=['GET', 'POST'])
 
 server.add_route('/api/service_plan/create', routes.create_service_plan_route, methods=['POST'])
 server.add_route('/api/service_plan/update', routes.update_service_plan_route, methods=['POST'])
 server.add_route('/api/service_plan/delete', routes.delete_service_plan_route, methods=['POST'])
+server.add_route('/api/service_plan/list', routes.get_service_plans_route, methods=['POST'])
 server.add_route('/api/service_plan/run', routes.run_service_plan_billing_route, methods=['POST'])
 
 server.add_route('/api/payment/delete_by_field', routes.delete_payment_by_field, methods=['POST'])
@@ -1620,6 +1770,8 @@ server.add_route('/verify-otp', routes.verify_otp, methods=['POST'])
 # server.add_route('/resend-otp', routes.resend_otp, methods=['POST'])
 server.add_route('/reset-password', routes.reset_password_page, methods=['GET'])
 server.add_route('/reset-password', routes.reset_password, methods=['POST'])
+server.add_route('/api/user/change_password', routes.change_password, methods=['POST'])
+server.add_route('/profile', routes.profile_page, methods=['GET'])
 server.add_route('/control', routes.control_page, methods=['GET'])
 server.add_route('/dashboard', routes.dashboard_page, methods=['GET'])
 server.add_route('/manage', routes.manage_page, methods=['GET'])
@@ -1645,6 +1797,7 @@ server.add_route('/api/admin/add_greenhouse', routes.api_admin_add_greenhouse, m
 server.add_route('/api/admin/clear_fields', routes.api_admin_clear_fields, methods=['POST'])
 server.add_route('/api/admin/edit_greenhouse', routes.api_admin_edit_greenhouse, methods=['POST'])
 server.add_route('/api/admin/delete_greenhouse_fields', routes.api_admin_delete_greenhouse_fields, methods=['POST'])
+server.add_route('/api/admin/remove_users_from_field', routes.remove_users_from_field, methods=['POST'])
 
 server.add_route('/api/get_schedulers', routes.get_schedulers_by_field, methods=['GET'])
 server.add_route('/api/create_scheduler', routes.create_scheduler, methods=['POST'])

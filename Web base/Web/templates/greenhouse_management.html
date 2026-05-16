@@ -16,14 +16,31 @@
         </div>
         <div class="navbar-right">
             <img src="/static/img/bell.png" alt="Notifications" class="nav-icon">
-            <div class="user-profile">
-                <img src="/static/img/user.png" alt="User" class="nav-icon">
-                <div class="user-info">
-                    <span class="user-name" id="userName">ĐANG TẢI...</span>
-                    <span class="user-role" id="userRole">administrator</span>
+            
+            <div class="user-profile-container">
+                <div class="user-profile">
+                    <img src="/static/img/user.png" alt="User" class="nav-icon">
+                    <div class="user-info">
+                        <span class="user-name" id="userName">ĐANG TẢI...</span>
+                        <span class="user-role" id="userRole">administrator</span>
+                    </div>
+                </div>
+
+                <div class="user-dropdown">
+                    <div class="dropdown-greeting">
+                        Xin chào,
+                        <span class="greet-name" id="dropdown-userName">...</span>
+                    </div>
+                    
+                    <a href="/profile?tab=account" class="dropdown-item" id="menu-account">
+                        <i class="fa-regular fa-id-badge"></i> Thông tin tài khoản
+                    </a>
+                    
+                    <a href="#" id="dropdown-logoutBtn" class="dropdown-item logout-btn">
+                        <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
+                    </a>
                 </div>
             </div>
-            <img src="/static/img/logout-icon.png" alt="Logout" id="logoutBtn" class="nav-icon" style="cursor: pointer;" title="Đăng xuất">
         </div>
     </div>
 
@@ -103,7 +120,7 @@
             </div>
 
             <div class="input-group" style="margin-top: 15px; text-align: left;">
-                <label style="font-size: 13px; color: #333; font-weight: 600; text-transform: uppercase; letter-spacing: 2px;">Username</label>
+                <label style="font-size: 13px; color: #333; font-weight: 600; text-transform: uppercase; letter-spacing: 2px;">Add Username</label>
                 <select id="editUsername" class="modal-select">
                     <option value="">Choose username</option>
                     </select>
@@ -122,6 +139,24 @@
             
             <div class="modal-actions" style="justify-content: flex-end; margin-top: 35px;">
                 <button class="btn-submit-green" id="btn-submit-edit-field">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="removeUserModal">
+        <div class="modal-box field-modal">
+            <div class="modal-header">
+                <h3 style="font-size: 24px; font-weight: 900; color: #000;">Remove User</h3>
+                <i class="fa-solid fa-xmark close-modal" id="closeRemoveUserModal" style="font-size: 24px;"></i>
+            </div>
+            
+            <p style="margin-top: 15px; font-size: 14px; color: #666;">Select users to remove from Field: <strong id="displayTargetFieldId"></strong></p>
+            
+            <div id="userListContainer" style="margin-top: 20px; max-height: 200px; overflow-y: auto; border: 1px solid #eee; padding: 10px; border-radius: 8px;">
+                </div>
+            
+            <div class="modal-actions" style="justify-content: flex-end; margin-top: 30px;">
+                <button class="btn-submit-green" id="btn-submit-remove-user" style="background-color: #f44336; border-color: #d32f2f;">Remove Selected</button>
             </div>
         </div>
     </div>

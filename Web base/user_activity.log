@@ -656,3 +656,111 @@
 2026-05-13 21:12:47,517 - INFO - Đăng nhập: 1
 2026-05-13 21:13:28,575 - WARNING - Tạo công việc None cho ruộng 001 vào ngày 2026-05-13 lúc 01:01:00 với thiết bị 1 trong 1 giây
 2026-05-13 22:26:35,576 - INFO - Đăng nhập: 1
+2026-05-15 10:17:18,935 - INFO - Đăng nhập: admin
+2026-05-15 10:17:41,622 - WARNING - Xóa tài khoản: f
+2026-05-15 10:17:41,623 - WARNING - Xóa tài khoản: f
+2026-05-15 10:18:51,887 - WARNING - Thêm user trung vào ruộng 002
+2026-05-15 10:19:17,879 - WARNING - Thêm user HNAT vào ruộng 002
+2026-05-15 10:36:52,914 - INFO - Đăng nhập: admin
+2026-05-15 10:42:30,662 - INFO - Đăng nhập: admin
+2026-05-15 10:44:18,207 - INFO - Đăng nhập: admin
+2026-05-15 10:57:51,613 - WARNING - Thêm user HNAT vào ruộng 002
+2026-05-15 10:58:14,743 - WARNING - Xóa ruộng: 003
+2026-05-15 10:59:22,696 - INFO - Đăng xuất: admin
+2026-05-15 10:59:24,602 - INFO - Đăng nhập: 1
+2026-05-15 11:00:06,266 - WARNING - Xóa công việc 28
+2026-05-15 11:16:45,344 - WARNING - Tạo công việc None cho ruộng 001 vào ngày 2026-05-15 lúc 11:17:00 với thiết bị 1 trong 1 giây
+2026-05-15 15:07:16,107 - INFO - Đăng xuất: 1
+2026-05-15 15:07:26,680 - INFO - Đăng nhập: 1
+2026-05-15 15:16:28,677 - INFO - Đăng xuất: 1
+2026-05-15 15:16:34,149 - INFO - Đăng nhập: admin
+2026-05-15 15:16:43,996 - WARNING - Xóa ruộng: 002
+2026-05-15 15:16:57,000 - INFO - Đăng nhập: 1
+2026-05-15 15:18:43,544 - INFO - Đăng nhập: admin
+2026-05-15 15:18:51,882 - WARNING - Tạo ruộng: 002
+2026-05-15 15:23:21,544 - INFO - Đăng nhập: 1
+2026-05-15 15:24:35,396 - INFO - Đăng nhập: admin
+2026-05-15 15:24:38,235 - INFO - Đăng xuất: admin
+2026-05-15 15:24:40,246 - INFO - Đăng nhập: 1
+2026-05-15 15:27:29,178 - INFO - Đăng nhập: admin
+2026-05-15 15:28:46,994 - INFO - Đăng nhập: admin
+2026-05-15 15:28:51,255 - INFO - Đăng nhập: 1
+2026-05-15 15:28:57,029 - WARNING - Xóa ruộng: 002
+2026-05-15 16:12:51,050 - INFO - Đăng nhập: 1
+2026-05-15 16:15:38,922 - INFO - Đăng nhập: 1
+2026-05-15 16:41:25,817 - INFO - Đăng nhập: 1
+2026-05-15 16:42:33,224 - INFO - Đăng nhập: admin
+2026-05-15 19:02:02,597 - INFO - Đăng nhập: 1
+2026-05-15 19:12:37,458 - INFO - Đăng nhập: 1
+2026-05-15 19:20:28,716 - INFO - Giao dịch thanh toán - User ID: 001, Field ID: 1778847385370, Order ID: 1778847385370, Request ID: None, Amount: 1400000, Bills: [], Raw Response: {'orderId': '1778847385370', 'resultCode': 0}
+2026-05-15 19:24:06,580 - INFO - Đăng nhập: 1
+2026-05-15 19:24:27,792 - INFO - Giao dịch thanh toán - User ID: 001, Field ID: 1778847851341, Order ID: 1778847851341, Request ID: None, Amount: 1400000, Bills: [], Raw Response: {'orderId': '1778847851341', 'resultCode': 0}
+2026-05-15 19:25:53,205 - INFO - Đăng nhập: 1
+2026-05-15 19:26:16,743 - INFO - Giao dịch thanh toán - User ID: 001, Field ID: 1778847956867, Order ID: 1778847956867, Request ID: None, Amount: 1400000, Bills: [], Raw Response: {'orderId': '1778847956867', 'resultCode': 0}
+2026-05-15 19:29:35,863 - INFO - Đăng nhập: 1
+2026-05-15 19:29:57,126 - INFO - Giao dịch thanh toán - User ID: 12, Field ID: 001, Order ID: 1778848181742, Request ID: None, Amount: 1400000, Bills: [(1, '001', 'Thuê nhà kính T5', 500000, 'unpaid', '2026-05-13 07:41:36', '2026-05-13 13:32:56'), (2, '001', 'Điện', 120000, 'unpaid', '2026-05-13 07:41:36', '2026-05-13 13:32:56'), (3, '001', 'Dinh dưỡng', 80000, 'unpaid', '2026-05-13 07:41:36', '2026-05-13 13:32:56'), (4, '001', 'Tien dien', 200000, 'unpaid', '2026-05-13 13:43:23', None), (5, '001', 'Tien nuoc', 500000, 'unpaid', '2026-05-13 13:43:30', None)], Raw Response: {'orderId': '1778848181742', 'resultCode': 0}
+2026-05-15 19:30:18,956 - INFO - Đăng xuất: 1
+2026-05-15 19:30:23,484 - INFO - Đăng nhập: admin
+2026-05-15 19:32:32,378 - WARNING - Tạo ruộng: 002
+2026-05-15 19:34:03,288 - INFO - Đăng xuất: admin
+2026-05-15 19:34:05,347 - INFO - Đăng nhập: 1
+2026-05-15 20:28:22,545 - INFO - Đăng nhập: 1
+2026-05-15 20:35:50,046 - INFO - Giao dịch thanh toán - User ID: 12, Field ID: 001, Order ID: 1778851765266, Request ID: None, Amount: 620000, Bills: [(1, '001', 'Thuê nhà kính T5', 500000, 'unpaid', '2026-05-13 07:41:36', '2026-05-15 12:29:57'), (2, '001', 'Điện', 120000, 'unpaid', '2026-05-13 07:41:36', '2026-05-15 12:29:57')], Raw Response: {'orderId': '1778851765266', 'resultCode': 0}
+2026-05-15 20:36:45,593 - INFO - Đăng nhập: 1
+2026-05-15 20:37:39,580 - INFO - Giao dịch thanh toán - User ID: 12, Field ID: 001, Order ID: 1778852208666, Request ID: None, Amount: 620000, Bills: [(1, '001', 'Thuê nhà kính T5', 500000, 'unpaid', '2026-05-13 07:41:36', '2026-05-15 12:29:57'), (2, '001', 'Điện', 120000, 'unpaid', '2026-05-13 07:41:36', '2026-05-15 12:29:57')], Raw Response: {'orderId': '1778852208666', 'resultCode': 0}
+2026-05-15 20:41:18,424 - INFO - Đăng nhập: admin
+2026-05-15 20:41:38,525 - WARNING - Thêm user HNAT vào ruộng 002
+2026-05-15 20:41:47,185 - WARNING - Thêm user a vào ruộng 002
+2026-05-15 20:52:16,231 - WARNING - Đổi tên thiết bị SI Outdoor Sensor 1 thành SI Soil Moisture 5
+2026-05-15 20:52:21,904 - WARNING - Đổi tên thiết bị SI Soil Moisture 1 thành SI Soil Moisture 8
+2026-05-15 20:54:33,741 - WARNING - Đổi tên thiết bị SI Soil Moisture 8 thành SI Soil Moisture 8
+2026-05-15 20:59:49,048 - WARNING - Xóa ruộng: 002
+2026-05-15 21:00:15,242 - WARNING - Tạo ruộng: 002
+2026-05-15 21:01:17,088 - WARNING - Xóa ruộng: 002
+2026-05-15 21:06:59,339 - WARNING - Tạo ruộng: 002
+2026-05-15 21:22:15,030 - INFO - Đăng nhập: admin
+2026-05-15 21:22:18,588 - WARNING - Xóa ruộng: 002
+2026-05-15 21:22:25,842 - WARNING - Tạo ruộng: 002
+2026-05-15 21:22:42,176 - WARNING - Xóa ruộng: 002
+2026-05-15 21:22:50,378 - WARNING - Tạo ruộng: 002
+2026-05-15 22:26:49,082 - INFO - Đăng nhập: 1
+2026-05-15 22:46:10,261 - INFO - Đăng nhập: 1
+2026-05-16 09:17:04,246 - INFO - Đăng nhập: 1
+2026-05-16 09:27:50,012 - INFO - Giao dịch thanh toán - User ID: 12, Field ID: 001, Order ID: 1778898385288, Request ID: None, Amount: 1400000, Bills: [(1, '001', 'Thuê nhà kính T5', 500000, 'unpaid', '2026-05-13 07:41:36', '2026-05-15 13:37:39'), (2, '001', 'Điện', 120000, 'unpaid', '2026-05-13 07:41:36', '2026-05-15 13:37:39'), (3, '001', 'Dinh dưỡng', 80000, 'unpaid', '2026-05-13 07:41:36', '2026-05-15 12:29:57'), (4, '001', 'Tien dien', 200000, 'unpaid', '2026-05-13 13:43:23', '2026-05-15 12:29:57'), (5, '001', 'Tien nuoc', 500000, 'unpaid', '2026-05-13 13:43:30', '2026-05-15 12:29:57')], Raw Response: {'orderId': '1778898385288', 'resultCode': 0}
+2026-05-16 09:42:19,697 - INFO - Đăng nhập: 1
+2026-05-16 09:43:09,221 - INFO - Giao dịch thanh toán - User ID: 12, Field ID: 001, Order ID: 1778899343620, Request ID: 1778899343620, Amount: 700000, Bills: [(1, '001', 'Thuê nhà kính T5', 500000, 'unpaid', '2026-05-13 07:41:36', '2026-05-16 02:27:50'), (2, '001', 'Điện', 120000, 'unpaid', '2026-05-13 07:41:36', '2026-05-16 02:27:50'), (3, '001', 'Dinh dưỡng', 80000, 'unpaid', '2026-05-13 07:41:36', '2026-05-16 02:27:50')], Raw Response: {"orderId": "1778899343620", "resultCode": 0}
+2026-05-16 09:49:58,551 - INFO - Đăng nhập: 1
+2026-05-16 09:52:13,886 - INFO - Đăng nhập: 1
+2026-05-16 09:53:23,690 - INFO - Đăng nhập: 1
+2026-05-16 09:53:40,629 - INFO - Giao dịch thanh toán - User ID: 12, Field ID: 001, Order ID: 1778900006765, Request ID: 1778900006765, Amount: 500000, Bills: [(1, '001', 'Thuê nhà kính T5', 500000, 'unpaid', '2026-05-13 07:41:36', '2026-05-16 02:43:09')], Raw Response: {"orderId": "1778900006765", "resultCode": 0}
+2026-05-16 09:58:28,528 - INFO - Đăng nhập: 1
+2026-05-16 10:03:08,445 - INFO - Đăng nhập: 1
+2026-05-16 10:04:12,146 - INFO - Giao dịch thanh toán - User ID: 12, Field ID: 001, Order ID: 1778900621159, Request ID: 1778900621159, Amount: 80000, Bills: [(3, '001', 'Dinh dưỡng', 80000, 'unpaid', '2026-05-13 07:41:36', '2026-05-16 02:43:09')], Raw Response: {"orderId": "1778900621159", "resultCode": 0}
+2026-05-16 11:01:40,504 - INFO - Đăng nhập: 1
+2026-05-16 11:13:21,682 - INFO - Đăng nhập: 1
+2026-05-16 11:13:54,450 - INFO - Đăng nhập: 1
+2026-05-16 11:13:54,462 - WARNING - Đặt lại mật khẩu: 1
+2026-05-16 11:14:02,247 - INFO - Đăng xuất: 1
+2026-05-16 11:14:07,135 - INFO - Đăng nhập: 1
+2026-05-16 11:14:22,422 - INFO - Đăng nhập: 1
+2026-05-16 11:14:22,437 - WARNING - Đặt lại mật khẩu: 1
+2026-05-16 11:44:31,381 - INFO - Đăng nhập: admin
+2026-05-16 11:56:48,142 - INFO - Đăng xuất: 1
+2026-05-16 11:56:55,716 - INFO - Đăng nhập: 1
+2026-05-16 15:11:44,837 - INFO - Đăng nhập: 1
+2026-05-16 15:12:18,084 - INFO - Đăng xuất: 1
+2026-05-16 15:12:21,412 - INFO - Đăng nhập: 1
+2026-05-16 15:12:38,045 - INFO - Đăng xuất: 1
+2026-05-16 15:12:41,445 - INFO - Đăng nhập: 1
+2026-05-16 15:43:44,693 - INFO - Đăng xuất: 1
+2026-05-16 15:43:47,292 - INFO - Đăng nhập: admin
+2026-05-16 15:46:28,074 - INFO - Đăng nhập: 1
+2026-05-16 16:15:15,064 - INFO - Đăng xuất: admin
+2026-05-16 16:15:18,137 - INFO - Đăng nhập: admin
+2026-05-16 16:34:39,071 - INFO - Đăng xuất: admin
+2026-05-16 16:34:43,723 - INFO - Đăng nhập: admin
+2026-05-16 16:34:46,552 - INFO - Đăng xuất: admin
+2026-05-16 16:34:50,161 - INFO - Đăng nhập: admin
+2026-05-16 16:45:10,077 - INFO - Đăng xuất: admin
+2026-05-16 16:45:13,478 - INFO - Đăng nhập: admin
+2026-05-16 16:45:17,269 - INFO - Đăng xuất: admin

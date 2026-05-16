@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>SmartCare - Hóa đơn & Thanh toán</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f4f6f8; margin: 0; color: #333; }
+        
+        /* Navbar */
+        .navbar { display: flex; justify-content: space-between; align-items: center; background-color: white; padding: 10px 20px; border-bottom: 1px solid #ddd; }
+        .navbar-left { display: flex; align-items: center; }
+        .logo-img { height: 40px; margin-right: 10px; }
+        .logo-text { font-size: 24px; font-weight: bold; color: #333; cursor: pointer; }
+
+        .main-container { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
+        .profile-card { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+
+        /* Tabs */
+        .tabs-header { display: flex; border-bottom: 1px solid #eee; margin-bottom: 25px; }
+        .tab-btn { flex: 1; text-align: center; padding: 15px 0; font-size: 1.1rem; color: #777; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.3s ease; }
+        .tab-btn:hover { color: #333; }
+        .tab-btn.active { color: #d32f2f; border-bottom: 2px solid #d32f2f; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Tab 1: Account */
+        .user-detail p { font-size: 1.1rem; color: #444; margin: 15px 0; display: flex; align-items: center; gap: 12px; }
+        .user-detail strong { color: #222; min-width: 140px; }
+
+        /* Tab 2: Billing */
+        .bill-item { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; background: #f8fcfb; border-radius: 12px; border: 1px solid #eef2f5; margin-bottom: 12px; }
+        .bill-info { display: flex; align-items: center; gap: 15px; }
+        .bill-icon { font-size: 1.8rem; color: #e74c3c; background: #fdeaea; padding: 12px; border-radius: 50%; }
+        .bill-title { font-weight: 600; color: #333; font-size: 1.1rem; margin-bottom: 4px; }
+        .bill-date { font-size: 0.85rem; color: #888; }
+        .bill-amount { font-size: 1.2rem; font-weight: 700; color: #e74c3c; }
+
+        .payment-summary { margin-top: 30px; padding: 25px; background: #fff5f8; border-radius: 12px; border: 1px dashed #fbcfe8; display: flex; justify-content: space-between; align-items: center; }
+        .total-section p { margin: 0 0 5px 0; color: #666; font-size: 1rem; }
+        .total-section strong { font-size: 1.8rem; color: #a50064; font-weight: 800; }
+        #pay-momo-btn { background: #a50064 !important; color: white !important; border: none !important; padding: 14px 32px !important; font-size: 1.1rem !important; font-weight: 700 !important; border-radius: 50px !important; cursor: pointer !important; box-shadow: 0 6px 16px rgba(165, 0, 100, 0.25) !important; transition: all 0.3s ease !important; }
+        #pay-momo-btn:hover { transform: translateY(-2px) !important; box-shadow: 0 8px 20px rgba(165, 0, 100, 0.35) !important; }
+        #status { margin-top: 15px; padding: 15px; border-radius: 8px; text-align: center; font-weight: 600; display: none; }
+
+        /* =========================================================
+           Tab 3: HISTORY ACCORDION CSS MỚI
+        ========================================================= */
+        .history-item { background: #fff; border-radius: 12px; border: 1px solid #eef2f5; margin-bottom: 15px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+        .history-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; cursor: pointer; transition: background 0.2s; }
+        .history-header:hover { background: #fdfdfd; }
+        .history-info { display: flex; align-items: center; gap: 15px; }
+        .history-icon { font-size: 1.3rem; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+        .history-title { font-weight: 600; color: #333; font-size: 1.05rem; margin-bottom: 4px; }
+        .history-date { font-size: 0.85rem; color: #777; }
+        .history-amount { font-size: 1.15rem; font-weight: 700; }
+        .history-status { font-size: 0.75rem; font-weight: bold; margin-top: 4px; display: block;}
+        
+        .history-details { background: #fafafa; border-top: 1px dashed #eee; padding: 0 20px; max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out, padding 0.3s ease; }
+        .history-details.open { padding: 15px 20px; max-height: 500px; }
+        .detail-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 0.95rem; color: #555; border-bottom: 1px dotted #e0e0e0; }
+        .detail-row:last-child { border-bottom: none; }
+        .detail-row span:last-child { font-weight: 600; color: #333; }
+        .expand-icon { transition: transform 0.3s; color: #999; }
+        .history-item.active .expand-icon { transform: rotate(180deg); }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="navbar-left">
+            <img src="/static/img/logo.png" alt="Logo" class="logo-img">
+            <span class="logo-text" onclick="window.location.href='/'">SmartCare</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="profile-card">
+            
+            <div class="tabs-header">
+                <div class="tab-btn active" data-tab="tab-account" id="tab-btn-account">Thông tin tài khoản</div>
+                <div class="tab-btn" data-tab="tab-billing" id="tab-btn-billing">Hóa đơn chưa thanh toán</div>
+                <div class="tab-btn" data-tab="tab-history" id="tab-btn-history">Lịch sử thanh toán</div> 
+                <div class="tab-btn" data-tab="tab-service" id="tab-btn-service">Gói dịch vụ thuê</div>
+            </div>
+
+            <div id="tab-account" class="tab-content active">
+                
+                <div class="user-detail" style="padding: 10px;">
+                    <p><strong><i class="fa-solid fa-envelope" style="color: #7f8c8d;"></i> Email:</strong> <span id="prof-email">Đang tải...</span></p>
+                    <p><strong><i class="fa-regular fa-id-badge" style="color: #7f8c8d;"></i> Tên đăng nhập:</strong> <span id="prof-username">Đang tải...</span></p>
+                    <p><strong><i class="fa-solid fa-user-shield" style="color: #7f8c8d;"></i> Vai trò:</strong> <span id="prof-role">---</span></p>
+                </div>
+
+                <hr style="border: 0; border-top: 1px dashed #ddd; margin: 25px 0;">
+                
+                <div style="padding: 10px; max-width: 400px;">
+                    <h3 style="font-size: 1.15rem; color: #2c3e50; margin-bottom: 20px;">
+                        <i class="fa-solid fa-key" style="color: #e74c3c;"></i> Đổi mật khẩu
+                    </h3>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; font-size: 0.9rem; color: #555; margin-bottom: 5px;">Mật khẩu hiện tại</label>
+                        <input type="password" id="old-password" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; outline: none;" placeholder="Nhập mật khẩu cũ">
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; font-size: 0.9rem; color: #555; margin-bottom: 5px;">Mật khẩu mới</label>
+                        <input type="password" id="new-password" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; outline: none;" placeholder="Nhập mật khẩu mới">
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-size: 0.9rem; color: #555; margin-bottom: 5px;">Xác nhận mật khẩu mới</label>
+                        <input type="password" id="confirm-password" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; outline: none;" placeholder="Nhập lại mật khẩu mới">
+                    </div>
+                    
+                    <button id="btn-change-password" style="background: #2e7d32; color: white; border: none; padding: 12px 20px; border-radius: 50px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; box-shadow: 0 4px 10px rgba(46,125,50,0.2);">
+                        Cập nhật mật khẩu
+                    </button>
+                    
+                    <div id="pw-status" style="margin-top: 15px; text-align: center; font-size: 0.95rem; display: none; font-weight: 600;"></div>
+                </div>
+
+            </div>
+
+            <div id="tab-billing" class="tab-content">
+                <div id="billing-list">
+                    <p style="text-align:center; color:#999; padding: 20px;">Đang tải danh sách hóa đơn...</p>
+                </div>
+
+                <div id="payment-box" class="payment-summary" style="display:none;">
+                    <div class="total-section">
+                        <p>Cần thanh toán:</p>
+                        <strong id="total-amount">0</strong> <span style="color: #a50064; font-weight: bold;">VNĐ</span>
+                    </div>
+                    <button id="pay-momo-btn">Thanh toán</button>
+                </div>
+                
+                <div id="status"></div>
+            </div>
+
+            <div id="tab-history" class="tab-content">
+                <div id="history-list">
+                    <p style="text-align:center; color:#999; padding: 20px;">Đang tải lịch sử giao dịch...</p>
+                </div>
+            </div>
+
+            <div id="tab-service" class="tab-content">
+                <div id="service-plan-list">
+                    <p style="text-align:center; color:#999; padding: 20px;">Đang tải thông tin gói dịch vụ...</p>
+                </div>
+            </div>
+
+        </div> 
+    </div> 
+    
+    <script src="/static/js/profile.js"></script>
+</body>
+</html>

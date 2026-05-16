@@ -100,12 +100,131 @@ body {
     color: #4CAF50;
 }
 
+.user-profile-container {
+    position: relative;
+    display: inline-block;
+}
+
+.user-profile-container:hover .user-dropdown {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
 /* --- CSS cho khu vực User Profile --- */
 .user-profile {
-  display: flex;
-  align-items: center;
-  gap: 8px; /* Khoảng cách giữa avatar và chữ */
-  margin-right: 15px; /* Tách xa nút Đăng xuất ra một chút */
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    border-radius: 8px;
+    transition: background 0.3s;
+}
+
+.user-profile:hover {
+    background: #e9ecef;
+}
+
+.user-dropdown {
+    position: absolute;
+    top: 120%; /* Nằm ngay dưới avatar */
+    right: 0;
+    width: 240px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    border: 1px solid #eaedf1;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1000;
+    overflow: hidden;
+}
+
+/* Phần Lời chào nổi bật */
+.dropdown-greeting {
+    padding: 20px 15px;
+    background: linear-gradient(135deg, #f8fcfb 0%, #e3f2fd 100%);
+    border-bottom: 1px solid #e0e0e0;
+    text-align: center;
+    color: #555;
+    font-size: 0.95rem;
+}
+
+.dropdown-greeting .greet-name {
+    display: block;
+    margin-top: 5px;
+    color: #2e7d32;
+    font-size: 1.3rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+/* 4 Chức năng bên dưới */
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    color: #444;
+    text-decoration: none;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: background 0.2s, color 0.2s;
+}
+
+.dropdown-item i {
+    width: 20px;
+    text-align: center;
+    font-size: 1.1rem;
+    color: #7f8c8d;
+    transition: color 0.2s;
+}
+
+.dropdown-item:hover {
+    background: #f4f6f8;
+    color: #2e7d32;
+}
+
+.dropdown-item:hover i {
+    color: #2e7d32;
+}
+
+/* Nút Đăng xuất màu đỏ */
+.dropdown-item.logout-btn {
+    border-top: 1px solid #f0f0f0;
+    color: #e74c3c;
+}
+.dropdown-item.logout-btn i {
+    color: #e74c3c;
+}
+.dropdown-item.logout-btn:hover {
+    background: #fdeaea;
+}
+
+/* =========================================================
+   ĐỊNH DẠNG RIÊNG CHO QUẢN LÝ HỆ THỐNG ĐỂ TÁCH BẠCH, NỔI BẬT
+========================================================= */
+#menu-admin {
+    color: #2e7d32 !important;       /* Màu chữ xanh lá nổi bật */
+    font-weight: 600;                /* Chữ đậm hơn một chút */
+    background-color: #f0fdf4;       /* Phủ một lớp nền xanh lá siêu nhạt tinh tế */
+    border-bottom: 1px solid #e2e8f0;/* Đường gạch ngang nhạt để cô lập với các nút khác */
+}
+
+#menu-admin i {
+    color: #2e7d32 !important;       /* Ép màu Icon quả mầm sang màu xanh lá */
+}
+
+/* Hiệu ứng khi di chuột (hover) riêng cho nút Quản lý hệ thống */
+#menu-admin:hover {
+    background-color: #dcfce7 !important; /* Nền xanh lá đậm hơn một chút khi hover */
+    color: #1b5e20 !important;           /* Chữ xanh đậm hơn để tăng độ tương phản */
+}
+#menu-admin:hover i {
+    color: #1b5e20 !important;
 }
 
 .user-info {
