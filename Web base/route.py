@@ -1131,12 +1131,11 @@ class Routes:
             return jsonify({
                 "success": True, 
                 "data": {
-                    "anomoly_score_low": self.field.get_anomoly_score_low(field_id)[0],
-                    "anomoly_score_high": self.field.get_anomoly_score_high(field_id)[0],
+                    "anomaly_score_low": self.field.get_anomaly_score_low(field_id)[0],
+                    "anomaly_score_high": self.field.get_anomaly_score_high(field_id)[0],
                     "step": self.field.get_step(field_id)[0],
-                    "anomoly_status": self.field.get_anomoly_status(field_id)[0],
+                    "anomaly_status": self.field.get_anomaly_status(field_id)[0],
                     "prediction_status": self.field.get_prediction_status(field_id)[0],
-                    "anomoly_prediction_status": self.field.get_anomoly_prediction_status(field_id)[0]
                 }
             }), 200
         except Exception as e:
@@ -1146,23 +1145,21 @@ class Routes:
     def update_ai_settings(self):
         data = request.get_json()
         field_id = data.get('field_id')
-        anomoly_score_low = float(data.get('anomoly_score_low', 0))
-        anomoly_score_high = float(data.get('anomoly_score_high', 100))
+        anomaly_score_low = float(data.get('anomaly_score_low', 0))
+        anomaly_score_high = float(data.get('anomaly_score_high', 100))
         step = int(data.get('step', 5))
-        anomoly_status = data.get('anomoly_status', 'OFF')
+        anomaly_status = data.get('anomaly_status', 'OFF')
         prediction_status = data.get('prediction_status', 'OFF')
-        anomoly_prediction_status = data.get('anomoly_prediction_status', 'OFF')
 
         # Kiểm tra field_id hợp lệ
         if not field_id:
             return jsonify({"success": False, "message": "Thiếu mã khu vực (field_id)."}), 400
 
-        self.field.set_anomoly_score_low(field_id, anomoly_score_low)
-        self.field.set_anomoly_score_high(field_id, anomoly_score_high)
+        self.field.set_anomaly_score_low(field_id, anomaly_score_low)
+        self.field.set_anomaly_score_high(field_id, anomaly_score_high)
         self.field.set_step(field_id, step)
-        self.field.set_anomoly_status(field_id, anomoly_status)
+        self.field.set_anomaly_status(field_id, anomaly_status)
         self.field.set_prediction_status(field_id, prediction_status)
-        self.field.set_anomoly_prediction_status(field_id, anomoly_prediction_status)
 
         return jsonify({
             "success": True, 
@@ -1275,6 +1272,21 @@ class Routes:
         username = session.get('username')
         self.logger.log_set_notification_email_status(username, status)
         result = self.field.set_email_notification_status(username, status)
+        return jsonify(result)
+    
+    def api_get_notifications(self):
+        username = request.args.get('username')
+        if not username:
+            return jsonify({"success": False, "message": "Thiếu username"}), 400
+        result = self.field.get_notifications_by_user(username)
+        return jsonify(result)
+    
+    def api_mark_read(self):
+        data = request.get_json()
+        ts = data.get('ts')
+        device_id = data.get('device_id')
+        username = data.get('username')
+        result = self.field.mark_notification_as_read(ts, device_id, username)
         return jsonify(result)
     
     def save_notification(self):
@@ -1784,6 +1796,8 @@ server.add_route('/api/current_user', routes.get_current_user, methods=['GET'])
 server.add_route('/api/control_device', routes.control_device, methods=['POST'])
 #server.add_route('/api/get_control_status', routes.get_control_status, methods=['GET'])
 server.add_route('/api/save_notification', routes.save_notification, methods=['POST'])
+server.add_route('/api/get_notifications', routes.api_get_notifications, methods=['GET'])
+server.add_route('/api/mark_read', routes.api_mark_read, methods=['POST'])
 server.add_route('/api/update_ai_settings', routes.update_ai_settings, methods=['POST'])
 server.add_route('/api/get_ai_settings', routes.get_ai_settings, methods=['GET'])
 server.add_route('/api/check_anomaly', routes.check_anomaly, methods=['GET'])

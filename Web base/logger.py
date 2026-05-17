@@ -68,17 +68,14 @@ class UserLogger:
     def log_clear_field(self, field_id: str):
         self.logger.warning(f"Dọn dẹp dữ liệu ruộng {field_id}")
 
-    def log_set_anomoly_score_low(self, field_id: str):
+    def log_set_anomaly_score_low(self, field_id: str):
         self.logger.warning(f"Đặt điểm bất thường thấp cho ruộng {field_id}")
     
-    def log_set_anomoly_score_high(self, field_id: str):
+    def log_set_anomaly_score_high(self, field_id: str):
         self.logger.warning(f"Đặt điểm bất thường cao cho ruộng {field_id}")
 
     def log_set_prediction_status(self, field_id: str, status: str):
         self.logger.warning(f"Đặt trạng thái dự đoán cho ruộng {field_id} thành {status}")
-
-    def log_set_anomoly_prediction_status(self, field_id: str, status: str):
-        self.logger.warning(f"Đặt trạng thái dự đoán bất thường cho ruộng {field_id} thành {status}")   
 
     def log_set_notification_status(self, field_id: str, status: str):
         self.logger.warning(f"Đặt trạng thái thông báo cho ruộng {field_id} thành {status}")

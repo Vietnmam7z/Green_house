@@ -3,7 +3,7 @@ import json
 import config 
 from datetime import datetime, timedelta
 from flask import session, jsonify
-
+import time
 class FieldDB:
     def __init__(self, field_db_path = config.field_db_path):
         self.field_db_path = field_db_path
@@ -398,21 +398,21 @@ class FieldDB:
             )
             conn.commit()
 
-    def get_anomoly_score_low(self, field_id: str):
+    def get_anomaly_score_low(self, field_id: str):
         with self.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT anomoly_score_low
+                SELECT anomaly_score_low
                 FROM AI_management
                 WHERE field_id = ?
             """, (field_id,))
             return [row[0] for row in cursor.fetchall()]
 
-    def get_anomoly_score_high(self, field_id: str):
+    def get_anomaly_score_high(self, field_id: str):
         with self.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT anomoly_score_high
+                SELECT anomaly_score_high
                 FROM AI_management
                 WHERE field_id = ?
             """, (field_id,))
@@ -428,11 +428,11 @@ class FieldDB:
             """, (field_id,))
             return [row[0] for row in cursor.fetchall()]
 
-    def get_anomoly_status(self, field_id: str):
+    def get_anomaly_status(self, field_id: str):
         with self.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT anomoly_status
+                SELECT anomaly_status
                 FROM AI_management
                 WHERE field_id = ?
             """, (field_id,))
@@ -448,32 +448,23 @@ class FieldDB:
             """, (field_id,))
             return [row[0] for row in cursor.fetchall()]
 
-    def get_anomoly_prediction_status(self, field_id: str):
-        with self.connect() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT anomoly_prediction_status
-                FROM AI_management
-                WHERE field_id = ?
-            """, (field_id,))
-            return [row[0] for row in cursor.fetchall()]
 
-    def set_anomoly_score_low(self, field_id: str, value: float):
+    def set_anomaly_score_low(self, field_id: str, value: float):
         with self.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE AI_management
-                SET anomoly_score_low = ?
+                SET anomaly_score_low = ?
                 WHERE field_id = ?
             """, (value, field_id))
             conn.commit()
 
-    def set_anomoly_score_high(self, field_id: str, value: float):
+    def set_anomaly_score_high(self, field_id: str, value: float):
         with self.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE AI_management
-                SET anomoly_score_high = ?
+                SET anomaly_score_high = ?
                 WHERE field_id = ?
             """, (value, field_id))
             conn.commit()
@@ -488,12 +479,12 @@ class FieldDB:
             """, (value, field_id))
             conn.commit()
 
-    def set_anomoly_status(self, field_id: str, value: str):
+    def set_anomaly_status(self, field_id: str, value: str):
         with self.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE AI_management
-                SET anomoly_status = ?
+                SET anomaly_status = ?
                 WHERE field_id = ?
             """, (value, field_id))
             conn.commit()
@@ -508,15 +499,6 @@ class FieldDB:
             """, (value, field_id))
             conn.commit()
 
-    def set_anomoly_prediction_status(self, field_id: str, value: str):
-        with self.connect() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE AI_management
-                SET anomoly_prediction_status = ?
-                WHERE field_id = ?
-            """, (value, field_id))
-            conn.commit()
 
     def get_AI_telemetry_sample(self, device_id: str, sample: int):
         with self.connect() as conn:
@@ -618,12 +600,11 @@ class FieldDB:
                 cursor.execute("""
                     INSERT INTO AI_management (
                         field_id,
-                        anomoly_score_low,
-                        anomoly_score_high,
+                        anomaly_score_low,
+                        anomaly_score_high,
                         step,
-                        anomoly_status,
-                        prediction_status,
-                        anomoly_prediction_status
+                        anomaly_status,
+                        prediction_status
                     )
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, (
@@ -656,6 +637,59 @@ class FieldDB:
                 conn.rollback()
                 return {"success": False, "message": str(e)}
     
+    def get_notifications_by_user(self, username: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    SELECT 
+                        n.status, 
+                        n.device_id, 
+                        n.ts, 
+                        n.is_read,
+                        d.device_name, 
+                        f.field_name
+                    FROM notification n
+                    LEFT JOIN device d ON n.device_id = d.device_id
+                    LEFT JOIN field f ON d.field_id = f.field_id
+                    WHERE n.username = ?
+                    ORDER BY n.ts DESC
+                    LIMIT 50
+                """, (username,))
+                
+                rows = cursor.fetchall()
+                data_list = []
+                for r in rows:
+                    data_list.append({
+                        "status": r[0],
+                        "device_id": r[1],
+                        "ts": r[2],
+                        "is_read": r[3],
+                        "device_name": r[4] if r[4] else "Unknown Device",
+                        "field_name": r[5] if r[5] else "Unknown Field"
+                    })
+
+                return {"success": True, "data": data_list}
+            except Exception as e:
+                return {"success": False, "message": str(e)}
+
+    def mark_notification_as_read(self, ts: int, device_id: str, username: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+
+                cursor.execute("""
+                    UPDATE notification
+                    SET is_read = 1
+                    WHERE ts = ? AND device_id = ? AND username = ?
+                """, (ts, device_id, username))
+                
+                conn.commit()
+                return {"success": True, "message": "Đã đánh dấu đã đọc"}
+            except Exception as e:
+                conn.rollback()
+                return {"success": False, "message": str(e)}    
+
     def get_notification_status(self, username: str):
         with self.connect() as conn:
             cursor = conn.cursor()
@@ -846,33 +880,78 @@ class FieldDB:
                 return {"success": False, "message": str(e)}
 
     def check_anomaly(self):
-        with self.connect() as conn:
-            cursor = conn.cursor()
         try:
-            cursor.execute("""
-                SELECT 
-                    telemetry.value, 
-                    device.device_name, 
-                    field.field_name
-                FROM telemetry
-                JOIN device ON telemetry.device_id = device.device_id
-                JOIN field ON device.field_id = field.field_id
-                WHERE telemetry.name = 'anomaly_score'
-                ORDER BY telemetry.ts DESC
-                LIMIT 1
-            """)     
-            result = cursor.fetchone()
-            if result:
-                score, device_name, field_name = result
-                return jsonify({
-                    "success": True,
-                    "anomaly_score": score,
-                    "device_name": device_name,
-                    "field_name": field_name
-                })
-            return jsonify({"success": False})
+            with self.connect() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT 
+                        telemetry.value, 
+                        device.device_name, 
+                        field.field_name,
+                        telemetry.device_id,
+                        device.field_id
+                    FROM telemetry
+                    JOIN device ON telemetry.device_id = device.device_id
+                    JOIN field ON device.field_id = field.field_id
+                    WHERE telemetry.name = 'anomaly_score'
+                    ORDER BY telemetry.ts DESC
+                    LIMIT 1
+                """)    
+                result = cursor.fetchone()
+                
+                if result:
+                    score, device_name, field_name, device_id, field_id = result
+                    cursor.execute("""
+                        SELECT anomaly_score_low, anomaly_score_high 
+                        FROM AI_management 
+                        WHERE field_id = ?
+                    """, (field_id,))
+                    thresholds = cursor.fetchone()
+                    
+                    if not thresholds:
+                        return {"success": False}
+                        
+                    low, high = thresholds
+                    current_status = None
+                    
+                    if score >= high:
+                        current_status = "CRITICAL"
+                    elif score >= low:
+                        current_status = "WARNING"
+                    
+                    if not current_status:
+                        return {"success": False}
+                    cursor.execute("""
+                        SELECT ts, status 
+                        FROM notification 
+                        WHERE device_id = ? 
+                        ORDER BY ts DESC 
+                        LIMIT 1
+                    """, (device_id,))
+                    last_notif = cursor.fetchone()
+                    
+                    if last_notif:
+                        last_ts, last_status = last_notif
+                        
+                        if last_ts > 10000000000:
+                            last_ts = last_ts / 1000
+                            
+                        current_ts = int(time.time())
+                        
+                        if (current_ts - last_ts) < 900 and current_status == last_status:
+                            return {"success": False}
+                    return {
+                        "success": True,
+                        "anomaly_score": score,
+                        "device_name": device_name,
+                        "field_name": field_name,
+                        "device_id": device_id
+                    }
+
+            return {"success": False}
+            
         except Exception as e:
-                return {"success": False, "message": str(e)}
+            return {"success": False, "message": str(e)}
 
     def get_all_schedulers(self):
         with self.connect() as conn:
