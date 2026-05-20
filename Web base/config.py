@@ -30,6 +30,7 @@ manage_page = 'manage.html'
 management_page = "admin_management.html" 
 user_management_page = 'user_management.html'
 greenhouse_management_page = 'greenhouse_management.html'
+billing_management_page = 'billing_management.html'
 #device controller
 BROKER_ADDRESS = "app.coreiot.io"
 PORT = 1883

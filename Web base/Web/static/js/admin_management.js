@@ -44,4 +44,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('btn-greenhouse-management')?.addEventListener('click', () => {
         window.location.href = '/admin_management/greenhouses';
     });
+
+    document.getElementById('btn-create-billing')?.addEventListener('click', () => {
+        window.location.href = '/admin_management/billing'; 
+    });
 });

@@ -134,13 +134,15 @@ async function loadHistory() {
 
         if (result.success && result.data.length > 0) {
             container.innerHTML = result.data.map(tx => {
-                // Thứ tự cột theo userdata.db: (0)id, (1)user_id, (2)field_id, (3)order_id, (4)request_id, (5)amount, (6)status, (7)raw_response, (8)created_at, (9)updated_at, (10)paid_at
                 let id = tx[0];
                 let fieldId = tx[2];
                 let orderId = tx[3];
                 let amount = tx[5];
                 let status = tx[6];
-                let date = tx[8];
+                
+                // TÁCH BIỆT 2 LOẠI GIỜ
+                let displayDate = tx[10]; // Ngày đã +7 tiếng (Để hiển thị cho người dùng xem)
+                let rawDate = tx[11];     // Ngày gốc GMT+0 (Để gửi xuống Backend tìm kiếm)
 
                 let statusColor = status === 'success' ? '#2e7d32' : (status === 'pending' ? '#f57c00' : '#d32f2f');
                 let statusText = status.toUpperCase();
@@ -149,14 +151,14 @@ async function loadHistory() {
 
                 return `
                     <div class="history-item" data-id="${id}">
-                        <div class="history-header" onclick="toggleDetails(this, ${id}, '${fieldId}', '${date}')">
+                        <div class="history-header" onclick="toggleDetails(this, ${id}, '${fieldId}', '${rawDate}')">
                             <div class="history-info">
                                 <div class="history-icon" style="background: ${iconBg}; color: ${statusColor};">
                                     <i class="fa-solid ${iconClass}"></i>
                                 </div>
                                 <div>
                                     <div class="history-title">Mã đơn: ${orderId}</div>
-                                    <div class="history-date">Ruộng: <strong>${fieldId}</strong> | ${date}</div>
+                                    <div class="history-date">Ruộng: <strong>${fieldId}</strong> | ${displayDate}</div>
                                 </div>
                             </div>
                             <div style="text-align: right; display: flex; align-items: center; gap: 15px;">
