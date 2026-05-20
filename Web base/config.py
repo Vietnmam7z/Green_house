@@ -25,6 +25,7 @@ forgot_password_page  = 'forgot_password.html'
 signup_page = 'signup.html'
 reset_password_page = 'reset_password.html'
 dashboard_page = 'dashboard.html'
+notification_page = 'notification.html'
 control_page = 'control.html'
 manage_page = 'manage.html'
 management_page = "admin_management.html" 

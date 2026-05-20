@@ -780,3 +780,115 @@
 2026-05-17 16:46:03,727 - INFO - Đăng nhập: 1
 2026-05-17 17:03:41,785 - INFO - Đăng nhập: 1
 2026-05-17 17:14:52,041 - INFO - Đăng nhập: 1
+2026-05-19 19:56:53,131 - INFO - Đăng nhập: 1
+2026-05-19 19:59:38,059 - INFO - Đăng nhập: 1
+2026-05-19 20:09:55,776 - INFO - Đăng nhập: 1
+2026-05-19 20:12:42,466 - INFO - Đăng nhập: 1
+2026-05-19 20:15:25,297 - INFO - Đăng nhập: 1
+2026-05-19 20:18:40,514 - WARNING - Xóa công việc 45
+2026-05-19 20:19:41,265 - INFO - Đăng nhập: 1
+2026-05-19 20:19:46,741 - WARNING - Xóa công việc 46
+2026-05-19 20:21:06,941 - WARNING - Xóa công việc 47
+2026-05-19 20:24:32,685 - INFO - Đăng nhập: 1
+2026-05-19 20:24:38,975 - WARNING - Xóa công việc 48
+2026-05-19 20:28:26,455 - INFO - Đăng nhập: 1
+2026-05-19 20:35:38,672 - INFO - Đăng nhập: 1
+2026-05-19 20:35:47,095 - WARNING - Xóa công việc 49
+2026-05-19 20:48:20,113 - INFO - Đăng nhập: 1
+2026-05-19 20:48:27,828 - WARNING - Xóa công việc 50
+2026-05-19 20:51:02,665 - INFO - Đăng nhập: 1
+2026-05-19 20:51:10,626 - WARNING - Xóa công việc 51
+2026-05-19 20:52:40,125 - INFO - Đăng nhập: 1
+2026-05-19 20:52:53,858 - WARNING - Xóa công việc 52
+2026-05-19 20:54:53,402 - INFO - Đăng nhập: 1
+2026-05-19 20:55:06,551 - WARNING - Xóa công việc 53
+2026-05-19 20:55:26,374 - WARNING - Xóa công việc 54
+2026-05-19 20:56:06,123 - INFO - Đăng nhập: 1
+2026-05-19 20:56:11,180 - WARNING - Xóa công việc 55
+2026-05-19 20:59:17,571 - INFO - Đăng nhập: 1
+2026-05-19 20:59:24,164 - WARNING - Xóa công việc 56
+2026-05-19 21:05:27,541 - INFO - Đăng nhập: 1
+2026-05-19 21:05:33,872 - WARNING - Xóa công việc 57
+2026-05-19 21:08:14,892 - WARNING - Tạo công việc None cho ruộng 001 vào ngày 2026-05-19 lúc 21:07:00 với thiết bị 2 trong 1 giây
+2026-05-19 21:08:28,988 - WARNING - Cập nhật công việc 59 cho ruộng 001 vào ngày 2026-05-19 lúc 21:09:00 với thiết bị 2 trong 1 giây
+2026-05-19 21:16:54,660 - INFO - Đăng nhập: 1
+2026-05-19 21:17:21,292 - WARNING - Cập nhật công việc 59 cho ruộng 001 vào ngày 2026-05-19 lúc 21:09:00 với thiết bị 2 trong 1 giây
+2026-05-19 21:18:01,967 - INFO - Đăng nhập: 1
+2026-05-19 21:37:17,020 - INFO - Đăng nhập: 1
+2026-05-19 21:37:22,288 - WARNING - Xóa công việc 59
+2026-05-19 21:37:24,003 - WARNING - Xóa công việc 58
+2026-05-19 21:42:14,415 - INFO - Đăng nhập: 1
+2026-05-20 12:13:28,194 - INFO - Đăng nhập: 1
+2026-05-20 13:17:41,433 - INFO - Đăng nhập: 1
+2026-05-20 13:33:35,656 - INFO - Đăng nhập: 1
+2026-05-20 13:52:49,641 - INFO - Đăng nhập: 1
+2026-05-20 14:16:07,234 - INFO - Đăng nhập: 1
+2026-05-20 14:26:12,437 - INFO - Đăng nhập: 1
+2026-05-20 14:35:09,951 - INFO - Đăng nhập: 1
+2026-05-20 14:40:10,851 - INFO - Đăng nhập: 1
+2026-05-20 17:46:00,096 - INFO - Đăng nhập: 1
+2026-05-20 17:55:12,671 - INFO - Đăng nhập: 1
+2026-05-20 17:55:29,646 - WARNING - Đặt trạng thái thông báo cho ruộng 1 thành OFF
+2026-05-20 17:55:29,646 - WARNING - Đặt trạng thái email thông báo cho user 1 thành OFF
+2026-05-20 17:58:26,754 - INFO - Đăng nhập: 1
+2026-05-20 17:58:34,284 - WARNING - Đặt trạng thái thông báo cho ruộng 1 thành ON
+2026-05-20 17:58:34,285 - WARNING - Đặt trạng thái email thông báo cho user 1 thành OFF
+2026-05-20 18:01:34,697 - INFO - Đăng nhập: 1
+2026-05-20 18:02:13,634 - WARNING - Đặt trạng thái thông báo cho ruộng 1 thành ON
+2026-05-20 18:02:13,637 - WARNING - Đặt trạng thái email thông báo cho user 1 thành ON
+2026-05-20 18:04:57,533 - INFO - Đăng nhập: 1
+2026-05-20 18:45:15,610 - INFO - Đăng nhập: admin
+2026-05-20 18:45:24,714 - WARNING - Tạo ruộng: 003
+2026-05-20 18:46:54,315 - INFO - Đăng nhập: admin
+2026-05-20 18:47:01,414 - WARNING - Xóa ruộng: 003
+2026-05-20 18:47:05,159 - WARNING - Tạo ruộng: 003
+2026-05-20 18:47:18,925 - WARNING - Xóa ruộng: 003
+2026-05-20 18:47:32,571 - INFO - Đăng xuất: admin
+2026-05-20 18:47:35,776 - INFO - Đăng nhập: 1
+2026-05-20 18:47:44,332 - INFO - Đăng xuất: 1
+2026-05-20 18:47:48,132 - INFO - Đăng nhập: admin
+2026-05-20 18:47:56,290 - WARNING - Xóa công việc 61
+2026-05-20 18:47:58,990 - WARNING - Xóa công việc 60
+2026-05-20 18:50:11,277 - INFO - Đăng xuất: admin
+2026-05-20 18:51:27,324 - INFO - Đăng nhập: 1
+2026-05-20 18:51:56,488 - INFO - Đăng xuất: 1
+2026-05-20 18:53:41,883 - INFO - Đăng nhập: 1
+2026-05-20 18:58:54,637 - WARNING - Đặt trạng thái thông báo cho ruộng 1 thành OFF
+2026-05-20 18:58:54,640 - WARNING - Đặt trạng thái email thông báo cho user 1 thành ON
+2026-05-20 18:59:34,130 - WARNING - Đặt trạng thái thông báo cho ruộng 1 thành OFF
+2026-05-20 18:59:34,135 - WARNING - Đặt trạng thái email thông báo cho user 1 thành OFF
+2026-05-20 19:00:55,106 - WARNING - Đặt trạng thái thông báo cho ruộng 1 thành OFF
+2026-05-20 19:00:55,110 - WARNING - Đặt trạng thái email thông báo cho user 1 thành ON
+2026-05-20 19:01:46,712 - WARNING - Đặt trạng thái thông báo cho ruộng 1 thành OFF
+2026-05-20 19:01:46,715 - WARNING - Đặt trạng thái email thông báo cho user 1 thành OFF
+2026-05-20 19:04:30,354 - INFO - Đăng xuất: 1
+2026-05-20 19:04:34,382 - INFO - Đăng nhập: admin
+2026-05-20 19:05:22,338 - WARNING - Thêm user admin vào ruộng 001
+2026-05-20 19:06:22,706 - INFO - Đăng xuất: admin
+2026-05-20 19:06:32,418 - INFO - Đăng ký: test
+2026-05-20 19:07:54,497 - INFO - Đăng nhập: test
+2026-05-20 19:13:54,499 - INFO - Đăng xuất: test
+2026-05-20 19:13:58,049 - INFO - Đăng nhập: admin
+2026-05-20 19:16:42,754 - INFO - Đăng xuất: admin
+2026-05-20 19:16:45,569 - INFO - Đăng nhập: 1
+2026-05-20 19:17:08,337 - WARNING - Đặt trạng thái thông báo cho ruộng 1 thành ON
+2026-05-20 19:17:08,339 - WARNING - Đặt trạng thái email thông báo cho user 1 thành OFF
+2026-05-20 19:19:52,876 - WARNING - Đặt trạng thái thông báo cho ruộng 1 thành OFF
+2026-05-20 19:19:52,879 - WARNING - Đặt trạng thái email thông báo cho user 1 thành OFF
+2026-05-20 19:20:44,069 - WARNING - Đặt trạng thái thông báo cho ruộng 1 thành ON
+2026-05-20 19:20:44,075 - WARNING - Đặt trạng thái email thông báo cho user 1 thành OFF
+2026-05-20 19:22:15,116 - WARNING - Đặt trạng thái thông báo cho ruộng 1 thành ON
+2026-05-20 19:22:15,119 - WARNING - Đặt trạng thái email thông báo cho user 1 thành OFF
+2026-05-20 19:29:32,283 - INFO - Đăng xuất: 1
+2026-05-20 19:29:35,523 - INFO - Đăng nhập: admin
+2026-05-20 19:59:24,726 - INFO - Đăng nhập: 1
+2026-05-20 20:00:16,730 - WARNING - Đặt trạng thái thông báo cho ruộng 1 thành OFF
+2026-05-20 20:00:16,731 - WARNING - Đặt trạng thái email thông báo cho user 1 thành OFF
+2026-05-20 20:02:42,053 - WARNING - Đặt trạng thái thông báo cho ruộng 1 thành ON
+2026-05-20 20:02:42,053 - WARNING - Đặt trạng thái email thông báo cho user 1 thành OFF
+2026-05-20 20:04:40,570 - INFO - Đăng xuất: 1
+2026-05-20 20:04:43,473 - INFO - Đăng nhập: admin
+2026-05-20 20:08:06,254 - WARNING - Đặt trạng thái email thông báo cho user admin thành OFF
+2026-05-20 20:08:06,262 - WARNING - Đặt trạng thái thông báo cho ruộng admin thành OFF
+2026-05-20 20:09:01,768 - WARNING - Đặt trạng thái thông báo cho ruộng admin thành ON
+2026-05-20 20:09:01,771 - WARNING - Đặt trạng thái email thông báo cho user admin thành OFF

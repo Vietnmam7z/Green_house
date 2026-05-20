@@ -113,3 +113,76 @@ class OTPManager:
         except Exception as e:
             print("Lỗi gửi email:", e)
             return False
+        
+    def send_field_alert_email(self, receiver_email: str, field_name: str, device_name: str, status: str, username: str):
+        """
+        Gửi email cảnh báo dị thường dành riêng cho khu vực/ruộng.
+        """
+        sender_email = config.sender_email
+        app_password = config.app_password
+
+        # Xác định màu sắc và tiêu đề dựa trên mức độ cảnh báo
+        if status == "CRITICAL":
+            subject = f"🚨 BÁO ĐỘNG ĐỎ: Dị thường tại {field_name}"
+            color = "#e74c3c" # Màu đỏ
+        else:
+            subject = f"⚠️ CẢNH BÁO: Lưu ý tại {field_name}"
+            color = "#f39c12" # Màu cam
+
+        # Lấy thời gian hiện tại
+        now_str = datetime.datetime.now().strftime("%H:%M:%S - %d/%m/%Y")
+
+        # 1. Nội dung dạng Text thường (Dự phòng cho các app mail không hỗ trợ HTML)
+        body = f"""
+        Xin chào {username},
+
+        Hệ thống SmartCare phát hiện bất thường tại khu vực của bạn:
+
+        - Khu vực (Ruộng): {field_name}
+        - Thiết bị: {device_name}
+        - Trạng thái: {status}
+        - Thời gian: {now_str}
+
+        Vui lòng đăng nhập vào hệ thống để kiểm tra ngay!
+
+        Trân trọng,
+        Hệ thống SmartCare
+        """
+
+        # 2. Nội dung dạng HTML (Hiển thị đẹp mắt trên Gmail)
+        html_body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <h2 style="color: {color};">Phát hiện bất thường hệ thống!</h2>
+                <p>Xin chào <b>{username}</b>,</p>
+                <p>Hệ thống SmartCare vừa ghi nhận một thông số vượt ngưỡng an toàn:</p>
+                <ul style="background-color: #f9f9f9; padding: 15px 30px; border-radius: 5px;">
+                    <li><b>Khu vực (Ruộng):</b> {field_name}</li>
+                    <li><b>Thiết bị:</b> {device_name}</li>
+                    <li><b>Trạng thái:</b> <span style="color: {color}; font-weight: bold;">{status}</span></li>
+                    <li><b>Thời gian:</b> {now_str}</li>
+                </ul>
+                <p>Vui lòng đăng nhập vào Dashboard để kiểm tra ngay lập tức.</p>
+                <br>
+                <p>Trân trọng,<br><b>Hệ thống SmartCare</b></p>
+            </body>
+        </html>
+        """
+
+        msg = EmailMessage()
+        msg["Subject"] = subject
+        msg["From"] = sender_email
+        msg["To"] = receiver_email
+        
+        # Set nội dung text thường trước, sau đó add thêm bản HTML
+        msg.set_content(body)
+        msg.add_alternative(html_body, subtype='html')
+
+        try:
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+                smtp.login(sender_email, app_password)
+                smtp.send_message(msg)
+            return True
+        except Exception as e:
+            print("Lỗi gửi email cảnh báo ruộng:", e)
+            return False

@@ -447,6 +447,16 @@ class FieldDB:
                 WHERE field_id = ?
             """, (field_id,))
             return [row[0] for row in cursor.fetchall()]
+        
+    def get_AI_Automation(self, field_id: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT AI_Automation
+                FROM AI_management
+                WHERE field_id = ?
+            """, (field_id,))
+            return [row[0] for row in cursor.fetchall()]
 
 
     def set_anomaly_score_low(self, field_id: str, value: float):
@@ -499,6 +509,15 @@ class FieldDB:
             """, (value, field_id))
             conn.commit()
 
+    def set_AI_automation(self, field_id: str, value: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE AI_management
+                SET AI_automation = ?
+                WHERE field_id = ?
+            """, (value, field_id))
+            conn.commit()
 
     def get_AI_telemetry_sample(self, device_id: str, sample: int):
         with self.connect() as conn:
@@ -604,7 +623,8 @@ class FieldDB:
                         anomaly_score_high,
                         step,
                         anomaly_status,
-                        prediction_status
+                        prediction_status,
+                        AI_automation
                     )
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, (
@@ -688,7 +708,40 @@ class FieldDB:
                 return {"success": True, "message": "Đã đánh dấu đã đọc"}
             except Exception as e:
                 conn.rollback()
-                return {"success": False, "message": str(e)}    
+                return {"success": False, "message": str(e)} 
+
+    def delete_notification(self, notifications_list):
+        """
+        notifications_list có thể là:
+        - Một dict đơn lẻ: {"ts": 123, "device_id": "ABC", "username": "user1"}
+        - Hoặc một danh sách các dict: [{"ts": 123, ...}, {"ts": 456, ...}]
+        """
+        # Nếu người dùng chỉ truyền vào 1 thông báo đơn lẻ, tự động bọc nó thành mảng list
+        if isinstance(notifications_list, dict):
+            notifications_list = [notifications_list]
+            
+        if not notifications_list:
+            return {"success": True, "message": "Danh sách xóa trống"}
+
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                # Thực hiện xóa hàng loạt trong cùng một Transaction để tối ưu tốc độ
+                for notif in notifications_list:
+                    ts = notif.get('ts')
+                    device_id = notif.get('device_id')
+                    username = notif.get('username')
+                    
+                    cursor.execute("""
+                        DELETE FROM notification
+                        WHERE ts = ? AND device_id = ? AND username = ?
+                    """, (ts, device_id, username))
+                
+                conn.commit()
+                return {"success": True, "message": f"Đã xóa thành công {len(notifications_list)} thông báo"}
+            except Exception as e:
+                conn.rollback()
+                return {"success": False, "message": str(e)}
 
     def get_notification_status(self, username: str):
         with self.connect() as conn:
@@ -879,7 +932,25 @@ class FieldDB:
         except Exception as e:
                 return {"success": False, "message": str(e)}
 
-    def check_anomaly(self):
+    def get_users_with_notifications_enabled(self):
+        try:
+            with self.connect() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT username 
+                    FROM notification_management 
+                    WHERE status = 'ON'
+                """)
+                results = cursor.fetchall()
+                if results:
+                    return [row[0] for row in results]
+                return []
+                
+        except Exception as e:
+            print(f"[DB ERROR] Lỗi lấy danh sách user nhận thông báo: {e}")
+            return []
+
+    def check_anomaly(self, username):
         try:
             with self.connect() as conn:
                 cursor = conn.cursor()
@@ -921,13 +992,16 @@ class FieldDB:
                     
                     if not current_status:
                         return {"success": False}
+                    
+                    # THAY ĐỔI Ở ĐÂY: Bổ sung điều kiện username = ? vào truy vấn
                     cursor.execute("""
                         SELECT ts, status 
                         FROM notification 
-                        WHERE device_id = ? 
+                        WHERE device_id = ? AND username = ? 
                         ORDER BY ts DESC 
                         LIMIT 1
-                    """, (device_id,))
+                    """, (device_id, username)) # THAY ĐỔI Ở ĐÂY: Truyền thêm biến username
+                    
                     last_notif = cursor.fetchone()
                     
                     if last_notif:
@@ -940,6 +1014,7 @@ class FieldDB:
                         
                         if (current_ts - last_ts) < 900 and current_status == last_status:
                             return {"success": False}
+                            
                     return {
                         "success": True,
                         "anomaly_score": score,
@@ -1259,7 +1334,35 @@ class FieldDB:
                     "success": False,
                     "message": str(e)
                 }
-            
+
+    def get_scheduler_id_by_name(self, name: str):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                # Tìm kiếm lịch trình theo tên
+                cursor.execute("""
+                    SELECT scheduler_id 
+                    FROM scheduler 
+                    WHERE name = ?
+                    LIMIT 1
+                """, (name,))
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        "success": True, 
+                        "scheduler_id": row[0]
+                    }
+                else:
+                    return {
+                        "success": False, 
+                        "message": f"Không tìm thấy lịch trình nào có tên '{name}'."
+                    }
+            except Exception as e:
+                return {
+                    "success": False, 
+                    "message": f"Lỗi truy vấn: {str(e)}"
+                }
+
     def get_device_controller_by_device_id(self, device_id):
         with self.connect() as conn:
             cursor = conn.cursor()
@@ -1511,33 +1614,6 @@ class FieldDB:
             ))
             conn.commit()
     
-    def create_transaction_item(self, transaction_id, billing_item_id, title, amount):
-        with self.connect() as conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    INSERT INTO payment_transaction_items (
-                        transaction_id,
-                        billing_item_id,
-                        title,
-                        amount
-                    )
-                    VALUES (?, ?, ?, ?)
-                """, (transaction_id, billing_item_id, title, amount))
-
-                conn.commit()
-
-                return {
-                    "success": True,
-                    "message": "Tạo transaction item thành công"
-                }
-
-            except Exception as e:
-                conn.rollback()
-                return {
-                    "success": False,
-                    "message": str(e)
-                }
         
     def get_transaction_by_order_id(self, order_id):
         with self.connect() as conn:
@@ -1640,103 +1716,6 @@ class FieldDB:
                     "message": "Lỗi lấy transaction theo field",
                     "error": str(e)
                 }
-            
-    def delete_all_payment_by_field(self, field_id):
-        with self.connect() as conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    DELETE FROM payment_transaction_items
-                    WHERE transaction_id IN (
-                        SELECT id
-                        FROM payment_transactions
-                        WHERE field_id = ?
-                    )
-                """, (field_id,))
-                cursor.execute("""
-                    DELETE FROM payment_transactions
-                    WHERE field_id = ?
-                """, (field_id,))
-                conn.commit()
-                return {
-                    "success": True,
-                    "message": "Đã xoá toàn bộ payment theo field",
-                    "data": {
-                        "field_id": field_id
-                    }
-                }
-            except Exception as e:
-                conn.rollback()
-                return {
-                    "success": False,
-                    "message": "Lỗi xoá payment theo field",
-                    "error": str(e)
-                }
-            
-    def create_automation(self, field_id):
-        with self.connect() as conn:
-            cur = conn.cursor()
-            cur.execute("""
-                INSERT INTO field_automation (
-                    field_id,
-                    status,
-                    scheduler_id
-                )
-                VALUES (?, 'off', NULL)
-            """, (field_id,))
-            conn.commit()
-
-    def set_automation_status(self, field_id, status):
-        with self.connect() as conn:
-            cur = conn.cursor()
-            cur.execute("""
-                UPDATE field_automation
-                SET
-                    status = ?,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE field_id = ?
-            """, (status, field_id))
-            conn.commit()
-
-    def set_scheduler(self, field_id, scheduler_id):
-        with self.connect() as conn:
-            cur = conn.cursor()
-            cur.execute("""
-                UPDATE field_automation
-                SET
-                    scheduler_id = ?,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE field_id = ?
-            """, (scheduler_id, field_id))
-            conn.commit()
-
-    def get_automation_status(self, field_id):
-        with self.connect() as conn:
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT 
-                    field_id,
-                    scheduler_id,
-                    status
-                FROM field_automation
-                WHERE field_id = ?
-            """, (field_id,))
-            row = cur.fetchone()
-
-        if not row:
-            return {
-                "success": False,
-                "message": "Không tìm thấy automation của field"
-            }
-
-        return {
-            "success": True,
-            "data": {
-                "field_id": row[0],
-                "scheduler_id": row[1],
-                "status": row[2]
-            }
-        }
     
     def create_service_plan(self, field_id, service_days, daily_price):
         with self.connect() as conn:
@@ -1912,3 +1891,73 @@ class FieldDB:
                 for row in rows
             ]
         }
+    
+    def handle_anomaly_automation(self):
+        print("\n[DEBUG] Đang chạy vòng lặp kiểm tra AI...", flush=True)
+        actions = []
+        try:
+            with self.connect() as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT DISTINCT field_id FROM AI_management WHERE LOWER(AI_automation) = 'on'")
+                active_fields = [r[0] for r in cur.fetchall()]
+
+            print(f"[DEBUG] Số ruộng đang BẬT AI: {len(active_fields)} -> Danh sách: {active_fields}", flush=True)
+
+            if not active_fields:
+                return actions
+
+            for field_id in active_fields:
+                with self.connect() as conn:
+                    cur = conn.cursor()
+
+                    cur.execute("SELECT anomaly_score_high FROM AI_management WHERE field_id = ?", (field_id,))
+                    row_threshold = cur.fetchone()
+                    if not row_threshold:
+                        print(f"[DEBUG] Lỗi: Không tìm thấy anomaly_score_high của ruộng {field_id}", flush=True)
+                        continue
+                    high_threshold = float(row_threshold[0])
+
+                    cur.execute("""
+                        SELECT telemetry.value
+                        FROM telemetry
+                        JOIN device ON telemetry.device_id = device.device_id
+                        WHERE telemetry.name = 'anomaly_score' AND device.field_id = ?
+                        ORDER BY telemetry.ts DESC LIMIT 1
+                    """, (field_id,))
+                    row_anomaly = cur.fetchone()
+
+                    if not row_anomaly:
+                        print(f"[DEBUG] CẢNH BÁO: Ruộng {field_id} CHƯA CÓ dữ liệu anomaly_score!", flush=True)
+                        continue
+
+                    current_score = float(row_anomaly[0])
+
+                print(f"[QUÉT AI] Ruộng {field_id} | Điểm dị thường: {current_score} / Ngưỡng: {high_threshold}", flush=True)
+
+                if current_score < high_threshold:
+                    print(f"   -> AI đánh giá AN TOÀN. Bỏ qua.", flush=True)
+                    continue
+
+                print(f"[BÁO ĐỘNG ĐỎ] Ruộng {field_id} vượt ngưỡng CRITICAL! Quét cảm biến...", flush=True)
+
+                devices = self.get_device_names(field_id)
+                for device_name in devices:
+                    latest_data = self.get_telemetry(device_name)
+                    if not latest_data or device_name not in latest_data:
+                        continue
+
+                    telemetries = latest_data[device_name]
+
+                    if "moisture" in telemetries and float(telemetries["moisture"]["value"]) < 40.0:
+                        actions.append({"field_id": field_id, "target_type": "moisture", "action": "increase"})
+
+                    if "temperature" in telemetries:
+                        temp = float(telemetries["temperature"]["value"])
+                        if temp > 35.0:
+                            actions.append({"field_id": field_id, "target_type": "temperature", "action": "decrease"})
+                        elif temp < 15.0:
+                            actions.append({"field_id": field_id, "target_type": "temperature", "action": "increase"})
+        except Exception as e:  
+            print(f"\n[LỖI CRASH HỆ THỐNG AUTO] {str(e)}\n", flush=True)
+        print(actions)
+        return actions

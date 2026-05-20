@@ -81,6 +81,13 @@ async function loadSystemHierarchy() {
                                 <option value="OFF">OFF</option>
                             </select>
                         </div>
+                        <div class="ai-setting-item">
+                            <label>AI_automation</label>
+                            <select id="ai-automation-${fieldId}">
+                                <option value="ON">ON</option>
+                                <option value="OFF">OFF</option>
+                            </select>
+                        </div>
                     </div>
                     <button class="btn-save-ai" onclick="saveAISettings('${fieldId}')">
                         <i class="fa-solid fa-floppy-disk"></i> Lưu Cấu Hình AI
@@ -117,6 +124,7 @@ async function toggleAISettings(fieldId) {
                 document.getElementById(`ai-step-${fieldId}`).value = d.step;
                 document.getElementById(`ai-status-${fieldId}`).value = d.anomaly_status;
                 document.getElementById(`ai-pred-status-${fieldId}`).value = d.prediction_status;
+                document.getElementById(`ai-automation-${fieldId}`).value = d.AI_automation;
                 
                 panel.style.display = 'block';
             } else {
@@ -139,6 +147,7 @@ async function saveAISettings(fieldId) {
         step: parseInt(document.getElementById(`ai-step-${fieldId}`).value),
         anomaly_status: document.getElementById(`ai-status-${fieldId}`).value,
         prediction_status: document.getElementById(`ai-pred-status-${fieldId}`).value,
+        AI_automation: document.getElementById(`ai-automation-${fieldId}`).value,
     };
 
     try {

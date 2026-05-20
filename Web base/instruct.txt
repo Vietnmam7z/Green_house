@@ -675,6 +675,7 @@ Chạy pip install flask
 Chạy pip install requests
 Chạy pip install pandas
 Chạy pip install flask requests python-dotenv flask-cors
+Chạy pip install paho-mqtt==1.6.1
 
 from webserver import FlaskServer
 from user_manager import UserManager
