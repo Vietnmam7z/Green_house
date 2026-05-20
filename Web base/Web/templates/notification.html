@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trung tâm thông báo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../static/css/notifications.css">
+</head>
+<body>
+
+    <div class="page-header">
+        <button onclick="window.location.href='/'" class="btn-back-home">
+            <i class="fa-solid fa-arrow-left"></i> Back to Home
+        </button>
+        <h2 class="page-title"><i class="fa-regular fa-bell"></i> Trung tâm thông báo</h2>
+    </div>
+
+    <div class="notification-container">
+        <div class="toolbar">
+            <div class="tabs">
+                <button class="tab-btn active" id="tab-unread" onclick="setFilter('unread')">Unread</button>
+                <button class="tab-btn" id="tab-all" onclick="setFilter('all')">All</button>
+            </div>
+            <div class="actions">
+                <button class="action-btn" title="Cài đặt thông báo" onclick="openSettingsModal()">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+                <button id="bulk-delete-btn" title="Xóa các mục đã chọn" onclick="deleteSelectedNotifications()" style="display: none; color: #d32f2f;">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+                
+                <button class="action-btn" title="Đánh dấu tất cả đã đọc" onclick="markAllAsRead()">
+                    <i class="fa-solid fa-check-double"></i>
+                </button>
+                <button class="action-btn" title="Làm mới" onclick="loadNotifications()">
+                    <i class="fa-solid fa-arrow-rotate-right"></i>
+                </button>
+                <button class="action-btn" title="Tìm kiếm">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 40px;"><input type="checkbox" id="check-all" onclick="toggleSelectAll(this)" title="Select All"></th>
+                    <th style="width: 180px;">Created time <i class="fa-solid fa-arrow-down-short-wide"></i></th>
+                    <th style="width: 150px;">Type</th>
+                    <th style="width: 250px;">Subject</th>
+                    <th>Message</th>
+                    <th style="width: 100px;"></th>
+                </tr>
+            </thead>
+            <tbody id="notif-tbody">
+                <tr><td colspan="6" class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải dữ liệu...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="settingsModal" class="modal-overlay" style="display: none;">
+            <div class="settings-modal">
+                <div class="settings-header">
+                    <h3><i class="fa-solid fa-sliders"></i> Tùy chỉnh thông báo</h3>
+                    <button class="close-btn" onclick="closeSettingsModal()">&times;</button>
+                </div>
+                <div class="settings-body">
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Thông báo trên Web</h4>
+                            <p>Nhận các cảnh báo hệ thống hiển thị trên trang Dashboard.</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggle-web-status">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Thông báo qua Email</h4>
+                            <p>Nhận email ngay lập tức khi phát hiện chỉ số thiết bị dị thường.</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggle-email-status">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-footer">
+                    <button class="btn-cancel" onclick="closeSettingsModal()">Hủy bỏ</button>
+                    <button class="btn-save" onclick="saveNotificationSettings()">Lưu cài đặt</button>
+                </div>
+            </div>
+        </div>
+    <script src="../static/js/notifications_page.js"></script>
+</body>
+</html>
