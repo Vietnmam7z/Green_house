@@ -77,6 +77,13 @@ class UserManager:
             cur.execute("SELECT username FROM user_data WHERE email = ? LIMIT 1", (email,))
             result = cur.fetchone()
         return result[0] if result else False
+    
+    def get_email_by_username(self, username: str):
+        with self.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT email FROM user_data WHERE username = ? LIMIT 1", (username,))
+            result = cur.fetchone()
+        return result[0] if result else None
 
     def set_email(self, old_email: str, new_email: str):
         with self.connect() as conn:

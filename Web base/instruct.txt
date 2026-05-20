@@ -497,18 +497,18 @@ if __name__ == '__main__':
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Code test chạy lấy anomoly_score_low chạy trong field_manager.py
+Code test chạy lấy anomaly_score_low chạy trong field_manager.py
 db = FieldDB()
 field_id = "001"  # field_id có trong cơ sở dữ liệu
-print("anomoly_score_low:", db.get_anomoly_score_low(field_id))
+print("anomaly_score_low:", db.get_anomaly_score_low(field_id))
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Code test chạy lấy anomoly_score_high chạy trong field_manager.py
+Code test chạy lấy anomaly_score_high chạy trong field_manager.py
 
 db = FieldDB()
 field_id = "001"  # field_id có trong cơ sở dữ liệu
-print("anomoly_score_high:", db.get_anomoly_score_high(field_id))
+print("anomaly_score_high:", db.get_anomaly_score_high(field_id))
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -520,11 +520,11 @@ print("step:", db.get_step(field_id))
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Code test chạy lấy anomoly_status chạy trong field_manager.py
+Code test chạy lấy anomaly_status chạy trong field_manager.py
 
 db = FieldDB()
 field_id = "001"  # field_id có trong cơ sở dữ liệu
-print("anomoly_status:", db.get_anomoly_status(field_id))
+print("anomaly_status:", db.get_anomaly_status(field_id))
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -536,28 +536,28 @@ print("prediction_status:", db.get_prediction_status(field_id))
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Code test chạy lấy anomoly_prediction_status chạy trong field_manager.py
+Code test chạy lấy anomaly_prediction_status chạy trong field_manager.py
 
 db = FieldDB()
 field_id = "001"  # field_id có trong cơ sở dữ liệu
-print("anomoly_prediction_status:", db.get_anomoly_prediction_status(field_id))
+print("anomaly_prediction_status:", db.get_anomaly_prediction_status(field_id))
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Code test đổi anomoly_score_low chạy trong field_manager.py
+Code test đổi anomaly_score_low chạy trong field_manager.py
 
 db = FieldDB()
 field_id = "001"  # field_id có trong cơ sở dữ liệu
-db.set_anomoly_score_low(field_id, 0.25)
+db.set_anomaly_score_low(field_id, 0.25)
 print("Đã cập nhật dữ liệu cho field_id =", field_id)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Code test đổi anomoly_score_high chạy trong field_manager.py
+Code test đổi anomaly_score_high chạy trong field_manager.py
 
 db = FieldDB()
 field_id = "001"  # field_id có trong cơ sở dữ liệu
-db.set_anomoly_score_high(field_id, 0.85)
+db.set_anomaly_score_high(field_id, 0.85)
 print("Đã cập nhật dữ liệu cho field_id =", field_id)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -570,10 +570,10 @@ print("Đã cập nhật dữ liệu cho field_id =", field_id)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Code test đổi anomoly_status chạy trong field_manager.py
+Code test đổi anomaly_status chạy trong field_manager.py
 db = FieldDB()
 field_id = "001"  # field_id có trong cơ sở dữ liệu
-db.set_anomoly_status(field_id, "ON")
+db.set_anomaly_status(field_id, "ON")
 print("Đã cập nhật dữ liệu cho field_id =", field_id)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -595,10 +595,10 @@ print(result)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Code test đổi anomoly_prediction_status chạy trong field_manager.py
+Code test đổi anomaly_prediction_status chạy trong field_manager.py
 db = FieldDB()
 field_id = "001"  # field_id có trong cơ sở dữ liệu
-db.set_anomoly_prediction_status(field_id, "ON")
+db.set_anomaly_prediction_status(field_id, "ON")
 print("Đã cập nhật dữ liệu cho field_id =", field_id)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -675,6 +675,7 @@ Chạy pip install flask
 Chạy pip install requests
 Chạy pip install pandas
 Chạy pip install flask requests python-dotenv flask-cors
+Chạy pip install paho-mqtt==1.6.1
 
 from webserver import FlaskServer
 from user_manager import UserManager

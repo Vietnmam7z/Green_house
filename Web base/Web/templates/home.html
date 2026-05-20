@@ -19,7 +19,7 @@
 
     <!-- Vùng phải -->
     <div class="navbar-right">
-      <img src="/static/img/bell.png" alt="Notifications" class="nav-icon">
+      <img src="../static/img/bell.png" alt="Notifications" class="nav-icon" style="cursor: pointer;" title="Thông báo">
       
       <div class="user-profile-container">
         <div class="user-profile">
@@ -48,10 +48,13 @@
             <a href="/profile?tab=service" class="dropdown-item" id="menu-service">
                 <i class="fa-solid fa-cubes"></i> Gói dịch vụ thuê
             </a>
-            
+            <a href="/notifications" class="dropdown-item" id="menu-notifications">
+                <i class="fa-regular fa-bell"></i> Quản lý thông báo
+            </a>
             <a href="/manage" class="dropdown-item" id="menu-admin">
                 <i class="fa-solid fa-seedling"></i> Quản lý hệ thống
             </a>
+            
             
             <a href="#" id="dropdown-logoutBtn" class="dropdown-item logout-btn">
                 <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
@@ -75,5 +78,7 @@
 
   <!-- JS xử lý logout -->
   <script src="../static/js/home.js"></script>
+  <script src="../static/js/notifications.js"></script>
+
 </body>
 </html>

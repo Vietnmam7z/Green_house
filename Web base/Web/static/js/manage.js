@@ -56,11 +56,11 @@ async function loadSystemHierarchy() {
                     </div>
                     <div class="ai-settings-grid">
                         <div class="ai-setting-item">
-                            <label>anomoly_score_low</label>
+                            <label>anomaly_score_low</label>
                             <input type="number" step="0.01" id="ai-low-${fieldId}">
                         </div>
                         <div class="ai-setting-item">
-                            <label>anomoly_score_high</label>
+                            <label>anomaly_score_high</label>
                             <input type="number" step="0.01" id="ai-high-${fieldId}">
                         </div>
                         <div class="ai-setting-item">
@@ -68,7 +68,7 @@ async function loadSystemHierarchy() {
                             <input type="number" id="ai-step-${fieldId}">
                         </div>
                         <div class="ai-setting-item">
-                            <label>anomoly_status</label>
+                            <label>anomaly_status</label>
                             <select id="ai-status-${fieldId}">
                                 <option value="ON">ON</option>
                                 <option value="OFF">OFF</option>
@@ -82,8 +82,8 @@ async function loadSystemHierarchy() {
                             </select>
                         </div>
                         <div class="ai-setting-item">
-                            <label>anomoly_prediction_status</label>
-                            <select id="ai-anom-pred-status-${fieldId}">
+                            <label>AI_automation</label>
+                            <select id="ai-automation-${fieldId}">
                                 <option value="ON">ON</option>
                                 <option value="OFF">OFF</option>
                             </select>
@@ -119,12 +119,12 @@ async function toggleAISettings(fieldId) {
             if (result.success && result.data) {
                 const d = result.data;
                 // Điền dữ liệu từ Database vào các ô input
-                document.getElementById(`ai-low-${fieldId}`).value = d.anomoly_score_low;
-                document.getElementById(`ai-high-${fieldId}`).value = d.anomoly_score_high;
+                document.getElementById(`ai-low-${fieldId}`).value = d.anomaly_score_low;
+                document.getElementById(`ai-high-${fieldId}`).value = d.anomaly_score_high;
                 document.getElementById(`ai-step-${fieldId}`).value = d.step;
-                document.getElementById(`ai-status-${fieldId}`).value = d.anomoly_status;
+                document.getElementById(`ai-status-${fieldId}`).value = d.anomaly_status;
                 document.getElementById(`ai-pred-status-${fieldId}`).value = d.prediction_status;
-                document.getElementById(`ai-anom-pred-status-${fieldId}`).value = d.anomoly_prediction_status;
+                document.getElementById(`ai-automation-${fieldId}`).value = d.AI_automation;
                 
                 panel.style.display = 'block';
             } else {
@@ -142,12 +142,12 @@ async function toggleAISettings(fieldId) {
 async function saveAISettings(fieldId) {
     const payload = {
         field_id: fieldId,
-        anomoly_score_low: parseFloat(document.getElementById(`ai-low-${fieldId}`).value),
-        anomoly_score_high: parseFloat(document.getElementById(`ai-high-${fieldId}`).value),
+        anomaly_score_low: parseFloat(document.getElementById(`ai-low-${fieldId}`).value),
+        anomaly_score_high: parseFloat(document.getElementById(`ai-high-${fieldId}`).value),
         step: parseInt(document.getElementById(`ai-step-${fieldId}`).value),
-        anomoly_status: document.getElementById(`ai-status-${fieldId}`).value,
+        anomaly_status: document.getElementById(`ai-status-${fieldId}`).value,
         prediction_status: document.getElementById(`ai-pred-status-${fieldId}`).value,
-        anomoly_prediction_status: document.getElementById(`ai-anom-pred-status-${fieldId}`).value
+        AI_automation: document.getElementById(`ai-automation-${fieldId}`).value,
     };
 
     try {

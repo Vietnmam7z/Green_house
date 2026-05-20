@@ -4,6 +4,7 @@ from datetime import datetime, time, timedelta
 from authentication import Authentication
 from email_otp import OTPManager
 from sensor_API import Sensor_API
+from notification import NotificationManager
 from field_manager import FieldDB
 from logger import UserLogger
 import payment
@@ -51,6 +52,8 @@ class Routes:
 
         return render_template(config.reset_password_page)
 
+    
+        
     def pop_reset_session(self):
         username = session.get('username')
         if username:
@@ -721,7 +724,7 @@ class Routes:
         data = request.get_json()
         field_id = data.get('field_id', '').strip()
         result = self.field.add_field(field_id, None, None)
-        self.field.create_automation(field_id)
+
         self.logger.log_add_field(field_id)
         self.field.create_AI_management_record(field_id)
         
@@ -959,6 +962,12 @@ class Routes:
 #################################################################################################################################
 
  # DASHBOARD_PAGE
+    def notifications_page(self):
+        resp = self.require_login()
+        if resp:
+            return resp
+        return render_template(config.notification_page)
+    
     def dashboard_page(self):
         resp = self.require_login()
         if resp:
@@ -1131,12 +1140,12 @@ class Routes:
             return jsonify({
                 "success": True, 
                 "data": {
-                    "anomoly_score_low": self.field.get_anomoly_score_low(field_id)[0],
-                    "anomoly_score_high": self.field.get_anomoly_score_high(field_id)[0],
+                    "anomaly_score_low": self.field.get_anomaly_score_low(field_id)[0],
+                    "anomaly_score_high": self.field.get_anomaly_score_high(field_id)[0],
                     "step": self.field.get_step(field_id)[0],
-                    "anomoly_status": self.field.get_anomoly_status(field_id)[0],
+                    "anomaly_status": self.field.get_anomaly_status(field_id)[0],
                     "prediction_status": self.field.get_prediction_status(field_id)[0],
-                    "anomoly_prediction_status": self.field.get_anomoly_prediction_status(field_id)[0]
+                    "AI_automation": self.field.get_AI_Automation(field_id)[0],
                 }
             }), 200
         except Exception as e:
@@ -1146,23 +1155,23 @@ class Routes:
     def update_ai_settings(self):
         data = request.get_json()
         field_id = data.get('field_id')
-        anomoly_score_low = float(data.get('anomoly_score_low', 0))
-        anomoly_score_high = float(data.get('anomoly_score_high', 100))
+        anomaly_score_low = float(data.get('anomaly_score_low', 0))
+        anomaly_score_high = float(data.get('anomaly_score_high', 100))
         step = int(data.get('step', 5))
-        anomoly_status = data.get('anomoly_status', 'OFF')
+        anomaly_status = data.get('anomaly_status', 'OFF')
         prediction_status = data.get('prediction_status', 'OFF')
-        anomoly_prediction_status = data.get('anomoly_prediction_status', 'OFF')
+        AI_automation = data.get('AI_automation','OFF')
 
         # Kiểm tra field_id hợp lệ
         if not field_id:
             return jsonify({"success": False, "message": "Thiếu mã khu vực (field_id)."}), 400
 
-        self.field.set_anomoly_score_low(field_id, anomoly_score_low)
-        self.field.set_anomoly_score_high(field_id, anomoly_score_high)
+        self.field.set_anomaly_score_low(field_id, anomaly_score_low)
+        self.field.set_anomaly_score_high(field_id, anomaly_score_high)
         self.field.set_step(field_id, step)
-        self.field.set_anomoly_status(field_id, anomoly_status)
+        self.field.set_anomaly_status(field_id, anomaly_status)
         self.field.set_prediction_status(field_id, prediction_status)
-        self.field.set_anomoly_prediction_status(field_id, anomoly_prediction_status)
+        self.field.set_AI_automation(field_id, AI_automation)
 
         return jsonify({
             "success": True, 
@@ -1245,8 +1254,8 @@ class Routes:
             return jsonify(result)
         return result
 
-    def check_anomaly(self):
-        result = self.field.check_anomaly()
+    def check_anomaly(self,username):
+        result = self.field.check_anomaly(username)
         if isinstance(result, dict):
             return jsonify(result)
         return result
@@ -1275,6 +1284,34 @@ class Routes:
         username = session.get('username')
         self.logger.log_set_notification_email_status(username, status)
         result = self.field.set_email_notification_status(username, status)
+        return jsonify(result)
+    
+    def api_get_notifications(self):
+        username = request.args.get('username')
+        if not username:
+            return jsonify({"success": False, "message": "Thiếu username"}), 400
+        result = self.field.get_notifications_by_user(username)
+        return jsonify(result)
+    
+    
+
+    def api_mark_read(self):
+        data = request.get_json()
+        ts = data.get('ts')
+        device_id = data.get('device_id')
+        username = data.get('username')
+        result = self.field.mark_notification_as_read(ts, device_id, username)
+        return jsonify(result)
+
+    def api_delete_notification(self):
+        from flask import request, jsonify
+        data = request.get_json()
+        if isinstance(data, list):
+            result = self.field.delete_notification(data)
+        else:
+            # Nếu frontend gửi lên một đối tượng đơn lẻ
+            result = self.field.delete_notification(data)
+            
         return jsonify(result)
     
     def save_notification(self):
@@ -1380,15 +1417,6 @@ class Routes:
             request_id,
             total
         )
-        field_transaction = self.field.get_transaction_by_order_id(order_id)
-        transaction_id = field_transaction["data"][0]
-        for bill in bills:
-            self.field.create_transaction_item(
-                transaction_id,
-                bill[0],
-                bill[1],
-                bill[3]
-            )
         return {
             "success": True,
             "order_id": order_id,
@@ -1420,12 +1448,6 @@ class Routes:
                 self.field.mark_bills_as_paid(field_id)
         return result
     
-    def delete_payment_by_field(self):
-        field_id = request.get_json().get("field_id")
-        result = self.field.delete_all_payment_by_field(field_id)
-        if result["success"]:
-            return jsonify(result), 200
-        return jsonify(result), 400
     
     def momo_ipn(self):
         data = request.json or {}
@@ -1519,26 +1541,29 @@ class Routes:
         return jsonify({"success": True, "data": rows})
     
     def get_transactions_items(self):
-        transaction_id = request.get_json().get("transaction_id")
+        data = request.get_json()
+        transaction_id = data.get("transaction_id")
         
-        with self.field.connect() as conn:
-            cur = conn.cursor()
-            # Đọc chi tiết từng món hóa đơn
-            cur.execute("SELECT * FROM payment_transaction_items WHERE transaction_id = ?", (transaction_id,))
-            db_rows = cur.fetchall()
-
-        # Ánh xạ lại cột cho khớp với profile.js
-        rows = []
-        for r in db_rows:
-            mapped = [
-                r[0], # 0: id
-                r[1], # 1: transaction_id
-                r[3], # 2: title (Tên loại phí: Điện, Thuê nhà kính...)
-                r[4]  # 3: amount (Số tiền)
-            ]
-            rows.append(mapped)
-
-        return jsonify({"success": True, "data": rows})
+        try:
+            rows = []
+            # Truy vấn trực tiếp bảng user_payment_transaction_items
+            # Lấy billing_title (tên hóa đơn) và billing_amount (số tiền)
+            with self.auth.user_manager.connect() as conn: # Lưu ý: kiểm tra xem bảng này nằm ở userdata.db hay field.db để gọi conn cho đúng
+                cur = conn.cursor()
+                cur.execute("""
+                    SELECT id, transaction_id, billing_title, billing_amount 
+                    FROM user_payment_transaction_items 
+                    WHERE transaction_id = ?
+                """, (transaction_id,))
+                db_rows = cur.fetchall()
+                
+                for r in db_rows:
+                    rows.append([r[0], r[1], r[2], r[3]])
+                    
+            return jsonify({"success": True, "data": rows})
+        except Exception as e:
+            print(f"Lỗi API lấy chi tiết giao dịch: {e}")
+            return jsonify({"success": False, "message": "Không tìm thấy chi tiết"})
 
 # FIELD SERVICE PLAN BILLING
 ################################################################################################################################ 
@@ -1625,10 +1650,13 @@ class Routes:
         now = datetime.now()
         event_date = now.strftime("%Y-%m-%d")
         end_date = event_date
-        event_time = now.strftime("%H:%M")
+        event_time = now.strftime("%H:%M:%S")
         name = f"{field_id}_automation"
-        scheduler_id = self.field.create_scheduler(field_id, device_id, name, event_date, end_date, event_time, event_type, "time", duration=1)
-        self.field.set_scheduler(field_id, scheduler_id)
+        self.field.create_scheduler(field_id, device_id, name, event_date, end_date, event_time, event_type, "time", duration=1)
+        result  = self.field.get_scheduler_id_by_name(name)
+        scheduler_id = None
+        if result.get("success"):
+            scheduler_id = result.get("scheduler_id")
         return {
             "success": True,
             "message": "Tạo automation scheduler thành công",
@@ -1648,52 +1676,51 @@ class Routes:
         devices = result["devices"]
         device_priority = []
 
-        if target_type == "temperature" and action == "increase":
+        if target_type == "temperature" and action == "decrease":
             device_priority = ["cooling_pad", "vent", "fan"]
-        elif target_type == "temperature" and action == "decrease":
+        elif target_type == "temperature" and action == "increase":
             device_priority = ["heater"]
-        elif target_type == "moisture" and action == "decrease":
+        elif target_type == "moisture" and action == "increase":
             device_priority = ["valve"]
         else:
           return None
 
         for device_type in device_priority:
             for device in devices:
-                if device.get("type") == device_type:
+                if device[2] == device_type:
                     return {
-                        "device_id": device.get("device_id"),
-                        "event_type": "turn_on"
+                        "device_id": device[0],
+                        "event_type": device_type
                     }
         return None
     
-    def set_automation_status(self):
-        data = request.get_json()
-        field_id = data.get("field_id")
-        status = data.get("status")
+    def automation_trigger(self):
+        actions = self.field.handle_anomaly_automation()
+        running_device_ids = {str(j["device_id"]) for j in self.running_jobs.values()}
 
-        if status not in ["ON", "OFF"]:
-            return {
-                "success": False,
-                "message": "Status chỉ được là ON hoặc OFF"
-            }
+        for action in actions:
+            field_id = action["field_id"]
+            target_type = action["target_type"]
+            act = action["action"]
 
-        self.field.set_automation_status(field_id, status)
-        return {
-            "success": True,
-            "message": "Cập nhật trạng thái automation thành công",
-            "data": {
-                "field_id": field_id,
-                "status": status
-            }
-        }
-    
-    def get_automation_status(self):
-        field_id = request.get_json().get("field_id")
-        return self.field.get_automation_status(field_id)
+            # Tìm thiết bị phù hợp
+            selected = self.select_event_type(field_id, target_type, act)
+            if not selected: continue
+
+            
+            device_id = str(selected["device_id"])
+            if device_id in running_device_ids: continue
+
+            # Kiểm tra thiết bị đang rảnh
+            dev_info = self.field.get_device_controller_by_id(field_id, device_id)
+            if not dev_info.get("success") or dev_info["device"][3] != "DONE": continue
+
+            self.create_automation_field(field_id,target_type,act)
+
     
 #################################################################################################################################
 
-
+from notification import NotificationManager
 from webserver import FlaskServer
 from user_manager import UserManager
 from logger import UserLogger
@@ -1713,7 +1740,7 @@ field = FieldDB()
 log = UserLogger()
 routes = Routes(auth,otp,sensor,field,log)
 scheduler = BackgroundScheduler()
-
+notifier = NotificationManager(field_db=field, auth_manager=auth, email_manager=otp)
 app = Flask(__name__)
 
 
@@ -1737,6 +1764,36 @@ def job_service_plan_billing():
     with app.app_context():
         routes.run_service_plan_billing()
 
+def job_anomaly_trigger():
+    print("[DEBUG] ---> Tiến trình quét dị thường (5s) vừa thức dậy!")
+    with app.app_context():
+        try:
+            active_users = field.get_users_with_notifications_enabled() 
+            
+            if not active_users:
+                print("[DEBUG] Không có user nào bật thông báo. Bỏ qua quét.")
+                return 
+
+            # 2. Duyệt qua từng user để check dị thường
+            for username in active_users:
+                data = field.check_anomaly(username) 
+                
+                if not data or not data.get("success"):
+                    continue
+                    
+                print(f"[DEBUG] Cảnh báo mới cho {username} - Dữ liệu: {data}")
+                
+                data['username'] = username 
+                notifier.trigger_anomaly_alert(data)
+                print(f"[DEBUG] Đã đẩy dữ liệu của {username} vào NotificationManager.")
+                
+        except Exception as e:
+            print(f"[BACKGROUND ERROR] Lỗi quét dị thường: {e}")
+            
+def automation():
+    with app.app_context():
+        routes.automation_trigger()
+
 server.add_route('/api/billing/create', routes.create_billing, methods=['POST'])
 server.add_route('/api/billing/unpaid', routes.get_unpaid_bills, methods=['POST'])
 server.add_route('/api/billing/mark_paid', routes.mark_bills_paid, methods=['POST'])
@@ -1754,8 +1811,7 @@ server.add_route('/api/service_plan/update', routes.update_service_plan_route, m
 server.add_route('/api/service_plan/delete', routes.delete_service_plan_route, methods=['POST'])
 server.add_route('/api/service_plan/list', routes.get_service_plans_route, methods=['POST'])
 server.add_route('/api/service_plan/run', routes.run_service_plan_billing_route, methods=['POST'])
-
-server.add_route('/api/payment/delete_by_field', routes.delete_payment_by_field, methods=['POST'])
+# server.add_route('/api/payment/delete_by_field', routes.delete_payment_by_field, methods=['POST'])
 server.add_route('/api/get_devices_controller', routes.toggle_and_send, methods=['POST'])
 server.add_route('/api/devices_list', routes.get_devices_controller, methods=['GET'])
 server.add_route('/', routes.home_page, methods=['GET'])
@@ -1781,9 +1837,19 @@ server.add_route('/api/rename_device', routes.rename_device, methods=['POST'])
 server.add_route('/api/rename_field', routes.rename_field_name, methods=['POST'])
 server.add_route('/api/send_chart', routes.send_chart, methods=['GET'])
 server.add_route('/api/current_user', routes.get_current_user, methods=['GET'])
+
 server.add_route('/api/control_device', routes.control_device, methods=['POST'])
 #server.add_route('/api/get_control_status', routes.get_control_status, methods=['GET'])
+
 server.add_route('/api/save_notification', routes.save_notification, methods=['POST'])
+server.add_route('/api/get_notifications', routes.api_get_notifications, methods=['GET'])
+server.add_route('/notifications', routes.notifications_page, methods=['GET'])
+server.add_route('/api/mark_read', routes.api_mark_read, methods=['POST'])
+server.add_route('/api/delete_notifications', routes.api_delete_notification, methods=['POST'])
+server.add_route('/api/get_notification_settings', routes.get_notification_status, methods=['GET'])
+server.add_route('/api/set_notification_status', routes.set_notification_status, methods=['POST'])
+server.add_route('/api/set_notification_email_status', routes.set_notification_email_status, methods=['POST'])
+
 server.add_route('/api/update_ai_settings', routes.update_ai_settings, methods=['POST'])
 server.add_route('/api/get_ai_settings', routes.get_ai_settings, methods=['GET'])
 server.add_route('/api/check_anomaly', routes.check_anomaly, methods=['GET'])
@@ -1808,7 +1874,8 @@ scheduler.add_job(job_reset_daily_cache, 'cron', hour=0, minute=0)
 scheduler.add_job(job_update_status, 'interval', seconds=10)
 scheduler.add_job(job_check_scheduler,'interval',seconds=1,max_instances=1,coalesce=True)
 scheduler.add_job(job_service_plan_billing,trigger='cron',hour=0,minute=0,id='service_plan_billing_job',replace_existing=True)
-
+scheduler.add_job(automation, 'interval', seconds=10)
+scheduler.add_job(job_anomaly_trigger, 'interval', seconds=5)
 #scheduler.add_job(job_update_out_date_status, 'interval', seconds=5)
 
 

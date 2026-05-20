@@ -91,7 +91,7 @@ class Authentication:
             return None
         
     def get_email(self, username: str):
-        email = self.user_manager.find_email(username)
+        email = self.user_manager.get_email_by_username(username)
         if email:
             return email
         else:

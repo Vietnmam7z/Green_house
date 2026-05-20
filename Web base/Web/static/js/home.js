@@ -55,7 +55,9 @@ fetch('/api/current_user')
             if (menuService) menuService.style.display = 'flex';
         }
         if (logoutBtn) logoutBtn.style.display = 'flex';
-
+        if (typeof NotificationSystem !== 'undefined') {
+            NotificationSystem.init(data.username);
+        }
       } else {
         window.location.href = '/login'; 
       }
