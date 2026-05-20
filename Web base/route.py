@@ -1898,7 +1898,7 @@ if __name__ == '__main__':
             
     try:
         # Lệnh chạy Web Server
-        server.run(port=5000)
+        server.run()
     except KeyboardInterrupt:
         # Bắt sự kiện khi bạn nhấn Ctrl + C
         print("\n[HỆ THỐNG] Nhận lệnh tắt từ người dùng...")
