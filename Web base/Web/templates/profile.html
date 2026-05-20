@@ -66,6 +66,16 @@
         .detail-row span:last-child { font-weight: 600; color: #333; }
         .expand-icon { transition: transform 0.3s; color: #999; }
         .history-item.active .expand-icon { transform: rotate(180deg); }
+
+        /* =========================================================
+           CSS CHO MODAL XÁC NHẬN HÓA ĐƠN
+        ========================================================= */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 9999; opacity: 0; visibility: hidden; transition: all 0.3s; }
+        .modal-overlay.show { opacity: 1; visibility: visible; }
+        .modal-box { background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); transform: translateY(-20px); transition: all 0.3s; }
+        .modal-overlay.show .modal-box { transform: translateY(0); }
+        .close-modal { transition: color 0.2s; }
+        .close-modal:hover { color: #d32f2f !important; }
     </style>
 </head>
 <body>
@@ -154,7 +164,33 @@
             </div>
 
         </div> 
-    </div> 
+    </div>
+
+    <div class="modal-overlay" id="billConfirmModal">
+        <div class="modal-box" style="width: 500px; padding: 30px; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 20px;">
+                <h3 style="margin: 0; font-size: 1.4rem; color: #333;">
+                    <i class="fa-solid fa-file-invoice-dollar" style="color: #a50064;"></i> Xác nhận hóa đơn
+                </h3>
+                <i class="fa-solid fa-xmark close-modal" id="closeBillModal" style="font-size: 1.5rem; cursor: pointer; color: #999;"></i>
+            </div>
+
+            <p style="margin-bottom: 15px; color: #555; font-size: 0.95rem;">Bạn đang chuẩn bị thanh toán cho các khoản sau:</p>
+            
+            <div id="bill-summary-content" style="max-height: 250px; overflow-y: auto; margin-bottom: 20px; padding-right: 5px;">
+                </div>
+
+            <div style="background: #fff5f8; padding: 15px 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border: 1px dashed #fbcfe8;">
+                <span style="font-weight: 600; color: #555;">Tổng thanh toán:</span>
+                <strong id="modal-total-amount" style="font-size: 1.6rem; color: #a50064;">0 VNĐ</strong>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 15px;">
+                <button id="cancel-bill-btn" style="padding: 10px 20px; border: 1px solid #ddd; background: transparent; border-radius: 6px; cursor: pointer; font-weight: 600; color: #555; transition: 0.2s;">Hủy</button>
+                <button id="confirm-pay-btn" style="padding: 10px 25px; border: none; background: #a50064; color: white; border-radius: 6px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 10px rgba(165,0,100,0.2); transition: 0.2s;">Xác nhận & Thanh toán</button>
+            </div>
+        </div>
+    </div>
     
     <script src="/static/js/profile.js"></script>
 </body>
