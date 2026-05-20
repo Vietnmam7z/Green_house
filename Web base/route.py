@@ -1447,8 +1447,7 @@ class Routes:
                 self.auth.save_payment_history(user_id, field_id, order_id, request_id, amount, bills, raw_response)
                 self.field.mark_bills_as_paid(field_id)
         return result
-    
-    
+      
     def momo_ipn(self):
         data = request.json or {}
 
@@ -1585,13 +1584,12 @@ class Routes:
                     new_amount
                 )
                 self.field.expire_service_plan(plan_id)
-
         return {
             "success": True,
             "message": "Đã chạy tính phí dịch vụ"
         }
     
-    def create_service_plan_route(self):
+    def create_service_plan(self):
         data = request.get_json()
 
         field_id = data.get("field_id")
@@ -1604,7 +1602,7 @@ class Routes:
             daily_price
         )
     
-    def update_service_plan_route(self):
+    def update_service_plan(self):
         data = request.get_json()
         plan_id = data.get("plan_id")
         service_days = data.get("service_days")
@@ -1616,13 +1614,13 @@ class Routes:
             daily_price
         )
     
-    def delete_service_plan_route(self):
+    def delete_service_plan(self):
         data = request.get_json()
         plan_id = data.get("plan_id")
         self.logger.log_delete_service_plan(plan_id)
         return self.field.delete_service_plan(plan_id)
     
-    def get_service_plans_route(self):
+    def get_service_plans(self):
         data = request.get_json() or {}
         field_id = data.get("field_id")
         if not field_id:
@@ -1631,8 +1629,7 @@ class Routes:
         result = self.field.get_service_plans_by_field(field_id)
         return jsonify(result)
     
-    def run_service_plan_billing_route(self):
-        return self.run_service_plan_billing()
+
 
 
 # AI AUTOMATION
@@ -1756,9 +1753,10 @@ def job_update_out_date_status():
     with app.app_context():
         routes.update_out_date_status()
 
-def job_reset_daily_cache():
+def job_reset_daily():
     with app.app_context():
         routes.reset_daily_cache()
+        routes.run_service_plan_billing()
 
 def job_service_plan_billing():
     with app.app_context():
@@ -1789,7 +1787,7 @@ def job_anomaly_trigger():
                 
         except Exception as e:
             print(f"[BACKGROUND ERROR] Lỗi quét dị thường: {e}")
-            
+
 def automation():
     with app.app_context():
         routes.automation_trigger()
@@ -1806,12 +1804,10 @@ server.add_route('/api/payment/history', routes.get_transactions_of_user, method
 server.add_route('/api/payment/items', routes.get_transactions_items, methods=['POST'])
 server.add_route('/api/user/transactions', routes.get_transactions_of_user, methods=['GET', 'POST'])
 
-server.add_route('/api/service_plan/create', routes.create_service_plan_route, methods=['POST'])
-server.add_route('/api/service_plan/update', routes.update_service_plan_route, methods=['POST'])
-server.add_route('/api/service_plan/delete', routes.delete_service_plan_route, methods=['POST'])
-server.add_route('/api/service_plan/list', routes.get_service_plans_route, methods=['POST'])
-server.add_route('/api/service_plan/run', routes.run_service_plan_billing_route, methods=['POST'])
-# server.add_route('/api/payment/delete_by_field', routes.delete_payment_by_field, methods=['POST'])
+server.add_route('/api/service_plan/create', routes.create_service_plan, methods=['POST'])
+server.add_route('/api/service_plan/update', routes.update_service_plan, methods=['POST'])
+server.add_route('/api/service_plan/delete', routes.delete_service_plan, methods=['POST'])
+server.add_route('/api/service_plan/list', routes.get_service_plans, methods=['POST'])
 server.add_route('/api/get_devices_controller', routes.toggle_and_send, methods=['POST'])
 server.add_route('/api/devices_list', routes.get_devices_controller, methods=['GET'])
 server.add_route('/', routes.home_page, methods=['GET'])
@@ -1870,7 +1866,7 @@ server.add_route('/api/create_scheduler', routes.create_scheduler, methods=['POS
 server.add_route('/api/update_scheduler', routes.update_scheduler, methods=['POST'])
 server.add_route('/api/delete_scheduler', routes.delete_scheduler, methods=['POST'])
 
-scheduler.add_job(job_reset_daily_cache, 'cron', hour=0, minute=0)
+scheduler.add_job(job_reset_daily, 'cron', hour=0, minute=0)
 scheduler.add_job(job_update_status, 'interval', seconds=10)
 scheduler.add_job(job_check_scheduler,'interval',seconds=1,max_instances=1,coalesce=True)
 scheduler.add_job(job_service_plan_billing,trigger='cron',hour=0,minute=0,id='service_plan_billing_job',replace_existing=True)
@@ -1902,7 +1898,7 @@ if __name__ == '__main__':
             
     try:
         # Lệnh chạy Web Server
-        server.run()
+        server.run(port=5000)
     except KeyboardInterrupt:
         # Bắt sự kiện khi bạn nhấn Ctrl + C
         print("\n[HỆ THỐNG] Nhận lệnh tắt từ người dùng...")
