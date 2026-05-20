@@ -16,9 +16,13 @@ document.addEventListener("DOMContentLoaded", () => {
           // Điền tên vào Menu thả xuống
           const dropdownUserName = document.getElementById('dropdown-userName');
           if (dropdownUserName) dropdownUserName.innerText = data.username;
+          
 
         } else {
           window.location.href = '/login';
+        }
+        if (typeof NotificationSystem !== 'undefined') {
+            NotificationSystem.init(data.username);
         }
       })
       .catch(err => console.error("Lỗi lấy thông tin user:", err));

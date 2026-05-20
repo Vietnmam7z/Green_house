@@ -22,22 +22,13 @@ let fieldsList = [];
 let currentIndex = 0; 
 let currentFieldId = null; 
 let isAIEnabled = true; 
+let currentLoggedUser = "Unknown"; // Giữ lại để xử lý phân quyền
 
 // 1. Biến quản lý luồng DỰ ĐOÁN (Prediction)
 let predictionStatusDB = 'OFF'; 
 let aiStepValue = 25; 
 let aiResultsCache = {}; 
 let aiTimer = null;
-
-// 2. Biến quản lý luồng CẢNH BÁO DỊ THƯỜNG (Anomaly)
-let anomalyStatusDB = 'OFF';
-let anomalyScoreLowDB = 0.25;
-let anomalyScoreHighDB = 0.85;
-
-// Biến quản lý thông báo hệ thống và người dùng
-let notificationsList = [];
-let currentLoggedUser = "Unknown";
-
 
 // ==========================================
 // PHẦN 1: ĐỒNG BỘ CẤU HÌNH AI TỪ DATABASE
@@ -50,10 +41,16 @@ async function updateAISettings() {
         if (data.success && data.data) {
             aiStepValue = parseInt(data.data.step) || 25;
             predictionStatusDB = data.data.prediction_status || 'OFF'; 
-            anomalyStatusDB = data.data.anomaly_status || 'OFF';       
             
-            anomalyScoreLowDB = parseFloat(data.data.anomaly_score_low) || 0.25;
-            anomalyScoreHighDB = parseFloat(data.data.anomaly_score_high) || 0.85;
+            // Lấy config dị thường
+            const anomalyStatusDB = data.data.anomaly_status || 'OFF';       
+            const anomalyScoreLowDB = parseFloat(data.data.anomaly_score_low) || 0.25;
+            const anomalyScoreHighDB = parseFloat(data.data.anomaly_score_high) || 0.85;
+
+            // Truyền config sang module Notifications
+            if (typeof NotificationSystem !== 'undefined') {
+                NotificationSystem.updateConfig(anomalyStatusDB, anomalyScoreLowDB, anomalyScoreHighDB);
+            }
 
             if (aiTimer) clearInterval(aiTimer);
             if (predictionStatusDB === 'ON') {
@@ -213,151 +210,6 @@ async function capNhatDuLieu() {
 }
 
 
-async function fetchNotificationHistory() {
-    if (currentLoggedUser === "Unknown") return;
-    try {
-        const res = await fetch(`/api/get_notifications?username=${currentLoggedUser}`);
-        const data = await res.json();
-        if (data.success) {
-            // LỌC BỎ LỊCH SỬ: Chỉ nạp những bản tin có is_read === 0
-            notificationsList = data.data.filter(n => n.is_read === 0); 
-            renderBellUI();
-        }
-    } catch (err) { console.error("Lỗi tải thông báo:", err); }
-}
-
-async function addNotificationToDBandUI(status, device_id, displayDeviceName, score, fieldName = "Unknown Field") {
-    const ts = Date.now(); 
-    try {
-        await fetch('/api/save_notification', { 
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                status: status,
-                device_id: device_id,
-                ts: ts,
-                username: currentLoggedUser
-            })
-        });
-        fetchNotificationHistory();
-    } catch(err) { console.error("Lỗi xử lý lưu trữ cảnh báo:", err); }
-}
-
-// Gửi yêu cầu Đã xem về DB -> Gọi lại hàm fetch để thông báo biến mất
-async function danhDauDaDoc(ts, deviceId) {
-    try {
-        await fetch('/api/mark_read', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ts: ts, device_id: deviceId, username: currentLoggedUser })
-        });
-        fetchNotificationHistory();
-    } catch (err) { console.error("Lỗi xử lý cập nhật trạng thái đã xem:", err); }
-}
-
-// Luồng quét kiểm tra dị thường kết nối ngầm Backend
-async function kiemTraCanhBaoDiThuong() {
-    if (anomalyStatusDB !== 'ON') return; 
-
-    try {
-        const response = await fetch('/api/check_anomaly');
-        const data = await response.json();
-
-        if (data.success) {
-            const score = parseFloat(data.anomaly_score);
-            const deviceName = data.device_name;
-            const fieldName = data.field_name;
-            const deviceId = data.device_id; 
-
-            let status = null;
-            if (score >= anomalyScoreHighDB) {
-                status = "CRITICAL";
-            } else if (score >= anomalyScoreLowDB) {
-                status = "WARNING";
-            }
-            
-            if (status) {
-                addNotificationToDBandUI(status, deviceId, deviceName, score, fieldName);
-            }
-        }
-    } catch (err) { console.error("Lỗi tải dữ liệu cảnh báo dị thường:", err); }
-}
-
-function renderBellUI() {
-    const bellIcon = document.querySelector('img[alt="Notifications"]');
-    if (!bellIcon) return;
-
-    let bellWrapper = bellIcon.closest('.bell-wrapper-container');
-    let notifBox = document.getElementById('ai-notif-box');
-
-    if (!bellWrapper) {
-        bellWrapper = document.createElement('div');
-        bellWrapper.className = 'bell-wrapper-container';
-        bellWrapper.style.position = 'relative';
-        bellWrapper.style.display = 'inline-block';
-        bellIcon.parentNode.insertBefore(bellWrapper, bellIcon);
-        bellWrapper.appendChild(bellIcon);
-        
-        bellWrapper.addEventListener('click', function(e) {
-            if (e.target === bellWrapper || e.target === bellIcon) {
-                notifBox.style.display = notifBox.style.display === 'none' ? 'block' : 'none';
-            }
-        });
-
-        document.addEventListener('click', function(event) {
-            if (!bellWrapper.contains(event.target) && notifBox) {
-                notifBox.style.display = 'none';
-            }
-        });
-    }
-    
-    const unreadCount = notificationsList.length;
-    
-    let badge = document.getElementById('ai-bell-badge');
-    if (!badge) {
-        badge = document.createElement('span');
-        badge.id = 'ai-bell-badge';
-        badge.style.cssText = 'position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; cursor: pointer;';
-        bellWrapper.appendChild(badge);
-    }
-    badge.innerText = unreadCount;
-    badge.style.display = unreadCount > 0 ? 'block' : 'none';
-
-    if (!notifBox) {
-        notifBox = document.createElement('div');
-        notifBox.id = 'ai-notif-box';
-        notifBox.style.cssText = 'position: absolute; top: 100%; right: 0; margin-top: 10px; background: white; border: 1px solid #ccc; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 350px; max-height: 400px; overflow-y: auto; z-index: 9999; border-radius: 5px; display: none;';
-        bellWrapper.appendChild(notifBox);
-    }
-
-    if (notificationsList.length === 0) {
-        notifBox.innerHTML = '<div style="padding: 15px; text-align: center; color: #666;">Không có thông báo mới</div>';
-    } else {
-        notifBox.innerHTML = notificationsList.map(n => {
-            const dateObj = new Date(n.ts);
-            const timeStr = `${dateObj.getHours()}:${dateObj.getMinutes() < 10 ? '0':''}${dateObj.getMinutes()} - ${dateObj.getDate()}/${dateObj.getMonth()+1}`;
-            const colorStatus = n.status === "CRITICAL" ? "#f44336" : "#ff9800";
-            
-            const msgText = n.status === "CRITICAL" 
-                ? `Nguy cấp: [${n.field_name}] ${n.device_name} vượt ngưỡng High` 
-                : `Cảnh báo: [${n.field_name}] ${n.device_name} vượt ngưỡng Low`;
-
-            return `
-            <div style="border-bottom: 1px solid #eee; padding: 12px; font-size: 13px; line-height: 1.4; text-align: left; background-color: #f0f8ff; font-weight: bold;">
-                <button onclick="danhDauDaDoc(${n.ts}, '${n.device_id}'); event.stopPropagation();" 
-                        style="float: right; border: 1px solid #4CAF50; background: #4CAF50; color: white; cursor: pointer; font-size: 11px; padding: 4px 8px; border-radius: 3px; font-weight: normal;" 
-                        title="Đánh dấu đã xử lý và xóa khỏi danh sách">
-                    Đã xem
-                </button>
-                <strong style="color: ${colorStatus};">[${n.status}]</strong> ${msgText} <br>
-                <span style="color: #999; font-size: 11px;">${timeStr}</span>
-            </div>
-            `;
-        }).join('');
-    }
-}
-
-
 // ==========================================
 // PHẦN 5: CHUYỂN ĐỔI KHU VỰC VÀ HIỂN THỊ
 // ==========================================
@@ -400,7 +252,12 @@ let myChartInstance = null;
 document.getElementById('closeChartModal')?.addEventListener('click', () => {
     document.getElementById('chartModal').style.display = 'none';
 });
-
+window.dongBieuDo = function() {
+    const modal = document.getElementById('chartModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+};
 async function openChartModal(deviceId, telemetryName, unit, label) {
     document.getElementById('chartModal').style.display = 'block';
     document.getElementById('chartTitle').innerText = `Lịch sử ${label} - ${deviceId}`;
@@ -456,15 +313,6 @@ function veBieuDo(labels, data, labelName, unit) {
     });
 }
 
-function dongBieuDo() {
-    const modal = document.getElementById('chartModal');
-    if (modal) modal.style.display = 'none';
-    if (myChartInstance) {
-        myChartInstance.destroy();
-        myChartInstance = null;
-    }
-}
-
 
 // ==========================================
 // PHẦN 7: KHỞI TẠO HỆ THỐNG DOM LOADED
@@ -518,7 +366,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 profileBox.style.cursor = 'pointer'; 
                 profileBox.title = "Menu tài khoản"; 
             }
-            fetchNotificationHistory();
+            
+            // ---> KÍCH HOẠT MODULE NOTIFICATIONS TẠI ĐÂY <---
+            if (typeof NotificationSystem !== 'undefined') {
+                NotificationSystem.init(data.username);
+            }
         }
       })
       .catch(err => console.error("Lỗi lấy thông tin user:", err)); 
@@ -542,8 +394,8 @@ document.addEventListener("DOMContentLoaded", () => {
         window.history.pushState(null, '', `/dashboard?field_id=${fieldsList[currentIndex].field_id}`);
         capNhatHienThiField();
     });
+    
     layDanhSachField(); 
     setInterval(capNhatDuLieu, 5000); 
     setInterval(updateAISettings, 60000); 
-    setInterval(kiemTraCanhBaoDiThuong, 5000);
 });
