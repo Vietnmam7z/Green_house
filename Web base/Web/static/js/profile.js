@@ -111,7 +111,7 @@ async function loadBills() {
         }).join('');
         document.getElementById('total-amount').innerText = total.toLocaleString();
         document.getElementById('payment-box').style.display = 'flex';
-        document.getElementById('pay-momo-btn').onclick = () => createPayment(fields[0].field_id, total);
+        document.getElementById('pay-momo-btn').onclick = () => showBillConfirmation(fields[0].field_id, total, result.data);
     } else {
         container.innerHTML = "<p style='text-align:center; color:#777; padding:20px;'>Bạn không có hóa đơn nào cần thanh toán.</p>";
         document.getElementById('payment-box').style.display = 'none';
@@ -149,7 +149,7 @@ async function loadHistory() {
 
                 return `
                     <div class="history-item" data-id="${id}">
-                        <div class="history-header" onclick="toggleDetails(this, ${id})">
+                        <div class="history-header" onclick="toggleDetails(this, ${id}, '${fieldId}', '${date}')">
                             <div class="history-info">
                                 <div class="history-icon" style="background: ${iconBg}; color: ${statusColor};">
                                     <i class="fa-solid ${iconClass}"></i>
@@ -188,7 +188,8 @@ async function loadHistory() {
 // ============================================================
 // HÀM MỚI: SỰ KIỆN CLICK MỞ THẺ ACCORDION ĐỂ XEM CHI TIẾT
 // ============================================================
-async function toggleDetails(headerElement, transactionId) {
+
+async function toggleDetails(headerElement, transactionId, fieldId, date) {
     const item = headerElement.parentElement;
     const detailsDiv = document.getElementById(`details-${transactionId}`);
     
@@ -205,17 +206,20 @@ async function toggleDetails(headerElement, transactionId) {
         // KIỂM TRA: Nếu chưa tải dữ liệu chi tiết lần nào thì mới fetch
         if (!detailsDiv.dataset.loaded) {
             try {
-                // Gọi POST /api/payment/items theo như route.py
+                // Gọi API lấy thông tin và TRUYỀN THÊM NGÀY THÁNG ĐỂ SERVER SO SÁNH
                 const res = await fetch('/api/payment/items', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ transaction_id: transactionId })
+                    body: JSON.stringify({ 
+                        transaction_id: transactionId,
+                        field_id: fieldId,       // Bổ sung field_id
+                        paid_date: date          // Bổ sung ngày thanh toán
+                    })
                 });
                 const result = await res.json();
                 
                 if (result.success && result.data.length > 0) {
-                    // Đổ dữ liệu chi tiết vào thẻ div. 
-                    // Database user_payment_transaction_items có cột: (0)id, (1)trans_id, (2)title, (3)amount
+                    // Đổ dữ liệu chi tiết vào thẻ div
                     detailsDiv.innerHTML = result.data.map(row => `
                         <div class="detail-row">
                             <span><i class="fa-solid fa-circle-dot" style="color:#ccc; font-size:8px; margin-right:8px; position:relative; top:-2px;"></i> ${row[2]}</span>
@@ -234,30 +238,38 @@ async function toggleDetails(headerElement, transactionId) {
     }
 }
 
-// ... [GIỮ NGUYÊN HÀM createPayment() VÀ startPolling() Ở DƯỚI NHƯ CŨ] ...
-async function createPayment(fieldId, amount) {
+// ============================================================
+// HÀM GỌI API THANH TOÁN (Chạy sau khi bấm Xác nhận ở Popup)
+// ============================================================
+async function createPayment(fieldId, total) {
     const statusDiv = document.getElementById('status');
-    statusDiv.style.display = "block";
-    statusDiv.style.background = "#e3f2fd";
-    statusDiv.style.color = "#1976d2";
-    statusDiv.style.border = "1px solid #90caf9";
-    statusDiv.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang khởi tạo thanh toán...`;
+    statusDiv.innerHTML = '<span style="color: #3498db;"><i class="fa-solid fa-spinner fa-spin"></i> Đang khởi tạo cổng thanh toán MoMo...</span>';
+    statusDiv.style.display = 'block';
 
-    const res = await fetch('/api/payment/create', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ field_id: fieldId, amount: amount })
-    });
-    const data = await res.json();
+    try {
+        // ĐÃ TRẢ LẠI ĐÚNG API GỐC CỦA BẠN: /api/payment/create
+        const res = await fetch('/api/payment/create', { 
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            // Chỉ gửi duy nhất field_id theo đúng cách route.py lấy dữ liệu
+            body: JSON.stringify({ field_id: fieldId }) 
+        });
+        const data = await res.json();
 
-    if (data.success) {
-        window.open(data.payUrl, "_blank"); 
-        startPolling(data.order_id); 
-    } else {
-        statusDiv.style.background = "#ffebee";
-        statusDiv.style.color = "#c62828";
-        statusDiv.style.border = "1px solid #ef9a9a";
-        statusDiv.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Lỗi: ` + data.message;
+        if (data.success && data.payUrl) {
+            statusDiv.innerHTML = '<span style="color: #2e7d32;"><i class="fa-solid fa-circle-check"></i> Kết nối thành công! Đang chuyển hướng...</span>';
+            
+            // Chuyển hướng người dùng sang trang quét mã QR MoMo
+            window.location.href = data.payUrl;
+        } else {
+            // Hiển thị lỗi từ route.py (Ví dụ: Không có hóa đơn...)
+            statusDiv.innerHTML = `<span style="color: #e74c3c;"><i class="fa-solid fa-circle-xmark"></i> Thất bại: ${data.message || 'Lỗi không xác định'}</span>`;
+        }
+    } catch (err) {
+        console.error("Lỗi kết nối API MoMo:", err);
+        statusDiv.innerHTML = '<span style="color: #e74c3c;"><i class="fa-solid fa-circle-xmark"></i> Không thể kết nối tới máy chủ thanh toán!</span>';
     }
 }
 
@@ -393,4 +405,56 @@ document.getElementById('btn-change-password').addEventListener('click', async (
     } catch (err) {
         pwStatus.innerHTML = '<span style="color: #e74c3c;">Lỗi kết nối máy chủ!</span>';
     }
+});
+
+// ============================================================
+// HÀM MỚI: HIỂN THỊ POPUP XÁC NHẬN HÓA ĐƠN TRƯỚC KHI THANH TOÁN
+// ============================================================
+function showBillConfirmation(fieldId, total, bills) {
+    const modal = document.getElementById('billConfirmModal');
+    const summaryContent = document.getElementById('bill-summary-content');
+    const modalTotal = document.getElementById('modal-total-amount');
+
+    // Tạo danh sách chi tiết các hóa đơn hiển thị trong Popup
+    let html = '';
+    bills.forEach(bill => {
+        // bill[2] là tên/tiêu đề, bill[5] là ngày, bill[3] là số tiền
+        html += `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dotted #ddd;">
+                <div>
+                    <div style="font-weight: 600; color: #333; font-size: 1.05rem;">${bill[2]}</div>
+                    <div style="font-size: 0.85rem; color: #888; margin-top: 4px;">Ngày lập: ${bill[5]}</div>
+                </div>
+                <div style="font-weight: 700; color: #333; font-size: 1.1rem;">${parseInt(bill[3]).toLocaleString()} đ</div>
+            </div>
+        `;
+    });
+    
+    summaryContent.innerHTML = html;
+    modalTotal.innerText = `${total.toLocaleString()} VNĐ`;
+
+    // Hiển thị Popup lên
+    modal.classList.add('show');
+
+    // Gán sự kiện cho nút "Xác nhận & Thanh toán" trên Popup
+    document.getElementById('confirm-pay-btn').onclick = () => {
+        // Đóng Popup và tiến hành gọi API tạo link MoMo
+        modal.classList.remove('show');
+        createPayment(fieldId, total);
+    };
+}
+
+// Lắng nghe các sự kiện để Đóng Popup (Bấm nút X, Bấm Hủy, Bấm ra ngoài nền đen)
+document.addEventListener('DOMContentLoaded', () => {
+    const billModal = document.getElementById('billConfirmModal');
+    
+    if (document.getElementById('closeBillModal')) {
+        document.getElementById('closeBillModal').onclick = () => billModal.classList.remove('show');
+    }
+    if (document.getElementById('cancel-bill-btn')) {
+        document.getElementById('cancel-bill-btn').onclick = () => billModal.classList.remove('show');
+    }
+    window.addEventListener('click', (e) => {
+        if (e.target === billModal) billModal.classList.remove('show');
+    });
 });

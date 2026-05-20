@@ -1531,26 +1531,29 @@ class Routes:
         return jsonify({"success": True, "data": rows})
     
     def get_transactions_items(self):
-        transaction_id = request.get_json().get("transaction_id")
+        data = request.get_json()
+        transaction_id = data.get("transaction_id")
         
-        with self.field.connect() as conn:
-            cur = conn.cursor()
-            # Đọc chi tiết từng món hóa đơn
-            cur.execute("SELECT * FROM payment_transaction_items WHERE transaction_id = ?", (transaction_id,))
-            db_rows = cur.fetchall()
-
-        # Ánh xạ lại cột cho khớp với profile.js
-        rows = []
-        for r in db_rows:
-            mapped = [
-                r[0], # 0: id
-                r[1], # 1: transaction_id
-                r[3], # 2: title (Tên loại phí: Điện, Thuê nhà kính...)
-                r[4]  # 3: amount (Số tiền)
-            ]
-            rows.append(mapped)
-
-        return jsonify({"success": True, "data": rows})
+        try:
+            rows = []
+            # Truy vấn trực tiếp bảng user_payment_transaction_items
+            # Lấy billing_title (tên hóa đơn) và billing_amount (số tiền)
+            with self.auth.user_manager.connect() as conn: # Lưu ý: kiểm tra xem bảng này nằm ở userdata.db hay field.db để gọi conn cho đúng
+                cur = conn.cursor()
+                cur.execute("""
+                    SELECT id, transaction_id, billing_title, billing_amount 
+                    FROM user_payment_transaction_items 
+                    WHERE transaction_id = ?
+                """, (transaction_id,))
+                db_rows = cur.fetchall()
+                
+                for r in db_rows:
+                    rows.append([r[0], r[1], r[2], r[3]])
+                    
+            return jsonify({"success": True, "data": rows})
+        except Exception as e:
+            print(f"Lỗi API lấy chi tiết giao dịch: {e}")
+            return jsonify({"success": False, "message": "Không tìm thấy chi tiết"})
 
 # FIELD SERVICE PLAN BILLING
 ################################################################################################################################ 
