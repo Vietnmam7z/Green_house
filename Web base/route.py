@@ -702,7 +702,7 @@ class Routes:
         role = self.auth.get_role(session.get('username'))
         if role not in ['administrator', 'admin']: return redirect('/')
         return render_template(config.greenhouse_management_page)
-    
+
     # 1. Render trang HTML cho Billing Management
     def billing_management_page(self):
         resp = self.require_login()
@@ -1387,42 +1387,24 @@ class Routes:
         title = data.get("title")
         amount = data.get("amount")
         return self.field.create_billing_item(field_id, title, amount)
-    
-    # API CHO ADMIN LẤY TOÀN BỘ HÓA ĐƠN
+
     def api_admin_get_all_bills(self):
         role = self.auth.get_role(session.get('username'))
-        if role not in ['administrator', 'admin']:
-            return jsonify({"success": False, "message": "Không có quyền truy cập"}), 403
-            
-        try:
-            with self.field.connect() as conn:
-                cur = conn.cursor()
-                # Sắp xếp hóa đơn mới nhất lên đầu
-                cur.execute("""
-                    SELECT id, field_id, title, amount, status, created_at, paid_at 
-                    FROM billing_items 
-                    ORDER BY created_at DESC, id DESC
-                """)
-                rows = cur.fetchall()
-                
-                data = []
-                for r in rows:
-                    data.append({
-                        "id": r[0],
-                        "field_id": r[1],
-                        "title": r[2],
-                        "amount": r[3],
-                        "status": r[4],
-                        "created_at": r[5],
-                        "paid_at": r[6]
-                    })
-            return jsonify({"success": True, "data": data})
-        except Exception as e:
-            return jsonify({"success": False, "message": str(e)})
 
+        if role not in ['administrator', 'admin']:
+            return jsonify({
+                "success": False,
+                "message": "Không có quyền truy cập"
+            }), 403
+
+        result = self.field.get_all_bills()
+
+        status_code = 200 if result.get("success") else 500
+        return jsonify(result), status_code
+        
     def get_unpaid_bills(self):
-        field_id = request.get_json().get("field_id")
-        return self.field.get_unpaid_bills(field_id)
+        field_ids = request.get_json().get("field_ids", [])
+        return self.field.get_unpaid_bills(field_ids)
     
     def mark_bills_paid(self):
         field_id = request.get_json().get("field_id")
@@ -1575,8 +1557,7 @@ class Routes:
                 r[9],             # 7: raw_response
                 to_gmt7(r[7]),    # 8: created_at (Đã +7)
                 to_gmt7(r[8]),    # 9: updated_at/paid_at (Đã +7)
-                to_gmt7(r[8]),    # 10: paid_at (Đã +7) DÙNG ĐỂ HIỂN THỊ GIAO DIỆN
-                str(r[8]) if r[8] else ""  # 11: paid_at GỐC (GMT+0) ĐỂ TÌM KIẾM CHI TIẾT
+                to_gmt7(r[8])     # 10: paid_at (Đã +7)
             ]
             rows.append(mapped)
 
@@ -1585,75 +1566,27 @@ class Routes:
     def get_transactions_items(self):
         data = request.get_json()
         transaction_id = data.get("transaction_id")
-        field_id = data.get("field_id")
-        paid_date_raw = data.get("paid_date") # Ngày giờ giao dịch gửi từ JS lên
         
         try:
             rows = []
-            with self.field.connect() as conn:
+            # Truy vấn trực tiếp bảng user_payment_transaction_items
+            # Lấy billing_title (tên hóa đơn) và billing_amount (số tiền)
+            with self.auth.user_manager.connect() as conn: # Lưu ý: kiểm tra xem bảng này nằm ở userdata.db hay field.db để gọi conn cho đúng
                 cur = conn.cursor()
+                cur.execute("""
+                    SELECT id, transaction_id, billing_title, billing_amount 
+                    FROM user_payment_transaction_items 
+                    WHERE transaction_id = ?
+                """, (transaction_id,))
+                db_rows = cur.fetchall()
                 
-                # Bước Bổ trợ: Nếu từ giao diện profile.js truyền thiếu field_id hoặc paid_date, 
-                # ta tự động lục tìm trong bảng payment_transactions để lấy điểm tựa so sánh
-                if not field_id or not paid_date_raw:
-                    cur.execute("SELECT field_id, paid_at FROM payment_transactions WHERE id = ?", (transaction_id,))
-                    txn = cur.fetchone()
-                    if txn:
-                        if not field_id:
-                            field_id = txn[0]
-                        if not paid_date_raw:
-                            paid_date_raw = txn[1]
-                
-                # Tiến hành dò tìm chi tiết trong bảng billing_items dựa trên cấu trúc bạn cung cấp
-                if field_id and paid_date_raw:
-                    date_str = str(paid_date_raw)
-                    date_minutes = date_str[:16] # Cắt chuỗi lấy "YYYY-MM-DD HH:MM" để so khớp chính xác từng phút
-                    date_only = date_str[:10]    # Cắt chuỗi lấy "YYYY-MM-DD" làm phương án dự phòng 1
+                for r in db_rows:
+                    rows.append([r[0], r[1], r[2], r[3]])
                     
-                    # Truy vấn toàn bộ hóa đơn đã thu tiền ('paid') của ruộng này
-                    cur.execute("""
-                        SELECT id, field_id, title, amount, status, created_at, paid_at 
-                        FROM billing_items 
-                        WHERE field_id = ? AND status = 'paid'
-                    """, (field_id,))
-                    all_paid_bills = cur.fetchall()
-                    
-                    # TẦNG 1: So khớp chính xác theo Phút (Vì khi quét QR thành công, hóa đơn được cập nhật cùng phút đó)
-                    for r in all_paid_bills:
-                        bill_paid_at = str(r[6]) if r[6] else "" # Cột paid_at nằm ở vị trí index 6
-                        if date_minutes in bill_paid_at:
-                            # Trả về cấu trúc mảng khớp với JS: row[0]=id, row[1]=txn_id, row[2]=title, row[3]=amount
-                            rows.append([r[0], transaction_id, str(r[2]), r[3]])
-                    
-                    # TẦNG 2: Nếu lệch giây/phút dẫn đến tầng 1 trống, so khớp dự phòng theo Ngày (YYYY-MM-DD)
-                    if not rows:
-                        for r in all_paid_bills:
-                            bill_paid_at = str(r[6]) if r[6] else ""
-                            if date_only in bill_paid_at:
-                                rows.append([r[0], transaction_id, str(r[2]), r[3]])
-                                
-                    # TẦNG 3: Biện pháp cuối cùng (Chống lệch ngày giờ) - Thuật toán tự động gom tiền hóa đơn
-                    if not rows:
-                        cur.execute("SELECT amount FROM payment_transactions WHERE id = ?", (transaction_id,))
-                        txn_amount_row = cur.fetchone()
-                        if txn_amount_row:
-                            txn_amount = txn_amount_row[0]
-                            current_sum = 0
-                            # Sắp xếp hóa đơn paid mới nhất lên trước để ưu tiên gom tiền
-                            sorted_bills = sorted(all_paid_bills, key=lambda x: x[0], reverse=True)
-                            for r in sorted_bills:
-                                if current_sum + r[3] <= txn_amount or r[3] == txn_amount:
-                                    rows.append([r[0], transaction_id, str(r[2]), r[3]])
-                                    current_sum += r[3]
-                                if current_sum >= txn_amount:
-                                    break
-
-            # Trả về kết quả JSON dạng mảng sạch sẽ cho profile.js đọc dữ liệu
             return jsonify({"success": True, "data": rows})
-            
         except Exception as e:
-            print(f"Lỗi API lấy chi tiết giao dịch từ billing_items: {e}")
-            return jsonify({"success": False, "message": "Không tìm thấy chi tiết", "data": []})
+            print(f"Lỗi API lấy chi tiết giao dịch: {e}")
+            return jsonify({"success": False, "message": "Không tìm thấy chi tiết"})
 
 # FIELD SERVICE PLAN BILLING
 ################################################################################################################################ 
@@ -1712,12 +1645,14 @@ class Routes:
         return self.field.delete_service_plan(plan_id)
     
     def get_service_plans(self):
-        data = request.get_json() or {}
-        field_id = data.get("field_id")
-        if not field_id:
-            return jsonify({"success": False, "message": "Thiếu mã ruộng (field_id)"})
-        
-        result = self.field.get_service_plans_by_field(field_id)
+        data = request.get_json()
+        field_ids = data.get("field_ids", [])
+        if not field_ids:
+            return jsonify({
+                "success": False,
+                "message": "Thiếu mã ruộng (field_ids)"
+            })
+        result = self.field.get_service_plans_by_fields(field_ids)
         return jsonify(result)
     
 
@@ -1991,7 +1926,7 @@ if __name__ == '__main__':
             
     try:
         # Lệnh chạy Web Server
-        server.run()
+        server.run(port=5000)
     except KeyboardInterrupt:
         # Bắt sự kiện khi bạn nhấn Ctrl + C
         print("\n[HỆ THỐNG] Nhận lệnh tắt từ người dùng...")

@@ -1493,22 +1493,36 @@ class FieldDB:
                     "message": str(e)
                 }
 
-    def get_unpaid_bills(self, field_id):   
+    def get_unpaid_bills(self, field_ids):   
         with self.connect() as conn:
             try:
                 cursor = conn.cursor()
-                cursor.execute("""
+
+                if not field_ids:
+                    return {
+                        "success": True,
+                        "message": "Không có field nào",
+                        "data": []
+                    }
+
+                placeholders = ",".join(["?"] * len(field_ids))
+
+                cursor.execute(f"""
                     SELECT *
                     FROM billing_items
-                    WHERE field_id = ?
+                    WHERE field_id IN ({placeholders})
                     AND status = 'unpaid'
-                """, (field_id,))
+                    ORDER BY created_at DESC, id DESC
+                """, field_ids)
+
                 rows = cursor.fetchall()
+
                 return {
                     "success": True,
                     "message": "Lấy unpaid bills thành công",
                     "data": rows
                 }
+
             except Exception as e:
                 return {
                     "success": False,
@@ -1863,34 +1877,59 @@ class FieldDB:
 
             conn.commit()
 
-    def get_service_plans_by_field(self, field_id):
+    def get_service_plans_by_fields(self, field_ids):
         with self.connect() as conn:
-            cursor = conn.cursor()
-            # Lấy tất cả gói thuê của ruộng này, gói mới nhất lên đầu
-            cursor.execute("""
-                SELECT id, field_id, service_days, daily_price, start_date, expired_date, accumulated_amount, status
-                FROM field_service_plan
-                WHERE field_id = ?
-                ORDER BY id DESC
-            """, (field_id,))
-            rows = cursor.fetchall()
-            
-        return {
-            "success": True,
-            "data": [
-                {
-                    "id": row[0],
-                    "field_id": row[1],
-                    "service_days": row[2],
-                    "daily_price": row[3],
-                    "start_date": row[4],
-                    "expired_date": row[5],
-                    "accumulated_amount": row[6],
-                    "status": row[7]
+            try:
+                cursor = conn.cursor()
+
+                if not field_ids:
+                    return {
+                        "success": True,
+                        "data": []
+                    }
+
+                placeholders = ",".join(["?"] * len(field_ids))
+
+                cursor.execute(f"""
+                    SELECT 
+                        id,
+                        field_id,
+                        service_days,
+                        daily_price,
+                        start_date,
+                        expired_date,
+                        accumulated_amount,
+                        status
+                    FROM field_service_plan
+                    WHERE field_id IN ({placeholders})
+                    ORDER BY id DESC
+                """, field_ids)
+
+                rows = cursor.fetchall()
+
+                return {
+                    "success": True,
+                    "data": [
+                        {
+                            "id": row[0],
+                            "field_id": row[1],
+                            "service_days": row[2],
+                            "daily_price": row[3],
+                            "start_date": row[4],
+                            "expired_date": row[5],
+                            "accumulated_amount": row[6],
+                            "status": row[7]
+                        }
+                        for row in rows
+                    ]
                 }
-                for row in rows
-            ]
-        }
+
+            except Exception as e:
+                return {
+                    "success": False,
+                    "message": str(e),
+                    "data": []
+                }
     
     def handle_anomaly_automation(self):
         print("\n[DEBUG] Đang chạy vòng lặp kiểm tra AI...", flush=True)
@@ -1961,3 +2000,47 @@ class FieldDB:
             print(f"\n[LỖI CRASH HỆ THỐNG AUTO] {str(e)}\n", flush=True)
         print(actions)
         return actions
+    
+    def get_all_bills(self):
+        with self.connect() as conn:
+            try:
+                cur = conn.cursor()
+
+                cur.execute("""
+                    SELECT 
+                        id, 
+                        field_id, 
+                        title, 
+                        amount, 
+                        status, 
+                        created_at, 
+                        paid_at
+                    FROM billing_items
+                    ORDER BY created_at DESC, id DESC
+                """)
+
+                rows = cur.fetchall()
+
+                data = []
+                for r in rows:
+                    data.append({
+                        "id": r[0],
+                        "field_id": r[1],
+                        "title": r[2],
+                        "amount": r[3],
+                        "status": r[4],
+                        "created_at": r[5],
+                        "paid_at": r[6]
+                    })
+
+                return {
+                    "success": True,
+                    "data": data
+                }
+
+            except Exception as e:
+                return {
+                    "success": False,
+                    "message": str(e),
+                    "data": []
+                }

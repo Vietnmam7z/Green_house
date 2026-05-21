@@ -929,3 +929,30 @@
 2026-05-20 21:32:45,717 - INFO - Đăng nhập: 1
 2026-05-21 10:02:57,351 - INFO - Đăng nhập: admin
 >>>>>>> 1d1d8c221ada9ea92bb3685f3a4433c412286645
+2026-05-21 10:15:57,492 - INFO - Đăng nhập: admin
+2026-05-21 10:16:08,538 - WARNING - Đặt trạng thái thông báo cho ruộng admin thành OFF
+2026-05-21 10:16:08,541 - WARNING - Đặt trạng thái email thông báo cho user admin thành OFF
+2026-05-21 10:16:12,702 - WARNING - Đặt trạng thái thông báo cho ruộng admin thành ON
+2026-05-21 10:16:12,708 - WARNING - Đặt trạng thái email thông báo cho user admin thành OFF
+2026-05-21 10:16:26,213 - WARNING - Đặt trạng thái thông báo cho ruộng admin thành ON
+2026-05-21 10:16:26,217 - WARNING - Đặt trạng thái email thông báo cho user admin thành OFF
+2026-05-21 10:28:44,048 - INFO - Đăng nhập: admin
+2026-05-21 10:35:10,417 - INFO - Đăng nhập: admin
+2026-05-21 10:38:25,983 - INFO - Đăng nhập: admin
+2026-05-21 10:39:42,059 - INFO - Đăng xuất: admin
+2026-05-21 10:39:45,371 - INFO - Đăng nhập: 1
+2026-05-21 10:42:40,310 - INFO - Đăng xuất: 1
+2026-05-21 10:42:43,381 - INFO - Đăng nhập: admin
+2026-05-21 10:44:12,524 - INFO - Đăng nhập: admin
+2026-05-21 10:44:31,445 - INFO - Đăng nhập: 1
+2026-05-21 10:44:47,246 - INFO - Đăng xuất: 1
+2026-05-21 10:45:01,223 - INFO - Đăng nhập: admin
+2026-05-21 10:45:49,439 - INFO - Đăng xuất: admin
+2026-05-21 10:45:56,650 - INFO - Đăng nhập: 1
+2026-05-21 10:52:44,730 - INFO - Đăng nhập: 1
+2026-05-21 10:56:32,978 - INFO - Đăng nhập: 1
+2026-05-21 11:00:16,551 - INFO - Đăng nhập: 1
+2026-05-21 11:03:31,914 - INFO - Đăng nhập: 1
+2026-05-21 11:09:20,586 - INFO - Đăng nhập: 1
+2026-05-21 11:14:58,029 - INFO - Đăng nhập: 1
+2026-05-21 11:16:11,188 - INFO - Đăng nhập: 1

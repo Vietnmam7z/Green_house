@@ -89,7 +89,9 @@ async function loadBills() {
     const billRes = await fetch('/api/billing/unpaid', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ field_id: fields[0].field_id })
+        body: JSON.stringify({ 
+            field_ids: fields.map(f => f.field_id)
+        })
     });
     const result = await billRes.json();
 
@@ -111,13 +113,15 @@ async function loadBills() {
         }).join('');
         document.getElementById('total-amount').innerText = total.toLocaleString();
         document.getElementById('payment-box').style.display = 'flex';
-        document.getElementById('pay-momo-btn').onclick = () => showBillConfirmation(fields[0].field_id, total, result.data);
+        document.getElementById('pay-momo-btn').onclick = () => showBillConfirmation(fields.map(f => f.field_id), total, result.data);
     } else {
         container.innerHTML = "<p style='text-align:center; color:#777; padding:20px;'>Bạn không có hóa đơn nào cần thanh toán.</p>";
         document.getElementById('payment-box').style.display = 'none';
     }
 
-    loadServicePlans(fields[0].field_id);
+    loadServicePlans(
+        fields.map(f => f.field_id)
+    );
 }
 
 // ============================================================
@@ -256,7 +260,7 @@ async function createPayment(fieldId, total) {
                 'Content-Type': 'application/json'
             },
             // Chỉ gửi duy nhất field_id theo đúng cách route.py lấy dữ liệu
-            body: JSON.stringify({ field_id: fieldId }) 
+            body: JSON.stringify({ field_ids: fieldId })
         });
         const data = await res.json();
 
@@ -314,7 +318,7 @@ async function loadServicePlans(fieldId) {
         const res = await fetch('/api/service_plan/list', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ field_id: fieldId })
+            body: JSON.stringify({ field_ids: fieldId })
         });
         const result = await res.json();
 
