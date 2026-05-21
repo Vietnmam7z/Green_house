@@ -917,9 +917,15 @@
 2026-05-20 20:09:01,771 - WARNING - Đặt trạng thái email thông báo cho user admin thành OFF
 <<<<<<< HEAD
 >>>>>>> fb6e29253663d2bb133e6ebfbd5b93e641fed2b0
+<<<<<<< HEAD
 =======
 2026-05-21 02:20:34,026 - INFO - Đăng nhập: 1
 2026-05-21 02:27:51,981 - INFO - Đăng nhập: 1
 2026-05-21 02:29:55,084 - INFO - Đăng nhập: 1
 2026-05-21 02:36:37,139 - INFO - Đăng nhập: 1
 >>>>>>> main
+=======
+2026-05-20 21:32:10,459 - INFO - Đăng nhập: admin
+2026-05-20 21:32:45,717 - INFO - Đăng nhập: 1
+2026-05-21 10:02:57,351 - INFO - Đăng nhập: admin
+>>>>>>> 1d1d8c221ada9ea92bb3685f3a4433c412286645
