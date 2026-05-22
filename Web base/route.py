@@ -1441,6 +1441,8 @@ class Routes:
         if isinstance(field_ids, str):
             field_ids = [field_ids]
 
+        field_ids = [str(fid).strip() for fid in field_ids if str(fid).strip()]
+
         bills_result = self.field.get_unpaid_bills(field_ids)
 
         if not bills_result["success"]:
@@ -1465,7 +1467,15 @@ class Routes:
                 "data": momo_data
             }
 
-        field_id_text = ",".join(field_ids)
+        # Lấy field_id từ bills thật, không lấy từ field_ids user gửi
+        real_field_ids = []
+
+        for bill in bills:
+            bill_field_id = str(bill[1]).strip()
+            if bill_field_id not in real_field_ids:
+                real_field_ids.append(bill_field_id)
+
+        field_id_text = ",".join(real_field_ids)
 
         self.field.create_transaction(
             user_id,
