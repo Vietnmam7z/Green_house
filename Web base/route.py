@@ -1619,15 +1619,15 @@ class Routes:
         field_id = data.get("field_id")
         
         # =========================================================
-        # ĐÂY CHÍNH LÀ ĐOẠN CODE CHỐNG TRÙNG LẶP ĐƯỢC CHÈN VÀO
+        # SỬA LỖI Ở ĐÂY: Bọc field_id trong ngoặc vuông [field_id] 
+        # để biến nó thành một Mảng (List) trước khi truyền vào DB
         # =========================================================
-        check_exist = self.field.get_service_plans_by_field(field_id)
+        check_exist = self.field.get_service_plans_by_fields([field_id])
         
-        # Nếu hàm get trả về có dữ liệu -> Nghĩa là ruộng này đã có gói thuê rồi
         if check_exist and check_exist.get("success") and len(check_exist.get("data", [])) > 0:
             return jsonify({
                 "success": False,
-                "message": f"Ruộng {field_id} đã tồn tại."
+                "message": f"Ruộng {field_id} đã tồn tại gói thuê!"
             })
         # =========================================================
 
@@ -1636,14 +1636,12 @@ class Routes:
         
         self.logger.log_create_service_plan(field_id, service_days, daily_price)
         
-        # Nếu đi qua được trạm kiểm soát trên mà không bị chặn, mới cho phép tạo mới
         result = self.field.create_service_plan(
             field_id,
             service_days,
             daily_price
         )
         
-        # Bọc jsonify để giao diện web bắt được thông báo lỗi/thành công chuẩn xác
         if isinstance(result, dict):
             return jsonify(result)
         return result
@@ -1668,13 +1666,18 @@ class Routes:
     
     def get_service_plans(self):
         data = request.get_json()
-        field_ids = data.get("field_ids", [])
-        if not field_ids:
+        
+        # Giao diện web của User chỉ gửi lên biến "field_id", không phải "field_ids"
+        field_id = data.get("field_id")
+        
+        if not field_id:
             return jsonify({
                 "success": False,
-                "message": "Thiếu mã ruộng (field_ids)"
+                "message": "Thiếu mã ruộng (field_id)"
             })
-        result = self.field.get_service_plans_by_fields(field_ids)
+            
+        # SỬA LỖI TƯƠNG TỰ Ở ĐÂY: Bọc trong ngoặc vuông [field_id]
+        result = self.field.get_service_plans_by_fields([field_id])
         return jsonify(result)
     
 

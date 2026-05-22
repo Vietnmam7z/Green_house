@@ -956,3 +956,14 @@
 2026-05-21 11:09:20,586 - INFO - Đăng nhập: 1
 2026-05-21 11:14:58,029 - INFO - Đăng nhập: 1
 2026-05-21 11:16:11,188 - INFO - Đăng nhập: 1
+2026-05-22 11:19:47,562 - INFO - Đăng nhập: admin
+2026-05-22 11:22:31,816 - INFO - Đăng nhập: admin
+2026-05-22 11:22:38,145 - INFO - Tạo gói dịch vụ - Field ID: 001, Service Days: 10, Daily Price: 10
+2026-05-22 11:25:02,987 - INFO - Đăng nhập: admin
+2026-05-22 11:25:07,322 - INFO - Xóa gói dịch vụ - Field ID: 4
+2026-05-22 11:25:36,936 - INFO - Cập nhật gói dịch vụ - Field ID: 3, Service Days: 30, Daily Price: 15000
+2026-05-22 11:26:47,937 - INFO - Đăng nhập: admin
+2026-05-22 11:26:54,788 - INFO - Cập nhật gói dịch vụ - Field ID: 3, Service Days: 35, Daily Price: 150000
+2026-05-22 11:27:11,371 - INFO - Tạo gói dịch vụ - Field ID: 002, Service Days: 10, Daily Price: 12000
+2026-05-22 11:27:16,989 - INFO - Cập nhật gói dịch vụ - Field ID: 5, Service Days: 15, Daily Price: 12000
+2026-05-22 11:27:49,442 - INFO - Xóa gói dịch vụ - Field ID: 5
