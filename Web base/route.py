@@ -1404,21 +1404,48 @@ class Routes:
         
     def get_unpaid_bills(self):
         field_ids = request.get_json().get("field_ids", [])
+
+        if isinstance(field_ids, str):
+            field_ids = [field_ids]
+
         return self.field.get_unpaid_bills(field_ids)
     
     def mark_bills_paid(self):
-        field_id = request.get_json().get("field_id")
-        return self.field.mark_bills_as_paid(field_id)
+        data = request.get_json()
+        field_ids = data.get("field_ids") or data.get("field_id")
+        if not field_ids:
+            return {
+                "success": False,
+                "message": "Thiếu field_ids hoặc field_id"
+            }
+        result = self.field.mark_bills_as_paid(field_ids)
+        return result
     
     def delete_bill(self):
         bill_id = request.get_json().get("bill_id")
         return self.field.delete_billing_item(bill_id)
     
     def create_payment(self):
+        data = request.get_json()
         username = session.get("username")
-        field_id = request.get_json().get("field_id")
         user_id = self.auth.get_user_id(username)
-        bills_result = self.field.get_unpaid_bills(field_id)
+
+        field_ids = data.get("field_ids", [])
+
+        if not field_ids:
+            return {
+                "success": False,
+                "message": "Thiếu danh sách ruộng cần thanh toán"
+            }
+
+        if isinstance(field_ids, str):
+            field_ids = [field_ids]
+
+        bills_result = self.field.get_unpaid_bills(field_ids)
+
+        if not bills_result["success"]:
+            return bills_result
+
         bills = bills_result["data"]
 
         if not bills:
@@ -1426,21 +1453,28 @@ class Routes:
                 "success": False,
                 "message": "Không có hóa đơn chưa thanh toán"
             }
+
         total = sum([b[3] for b in bills])
+
         momo_data, order_id, request_id = payment.create_momo_payment(total)
+
         if momo_data.get("resultCode") != 0:
             return {
                 "success": False,
                 "message": "Tạo thanh toán MoMo thất bại",
                 "data": momo_data
             }
+
+        field_id_text = ",".join(field_ids)
+
         self.field.create_transaction(
             user_id,
-            field_id,
+            field_id_text,
             order_id,
             request_id,
             total
         )
+
         return {
             "success": True,
             "order_id": order_id,
@@ -1481,41 +1515,61 @@ class Routes:
         status = "success" if result_code == 0 else "failed"
 
         return self.update_payment_status_internal(order_id, status, data)
-    
+
+
     def update_payment_status_internal(self, order_id, status, raw_response=None):
         result = self.field.update_transaction_status(order_id, status)
-        
+
         if status == "success":
             txn = self.field.get_transaction_by_order_id(order_id)
-            
-            # Xử lý an toàn: Lấy dữ liệu giao dịch dù trả về là List hay Tuple
             transaction = txn["data"]
+
             if isinstance(transaction, list) and len(transaction) > 0:
                 transaction = transaction[0]
-                
-            print("Dữ liệu Transaction an toàn:", transaction)
-            
+
+            print("TXN:", transaction)
+
             if transaction:
-                user_id = transaction[10]    
-                field_id = transaction[1]
-                # SỬA LỖI 1: Lấy đúng vị trí số 3 thay vì 4
-                request_id = transaction[3]  
+                user_id = transaction[10]
+                field_id_text = transaction[1]   # "001" hoặc "001,002"
+                request_id = transaction[3]
                 amount = transaction[5]
-                
-                bills = self.field.get_unpaid_bills(field_id)["data"]
-                
-                # SỬA LỖI 2: Ép kiểu raw_response thành chuỗi (String) trước khi lưu
+
+                field_ids = field_id_text.split(",")
+                field_ids = [fid.strip() for fid in field_ids if fid.strip()]
+
+                bills = self.field.get_unpaid_bills(field_ids)["data"]
+
+                print("FIELD_IDS:", field_ids)
+                print("BILLS BEFORE SAVE:", bills)
+
                 if isinstance(raw_response, dict):
                     response_str = json.dumps(raw_response)
                 else:
                     response_str = str(raw_response)
-                
-                # Lưu vào userdata.db
-                self.auth.save_payment_history(user_id, field_id, order_id, request_id, amount, bills, response_str)
-                
-                self.field.mark_bills_as_paid(field_id)
-                self.logger.log_payment_transaction(user_id, field_id, order_id, request_id, amount, bills, response_str)
-                
+
+                self.auth.save_payment_history(
+                    user_id,
+                    field_id_text,
+                    order_id,
+                    request_id,
+                    amount,
+                    bills,
+                    response_str
+                )
+
+                self.field.mark_bills_as_paid(field_ids)
+
+                self.logger.log_payment_transaction(
+                    user_id,
+                    field_id_text,
+                    order_id,
+                    request_id,
+                    amount,
+                    bills,
+                    response_str
+                )
+
         return result
 
 # USER TRANSACTION HISTORY
@@ -1524,44 +1578,61 @@ class Routes:
     def get_transactions_of_user(self):
         username = session.get('username')
         user_id = self.auth.get_user_id(username)
-        
-        with self.field.connect() as conn:
+
+        with self.auth.user_manager.connect() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT * FROM payment_transactions WHERE user_id = ? AND status = 'success' ORDER BY paid_at DESC", (user_id,))
+
+            cur.execute("""
+                SELECT *
+                FROM user_payment_transactions
+                WHERE user_id = ?
+                AND status = 'success'
+                ORDER BY paid_at DESC
+            """, (user_id,))
+
             db_rows = cur.fetchall()
 
-        # Hàm phụ trợ: Chuyển đổi chuỗi thời gian từ GMT+0 sang GMT+7
+        # GMT+7
         def to_gmt7(time_str):
             if not time_str:
                 return ""
+
             try:
-                # Cắt chuỗi lấy đúng định dạng YYYY-MM-DD HH:MM:SS (bỏ phần mili-giây nếu có)
                 clean_str = str(time_str).strip()[:19]
+
                 dt = datetime.strptime(clean_str, "%Y-%m-%d %H:%M:%S")
-                # Cộng thêm 7 tiếng
+
                 dt_gmt7 = dt + timedelta(hours=7)
+
                 return dt_gmt7.strftime("%Y-%m-%d %H:%M:%S")
+
             except:
-                return time_str # Trả về nguyên bản nếu bị lỗi parse
+                return time_str
 
         rows = []
+
         for r in db_rows:
+
             mapped = [
-                r[0],             # 0: id
-                r[10],            # 1: user_id
-                r[1],             # 2: field_id
-                r[2],             # 3: order_id
-                r[3],             # 4: request_id
+                r[0],             # 0: id (QUAN TRỌNG: user_payment_transactions.id)
+                r[1],             # 1: user_id
+                r[2],             # 2: field_id
+                r[3],             # 3: order_id
+                r[4],             # 4: request_id
                 r[5],             # 5: amount
                 r[6],             # 6: status
-                r[9],             # 7: raw_response
-                to_gmt7(r[7]),    # 8: created_at (Đã +7)
-                to_gmt7(r[8]),    # 9: updated_at/paid_at (Đã +7)
-                to_gmt7(r[8])     # 10: paid_at (Đã +7)
+                r[7],             # 7: raw_response
+                to_gmt7(r[8]),    # 8: paid_at
+                to_gmt7(r[8]),    # 9: paid_at display
+                to_gmt7(r[8])     # 10: paid_at display
             ]
+
             rows.append(mapped)
 
-        return jsonify({"success": True, "data": rows})
+        return jsonify({
+            "success": True,
+            "data": rows
+        })
     
     def get_transactions_items(self):
         data = request.get_json()
@@ -1569,8 +1640,6 @@ class Routes:
         
         try:
             rows = []
-            # Truy vấn trực tiếp bảng user_payment_transaction_items
-            # Lấy billing_title (tên hóa đơn) và billing_amount (số tiền)
             with self.auth.user_manager.connect() as conn: # Lưu ý: kiểm tra xem bảng này nằm ở userdata.db hay field.db để gọi conn cho đúng
                 cur = conn.cursor()
                 cur.execute("""
@@ -1617,11 +1686,6 @@ class Routes:
         data = request.get_json()
 
         field_id = data.get("field_id")
-        
-        # =========================================================
-        # SỬA LỖI Ở ĐÂY: Bọc field_id trong ngoặc vuông [field_id] 
-        # để biến nó thành một Mảng (List) trước khi truyền vào DB
-        # =========================================================
         check_exist = self.field.get_service_plans_by_fields([field_id])
         
         if check_exist and check_exist.get("success") and len(check_exist.get("data", [])) > 0:
@@ -1666,18 +1730,19 @@ class Routes:
     
     def get_service_plans(self):
         data = request.get_json()
-        
-        # Giao diện web của User chỉ gửi lên biến "field_id", không phải "field_ids"
-        field_id = data.get("field_id")
-        
-        if not field_id:
+
+        field_ids = data.get("field_ids")
+
+        if not field_ids:
             return jsonify({
                 "success": False,
-                "message": "Thiếu mã ruộng (field_id)"
+                "message": "Thiếu mã ruộng (field_ids)"
             })
-            
-        # SỬA LỖI TƯƠNG TỰ Ở ĐÂY: Bọc trong ngoặc vuông [field_id]
-        result = self.field.get_service_plans_by_fields([field_id])
+
+        if not isinstance(field_ids, list):
+            field_ids = [field_ids]
+
+        result = self.field.get_service_plans_by_fields(field_ids)
         return jsonify(result)
     
 
@@ -1999,7 +2064,7 @@ if __name__ == '__main__':
             
     try:
         # Lệnh chạy Web Server
-        server.run()
+        server.run(port=5000)
     except KeyboardInterrupt:
         # Bắt sự kiện khi bạn nhấn Ctrl + C
         print("\n[HỆ THỐNG] Nhận lệnh tắt từ người dùng...")

@@ -224,7 +224,7 @@ class UserManager:
                     VALUES (?, ?, ?)
                 """, (
                     transaction_id,
-                    bill[1],
+                    bill[2],
                     bill[3]
                 ))
 

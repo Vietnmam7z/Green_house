@@ -1498,6 +1498,11 @@ class FieldDB:
             try:
                 cursor = conn.cursor()
 
+                if isinstance(field_ids, str):
+                    field_ids = [field_ids]
+
+                field_ids = [str(fid).strip() for fid in field_ids]
+
                 if not field_ids:
                     return {
                         "success": True,
@@ -1530,23 +1535,43 @@ class FieldDB:
                     "data": []
                 }
 
-    def mark_bills_as_paid(self, field_id):
+    def mark_bills_as_paid(self, field_ids):
         with self.connect() as conn:
             try:
                 cursor = conn.cursor()
-                cursor.execute("""
+                if isinstance(field_ids, str):
+                    field_ids = field_ids.split(",")
+                field_ids = [
+                    str(fid).strip()
+                    for fid in field_ids
+                    if str(fid).strip()
+                ]
+
+                if not field_ids:
+                    return {
+                        "success": False,
+                        "message": "Danh sách field_ids rỗng"
+                    }
+
+                placeholders = ",".join(["?"] * len(field_ids))
+
+                cursor.execute(f"""
                     UPDATE billing_items
                     SET
                         status = 'paid',
                         paid_at = CURRENT_TIMESTAMP
-                    WHERE field_id = ?
+                    WHERE field_id IN ({placeholders})
                     AND status = 'unpaid'
-                """, (field_id,))
+                """, field_ids)
+
                 conn.commit()
+
                 return {
                     "success": True,
-                    "message": "Cập nhật bill thành paid thành công"
+                    "message": "Cập nhật bill thành paid thành công",
+                    "updated": cursor.rowcount
                 }
+
             except Exception as e:
                 conn.rollback()
                 return {
