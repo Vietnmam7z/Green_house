@@ -87,14 +87,13 @@ function renderTable() {
             <td class="${typeClass}">${n.status} ALERT</td>
             <td>Cảnh báo tại '${fieldName}'</td>
             <td>Thiết bị <b>${deviceName}</b> ghi nhận chỉ số bất thường. Vui lòng kiểm tra.</td>
-            <td class="row-actions">
-                ${n.is_read === 0 
-                    ? `<button class="icon-btn" title="Đánh dấu đã xem" onclick="markAsRead(${n.ts}, '${n.device_id}')"><i class="fa-solid fa-check"></i></button>`
-                    : ''
-                }
-                <button class="icon-btn trash" title="Xóa" onclick="deleteSingleNotification(this, ${n.ts}, '${n.device_id}')"><i class="fa-solid fa-trash"></i></button>
-            </td>
-        </tr>
+                <div class="action-wrapper">
+                    ${n.is_read === 0 
+                        ? `<button class="icon-btn" title="Đánh dấu đã xem" onclick="markAsRead(${n.ts}, '${n.device_id}')"><i class="fa-solid fa-check"></i></button>`
+                        : ''
+                    }
+                    <button class="icon-btn trash" title="Xóa" onclick="deleteSingleNotification(this, ${n.ts}, '${n.device_id}')"><i class="fa-solid fa-trash"></i></button>
+                </div>
         `;
     }).join('');
 }
