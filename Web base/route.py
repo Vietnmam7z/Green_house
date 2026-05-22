@@ -1617,14 +1617,36 @@ class Routes:
         data = request.get_json()
 
         field_id = data.get("field_id")
+        
+        # =========================================================
+        # ĐÂY CHÍNH LÀ ĐOẠN CODE CHỐNG TRÙNG LẶP ĐƯỢC CHÈN VÀO
+        # =========================================================
+        check_exist = self.field.get_service_plans_by_field(field_id)
+        
+        # Nếu hàm get trả về có dữ liệu -> Nghĩa là ruộng này đã có gói thuê rồi
+        if check_exist and check_exist.get("success") and len(check_exist.get("data", [])) > 0:
+            return jsonify({
+                "success": False,
+                "message": f"Ruộng {field_id} đã tồn tại."
+            })
+        # =========================================================
+
         service_days = data.get("service_days")
         daily_price = data.get("daily_price")
+        
         self.logger.log_create_service_plan(field_id, service_days, daily_price)
-        return self.field.create_service_plan(
+        
+        # Nếu đi qua được trạm kiểm soát trên mà không bị chặn, mới cho phép tạo mới
+        result = self.field.create_service_plan(
             field_id,
             service_days,
             daily_price
         )
+        
+        # Bọc jsonify để giao diện web bắt được thông báo lỗi/thành công chuẩn xác
+        if isinstance(result, dict):
+            return jsonify(result)
+        return result
     
     def update_service_plan(self):
         data = request.get_json()
@@ -1656,7 +1678,52 @@ class Routes:
         return jsonify(result)
     
 
+    # =========================================================
+    # BỔ SUNG CHO GIAO DIỆN ADMIN - RENTAL SERVICE PACKAGE
+    # =========================================================
 
+    # 1. Render trang HTML cho Admin
+    def rental_service_page(self):
+        resp = self.require_login()
+        if resp: return resp
+        role = self.auth.get_role(session.get('username'))
+        if role not in ['administrator', 'admin']: return redirect('/')
+        
+        return render_template(config.rental_service_page)
+
+    # 2. API lấy toàn bộ danh sách gói thuê của TẤT CẢ các ruộng cho Admin
+    def api_admin_get_all_service_plans(self):
+        role = self.auth.get_role(session.get('username'))
+        if role not in ['administrator', 'admin']:
+            return jsonify({"success": False, "message": "Không có quyền truy cập"}), 403
+            
+        try:
+            with self.field.connect() as conn:
+                cur = conn.cursor()
+                # Truy vấn lấy toàn bộ thông tin gói thuê
+                cur.execute("""
+                    SELECT id, field_id, service_days, daily_price, accumulated_amount, start_date, expired_date, status 
+                    FROM field_service_plan 
+                    ORDER BY status ASC, expired_date ASC, id DESC
+                """)
+                rows = cur.fetchall()
+                
+                data = []
+                for r in rows:
+                    data.append({
+                        "id": r[0],
+                        "field_id": r[1],
+                        "service_days": r[2],
+                        "daily_price": r[3],
+                        "accumulated_amount": r[4],
+                        "start_date": r[5],
+                        "expired_date": r[6],
+                        "status": r[7]
+                    })
+            return jsonify({"success": True, "data": data})
+        except Exception as e:
+            print(f"Lỗi API api_admin_get_all_service_plans: {e}")
+            return jsonify({"success": False, "message": str(e)})
 
 # AI AUTOMATION
 ################################################################################################################################ 
@@ -1835,6 +1902,9 @@ server.add_route('/api/service_plan/create', routes.create_service_plan, methods
 server.add_route('/api/service_plan/update', routes.update_service_plan, methods=['POST'])
 server.add_route('/api/service_plan/delete', routes.delete_service_plan, methods=['POST'])
 server.add_route('/api/service_plan/list', routes.get_service_plans, methods=['POST'])
+server.add_route('/admin_management/rental_service', routes.rental_service_page, methods=['GET'])
+server.add_route('/api/admin/all_service_plans', routes.api_admin_get_all_service_plans, methods=['GET'])
+
 server.add_route('/api/get_devices_controller', routes.toggle_and_send, methods=['POST'])
 server.add_route('/api/devices_list', routes.get_devices_controller, methods=['GET'])
 server.add_route('/', routes.home_page, methods=['GET'])

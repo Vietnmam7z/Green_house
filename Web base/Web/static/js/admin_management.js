@@ -52,4 +52,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('btn-create-billing')?.addEventListener('click', () => {
         window.location.href = '/admin_management/billing'; 
     });
+
+    document.getElementById('btn-rental-management')?.addEventListener('click', () => {
+        window.location.href = '/admin_management/rental_service';
+    });
 });

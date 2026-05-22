@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartCare - Rental Service Package</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/admin_management.css">
+    <style>
+        /* CSS Nâng cao tối ưu giao diện bảng biểu */
+        .plan-table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.06); border-radius: 12px; overflow: hidden; margin-top: 15px; }
+        .plan-table th, .plan-table td { padding: 16px 20px; text-align: left; border-bottom: 1px solid #edf2f7; }
+        .plan-table th { background: #f7fafc; color: #4a5568; font-weight: 700; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .plan-table tbody tr:hover { background: #f8fafc; }
+        
+        .badge { padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; }
+        .badge-active { background: #e6fffa; color: #319795; }
+        .badge-expired { background: #edf2f7; color: #4a5568; }
+
+        /* CSS dùng Flexbox để xếp các biểu tượng Thao tác thành hàng ngang, căn giữa */
+        .action-cell {
+            display: flex; /* Bật Flexbox */
+            justify-content: center; /* Căn giữa theo chiều ngang */
+            align-items: center; /* Căn giữa theo chiều dọc */
+            gap: 15px; /* Tạo khoảng cách giữa các biểu tượng */
+        }
+
+        .btn-action-icon { cursor: pointer; font-size: 1.1rem; transition: color 0.2s; }
+        .btn-action-icon.edit:hover { color: #3182ce; }
+        .btn-action-icon.delete:hover { color: #e53e3e; }
+
+        /* Modal Overlay & Box hiệu ứng mượt mà */
+        .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); display:flex; justify-content:center; align-items:center; z-index:9999; transition: all 0.3s; opacity:1; visibility:visible; }
+        .modal-overlay.hidden { opacity:0; visibility:hidden; pointer-events:none; }
+        .modal-box { background:white; width:450px; border-radius:14px; padding:30px; box-shadow:0 10px 25px rgba(0,0,0,0.15); transform: translateY(0); transition: all 0.3s; }
+        .modal-overlay.hidden .modal-box { transform: translateY(-20px); }
+        .form-group { margin-bottom: 18px; text-align: left; }
+        .form-group label { display:block; font-weight:600; color:#4a5568; margin-bottom:6px; font-size:0.95rem; }
+        .form-group input { width:100%; padding:11px; border:1px solid #cbd5e0; border-radius:8px; outline:none; font-size:1rem; box-sizing: border-box; }
+        .form-group input:focus { border-color: #3182ce; box-shadow: 0 0 0 3px rgba(49,130,206,0.15); }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <div class="navbar-left">
+            <img src="/static/img/logo.png" alt="Logo" class="logo-img">
+            <span class="logo-text" onclick="window.location.href='/admin_management'" style="cursor: pointer;" title="Quay về Trang chủ">SmartCare</span>
+        </div>
+        <div class="navbar-right">
+            <div class="user-profile-container">
+                <div class="user-profile">
+                    <img src="/static/img/user.png" alt="User" class="nav-icon">
+                    <div class="user-info">
+                        <span class="user-name" id="userName">ADMIN</span>
+                        <span class="user-role">administrator</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container" style="flex-direction: column; padding: 40px; justify-content: flex-start; align-items: stretch; overflow-y: auto;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+            <h2 style="margin: 0; font-size: 1.8rem; color: #2d3748;"><i class="fa-solid fa-cubes" style="color: #2196F3;"></i> Rental Service Package</h2>
+            <button id="btn-open-add-modal" style="padding: 12px 24px; border: none; background: #2196F3; color: white; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 12px rgba(33,150,243,0.3); font-size: 0.95rem;"><i class="fa-solid fa-plus"></i> Kích hoạt gói thuê mới</button>
+        </div>
+
+        <table class="plan-table">
+            <thead>
+                <tr>
+                    <th>Mã Ruộng</th>
+                    <th>Thời hạn thuê</th>
+                    <th>Đơn giá</th>
+                    <th>Phí tích lũy hiện tại</th>
+                    <th>Ngày bắt đầu</th>
+                    <th>Ngày hết hạn</th>
+                    <th>Trạng thái</th>
+                    <th style="width: 100px; text-align: center;">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody id="plan-table-body">
+                <tr>
+                    <td colspan="8" style="text-align: center; color: #718096; padding: 30px;">Đang tải danh sách gói thuê dịch vụ...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="modal-overlay hidden" id="planModal">
+        <div class="modal-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #edf2f7; padding-bottom: 12px; margin-bottom: 20px;">
+                <h3 id="modal-title" style="margin: 0; font-size: 1.35rem; color: #2d3748;"><i class="fa-solid fa-square-poll-horizontal" style="color:#2196F3;"></i> Thiết lập gói thuê</h3>
+                <i class="fa-solid fa-xmark" id="btn-close-modal" style="cursor: pointer; font-size: 1.4rem; color: #a0aec0; transition: 0.2s;"></i>
+            </div>
+
+            <form id="planForm">
+                <input type="hidden" id="edit-plan-id">
+                
+                <div class="form-group" id="field-id-group">
+                    <label>Mã số ruộng (Field ID):</label>
+                    <input type="text" id="planFieldId" placeholder="Ví dụ: 001, 002..." required>
+                </div>
+                <div class="form-group">
+                    <label>Số ngày đăng ký thuê (Ngày):</label>
+                    <input type="number" id="planServiceDays" placeholder="Ví dụ: 30, 90, 365..." min="1" required>
+                </div>
+                <div class="form-group">
+                    <label>Đơn giá (VNĐ/ngày):</label>
+                    <input type="number" id="planDailyPrice" placeholder="Ví dụ: 10000, 20000..." min="0" required>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #edf2f7; padding-top: 18px; margin-top: 25px;">
+                    <button type="button" id="btn-cancel-modal" style="padding: 10px 20px; border: 1px solid #cbd5e0; background: white; border-radius: 6px; cursor: pointer; font-weight: bold; color: #4a5568;">Hủy</button>
+                    <button type="submit" id="btn-submit-plan" style="padding: 10px 25px; border: none; background: #2196F3; color: white; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(33,150,243,0.2);">Xác nhận</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // Tải thông tin tài khoản Navbar
+            fetch('/api/current_user').then(res => res.json()).then(data => {
+                if (data.success) document.getElementById('userName').innerText = data.username;
+            });
+
+            loadAllServicePlans();
+
+            const modal = document.getElementById('planModal');
+            const form = document.getElementById('planForm');
+            const modalTitle = document.getElementById('modal-title');
+            const fieldGroup = document.getElementById('field-id-group');
+            const submitBtn = document.getElementById('btn-submit-plan');
+
+            // Mở Modal chế độ THÊM MỚI
+            document.getElementById('btn-open-add-modal').onclick = () => {
+                form.reset();
+                document.getElementById('edit-plan-id').value = '';
+                modalTitle.innerHTML = '<i class="fa-solid fa-plus" style="color:#2196F3;"></i> Kích hoạt gói thuê mới';
+                fieldGroup.style.display = 'block'; // Hiện ô nhập mã ruộng
+                document.getElementById('planFieldId').required = true;
+                modal.classList.remove('hidden');
+            };
+
+            // Hàm Đóng Modal
+            const closeModal = () => modal.classList.add('hidden');
+            document.getElementById('btn-close-modal').onclick = closeModal;
+            document.getElementById('btn-cancel-modal').onclick = closeModal;
+
+            // Xử lý sự kiện Submit Form (Thêm / Sửa)
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const planId = document.getElementById('edit-plan-id').value;
+                const fieldId = document.getElementById('planFieldId').value.trim();
+                const serviceDays = parseInt(document.getElementById('planServiceDays').value);
+                const dailyPrice = parseFloat(document.getElementById('planDailyPrice').value);
+
+                submitBtn.innerText = "Đang lưu dữ liệu...";
+                submitBtn.disabled = true;
+
+                // Chọn đúng URL API tương ứng dựa theo việc có planId hay không
+                const isEdit = planId !== '';
+                const url = isEdit ? '/api/service_plan/update' : '/api/service_plan/create';
+                
+                const bodyData = isEdit 
+                    ? { plan_id: parseInt(planId), service_days: serviceDays, daily_price: dailyPrice }
+                    : { field_id: fieldId, service_days: serviceDays, daily_price: dailyPrice };
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(bodyData)
+                })
+                .then(res => res.json())
+                .then(data => {
+                    // KIỂM TRA ĐIỀU KIỆN TRƯỚC KHI HIỂN THỊ
+                    if (data.success) {
+                        alert("Cập nhật thông tin gói thuê dịch vụ thành công!");
+                        closeModal();
+                        loadAllServicePlans();
+                    } else {
+                        // NẾU BACKEND BÁO LỖI (TRÙNG LẶP), HIỆN THÔNG BÁO LỖI NÀY
+                        alert("CẢNH BÁO: " + data.message);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert("Có lỗi xảy ra khi truyền dữ liệu!");
+                })
+                .finally(() => {
+                    submitBtn.innerText = "Xác nhận lưu";
+                    submitBtn.disabled = false;
+                });
+            });
+        });
+
+        // Hàm lấy danh sách và hiển thị
+        async function loadAllServicePlans() {
+            const tbody = document.getElementById('plan-table-body');
+            try {
+                const res = await fetch('/api/admin/all_service_plans');
+                const result = await res.json();
+
+                if (result.success && result.data.length > 0) {
+                    tbody.innerHTML = result.data.map(p => {
+                        const statusBadge = p.status === 'active'
+                            ? `<span class="badge badge-active"><i class="fa-solid fa-circle-check"></i> Đang hoạt động</span>`
+                            : `<span class="badge badge-expired"><i class="fa-solid fa-circle-xmark"></i> Hết hạn</span>`;
+
+                        // Lưu trữ dữ liệu thô vào chuỗi JSON an toàn để phục vụ hàm Sửa
+                        const stringifiedData = JSON.stringify(p).replace(/"/g, '&quot;');
+
+                        return `
+                            <tr>
+                                <td><strong>${p.field_id}</strong></td>
+                                <td><i class="fa-solid fa-hourglass-half" style="color:#718096;"></i> ${p.service_days} ngày</td>
+                                <td>${parseInt(p.daily_price).toLocaleString()} đ/ngày</td>
+                                <td><strong style="color:#2b6cb0;">${parseInt(p.accumulated_amount).toLocaleString()} đ</strong></td>
+                                <td style="color:#4a5568; font-size:0.9rem;">${p.start_date || '---'}</td>
+                                <td style="color:#e53e3e; font-size:0.9rem; font-weight:600;">${p.expired_date || '---'}</td>
+                                <td>${statusBadge}</td>
+                                <td class="action-cell">  <i class="fa-solid fa-pen btn-action-icon edit" title="Sửa gói" onclick="openEditModal('${stringifiedData}')"></i>
+                                    <i class="fa-solid fa-trash btn-action-icon delete" title="Xóa gói" onclick="deleteServicePlan(${p.id})"></i>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 30px; color: #718096;">Hệ thống hiện tại chưa thiết lập gói thuê nào.</td></tr>`;
+                }
+            } catch (err) {
+                console.error(err);
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 30px; color: #e53e3e; font-weight:bold;">Lỗi hệ thống khi tải danh sách!</td></tr>`;
+            }
+        }
+
+        // Mở Modal chế độ CHỈNH SỬA (Gia hạn ngày/đổi giá)
+        function openEditModal(rawJson) {
+            const data = JSON.parse(rawJson);
+            const form = document.getElementById('planForm');
+            form.reset();
+
+            document.getElementById('edit-plan-id').value = data.id;
+            document.getElementById('planServiceDays').value = data.service_days;
+            document.getElementById('planDailyPrice').value = data.daily_price;
+            
+            // Theo thiết kế API update của bạn, sửa gói không cần truyền field_id nên ta ẩn đi để tránh nhập nhầm
+            document.getElementById('field-id-group').style.display = 'none';
+            document.getElementById('planFieldId').required = false;
+
+            document.getElementById('modal-title').innerHTML = `<i class="fa-solid fa-pen-to-square" style="color:#2196F3;"></i> Cập nhật gói thuê Ruộng ${data.field_id}`;
+            document.getElementById('planModal').classList.remove('hidden');
+        }
+
+        // Xóa gói thuê thông qua API có sẵn ở Backend
+        async function deleteServicePlan(planId) {
+            if (!confirm("CẢNH BÁO:\nBạn có chắc chắn muốn XÓA gói dịch vụ thuê này khỏi hệ thống không? Hành động này không thể hoàn tác!")) return;
+            
+            try {
+                const res = await fetch('/api/service_plan/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ plan_id: planId })
+                });
+                const data = await res.json();
+                loadAllServicePlans(); // Tải lại bảng
+            } catch (err) {
+                alert("Lỗi khi kết nối xóa dữ liệu!");
+            }
+        }
+    </script>
+</body>
+</html>
