@@ -1005,3 +1005,5 @@
 2026-05-22 15:55:20,357 - INFO - Đăng nhập: 1
 2026-05-22 15:56:08,499 - INFO - Giao dịch thanh toán - User ID: 12, Field ID: 002, Order ID: 1779440155527, Request ID: 1779440155527, Amount: 1000000, Bills: [(8, '002', 'Tiền điện', 1000000, 'unpaid', '2026-05-21 03:39:30', '2026-05-22 06:39:43')], Raw Response: {"orderId": "1779440155527", "resultCode": 0}
 2026-05-22 15:58:29,539 - INFO - Giao dịch thanh toán - User ID: 12, Field ID: 002,001, Order ID: 1779440291391, Request ID: 1779440291391, Amount: 1190000, Bills: [(8, '002', 'Tiền điện', 1000000, 'unpaid', '2026-05-21 03:39:30', '2026-05-22 08:56:08'), (6, '001', 'Phí dịch vụ tự động', 190000, 'unpaid', '2026-05-20 19:32:56', '2026-05-22 06:23:23')], Raw Response: {"orderId": "1779440291391", "resultCode": 0}
+2026-05-24 10:02:22,724 - INFO - Đăng nhập: 1
+2026-05-24 10:02:29,639 - INFO - Đăng nhập: admin
