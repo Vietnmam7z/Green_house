@@ -447,6 +447,9 @@ document.addEventListener("DOMContentLoaded", () => {
                         tbody.appendChild(tr);
                     });
                     updatePagination();
+                    if (typeof applyColumnVisibility === 'function') {
+                        applyColumnVisibility();
+                    }
                 }
             });
     }
@@ -799,4 +802,120 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Mẹo: Mỗi khi bạn thêm 1 hàng mới hoặc xóa 1 hàng, 
     // hãy nhớ gọi lại hàm updatePagination() để cập nhật lại số trang.
+});
+
+// ======================================================================
+// XỬ LÝ CHỨC NĂNG ẨN/HIỆN CỘT (DISPLAY COLUMNS)
+// ======================================================================
+const btnColumns = document.getElementById('btnColumns');
+const columnDropdown = document.getElementById('columnDropdown');
+const colToggles = document.querySelectorAll('.col-toggle');
+
+// 1. Mở/đóng menu dropdown khi bấm vào icon
+if (btnColumns && columnDropdown) {
+    btnColumns.addEventListener('click', (e) => {
+        e.stopPropagation(); 
+        columnDropdown.classList.toggle('hidden');
+    });
+}
+
+// Đóng menu nếu người dùng click ra ngoài
+document.addEventListener('click', (e) => {
+    if (columnDropdown && !columnDropdown.classList.contains('hidden') && !e.target.closest('#columnDropdown') && e.target !== btnColumns) {
+        columnDropdown.classList.add('hidden');
+    }
+});
+
+// 2. Hàm ẩn/hiện cột dựa trên CSS :nth-child
+window.applyColumnVisibility = function() {
+    const checkboxes = document.querySelectorAll('.col-toggle');
+    checkboxes.forEach(chk => {
+        const colIdx = chk.getAttribute('data-col'); // Vị trí cột (1, 2, 3...)
+        const isChecked = chk.checked;
+        
+        // Ẩn/hiện tiêu đề (<th>)
+        const th = document.querySelector(`.schedule-table th:nth-child(${colIdx})`);
+        if (th) th.style.display = isChecked ? '' : 'none';
+
+        // Ẩn/hiện các ô dữ liệu (<td>)
+        const tds = document.querySelectorAll(`.schedule-table tbody td:nth-child(${colIdx})`);
+        tds.forEach(td => td.style.display = isChecked ? '' : 'none');
+    });
+};
+
+// Lắng nghe sự kiện tick/bỏ tick
+colToggles.forEach(chk => {
+    chk.addEventListener('change', window.applyColumnVisibility);
+});
+
+// ======================================================================
+// XỬ LÝ CHỨC NĂNG SẮP XẾP BẢNG (SORTING)
+// ======================================================================
+const tableHeaders = document.querySelectorAll('.schedule-table th');
+let currentSortCol = -1;
+let isAscending = true;
+
+tableHeaders.forEach((th, index) => {
+    // Không cho phép sắp xếp ở cột cuối cùng (Cột chứa nút Edit/Delete)
+    if (index === tableHeaders.length - 1) return;
+
+    th.style.cursor = 'pointer';
+    th.title = "Click to sort";
+
+    th.addEventListener('click', () => {
+        const tbody = document.querySelector('.schedule-table tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+
+        // Xác định hướng sắp xếp
+        if (currentSortCol === index) {
+            isAscending = !isAscending;
+        } else {
+            isAscending = true;
+            currentSortCol = index;
+        }
+
+        // Cập nhật UI mũi tên trên tiêu đề
+        tableHeaders.forEach(header => {
+            const icon = header.querySelector('i.fa-arrow-up, i.fa-arrow-down');
+            if (icon) icon.remove(); // Xóa icon ở các cột khác
+        });
+        
+        const arrowHtml = isAscending 
+            ? ' <i class="fa-solid fa-arrow-up" style="font-size: 10px; margin-left: 5px;"></i>' 
+            : ' <i class="fa-solid fa-arrow-down" style="font-size: 10px; margin-left: 5px;"></i>';
+        th.innerHTML += arrowHtml;
+
+        // Thuật toán sắp xếp
+        rows.sort((a, b) => {
+            const cellA = a.children[index].textContent.trim().toLowerCase();
+            const cellB = b.children[index].textContent.trim().toLowerCase();
+
+            // Trích xuất số nếu là cột Duration/Volume (loại bỏ chữ 'min', 'L')
+            const numA = parseFloat(cellA.replace(/[^\d.-]/g, ''));
+            const numB = parseFloat(cellB.replace(/[^\d.-]/g, ''));
+
+            // Nếu cả 2 đều là số hợp lệ -> Sắp xếp theo số học
+            if (!isNaN(numA) && !isNaN(numB) && cellA.match(/\d/) && cellB.match(/\d/)) {
+                return isAscending ? numA - numB : numB - numA;
+            }
+
+            // Nếu là chuỗi ký tự -> Sắp xếp theo bảng chữ cái (A-Z)
+            if (cellA < cellB) return isAscending ? -1 : 1;
+            if (cellA > cellB) return isAscending ? 1 : -1;
+            return 0;
+        });
+
+        // Xóa bảng cũ, dán các dòng đã sắp xếp vào lại
+        tbody.innerHTML = '';
+        rows.forEach(row => tbody.appendChild(row));
+        
+        // Cực kỳ quan trọng: Reset lại phân trang và trạng thái ẩn/hiện cột sau khi sort
+        // (Do scope của bạn, mình bọc try-catch để gọi updatePagination an toàn)
+        try {
+            updatePagination();
+        } catch (e) {
+            console.log("updatePagination chưa sẵn sàng");
+        }
+        window.applyColumnVisibility();
+    });
 });
