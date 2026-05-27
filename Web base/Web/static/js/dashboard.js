@@ -94,7 +94,9 @@ async function fetchAIPrediction(deviceId, telemetryName, elementId, unit) {
         let content = "";
 
         if (data.status === "success") {
-            content = `<i class="fa-solid fa-robot" style="color: #4CAF50;"></i> Next: ${data.predicted_next_val} ${unit}`;
+            // Lấy giá trị temperature từ object predicted_next_val
+            const predictedVal = data.predicted_next_val.temperature;
+            content = `<i class="fa-solid fa-robot" style="color: #4CAF50;"></i> Next: ${predictedVal !== null ? predictedVal : '--'} ${unit}`;
         } else if (data.status === "waiting") {
             content = `<i class="fa-solid fa-spinner fa-spin"></i> Học: ${data.current_step}/${data.total_steps}`;
         }
@@ -165,9 +167,10 @@ async function capNhatDuLieu() {
                             const safeDeviceName = deviceName.replace(/\s+/g, '_');
                             const idGocChoAI = teleData.device_id || deviceName;
 
-                            // Chốt chặn AI: Chỉ 4 thông số cơ bản mới hiện khung AI
-                            const danhSachCoBan = ['temperature', 'humidity', 'moisture', 'light'];
-                            const duocPhepDungAI = danhSachCoBan.includes(lowerTeleKey);
+                            // ==============================================
+                            // CHỐT CHẶN AI: CHỈ HIỂN THỊ KHUNG CHO NHIỆT ĐỘ
+                            // ==============================================
+                            const duocPhepDungAI = lowerTeleKey.includes('temperature');
 
                             let aiBoxHTML = "";
                             if (duocPhepDungAI) {
