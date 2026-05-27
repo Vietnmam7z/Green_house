@@ -148,10 +148,8 @@ void loop() {
 
       tb.sendTelemetryData("moisture", moisture);
 
-      features[0] = 1;
-      features[1] = 1;
-      features[2] = 1;
-      features[3] = moisture;
+      features[0] = temperature;
+      features[1] = moisture;
 
       if (sizeof(features) / sizeof(float) != EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE) {
         ei_printf("The size of your 'features' array is not correct. Expected %lu items, but had %lu\n",

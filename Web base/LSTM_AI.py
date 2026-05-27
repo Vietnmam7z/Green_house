@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
 import sqlite3 
-import math  # Thêm thư viện math để xử lý NaN / Infinity
+import math
 
 app = FastAPI()
 
@@ -22,33 +22,23 @@ app.add_middleware(
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1' 
 
-
-MODEL_PATH = "smartcare_lstm_v3.keras"
-META_PATH = "smartcare_scaler_v3.gz"
+# ==========================================
+# CẤU HÌNH ĐƯỜNG DẪN 
+# (Nhớ đổi lại tên model và scaler 1 biến của bạn nhé)
+# ==========================================
+MODEL_PATH = "model_nhiet_do_1_input.keras" 
+SCALER_PATH = "scaler_1_input.pkl" # Dùng file pkl chứa scaler trực tiếp
 DB_PATH = "field.db"
 
-
+# Load mô hình và bộ chuẩn hóa 1 biến
 model = tf.keras.models.load_model(MODEL_PATH)
-meta = joblib.load(META_PATH)
+scaler = joblib.load(SCALER_PATH)
 
-scalers = meta["scalers"]
-raw_features = meta["raw_features"]
-light_idx = meta["light_idx"]
-TIME_STEP = meta["seq_length"]
-
-# ==========================================
-# TỪ ĐIỂN MAP TÊN GIỮA MODEL VÀ DATABASE
-# ==========================================
-DB_MAPPING = {
-    "Temperature (*C)": "temperature", 
-    "Humidity (%)": "humidity",
-    "Light": "light",
-    "Soil (%)": "moisture" 
-}
+TIME_STEP = model.input_shape[1] # Tự động lấy sequence length (VD: 5) từ mô hình
 
 class SensorData(BaseModel):
     device_id: str
-    step: int
+    step: int # Số phút mỗi nhịp (VD: 5 phút = step 5)
 
 @app.get("/")
 def serve_webpage():
@@ -61,88 +51,73 @@ def predict_smartcare(data: SensorData):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
+    # SQL CHỈ LẤY DUY NHẤT NHIỆT ĐỘ
     cursor.execute(f"""
         SELECT 
             MIN(ts) as ts_ms,
-            AVG(CASE WHEN name = '{DB_MAPPING["Temperature (*C)"]}' THEN value END) as temp,
-            AVG(CASE WHEN name = '{DB_MAPPING["Humidity (%)"]}' THEN value END) as hum,
-            AVG(CASE WHEN name = '{DB_MAPPING["Light"]}' THEN value END) as light,
-            AVG(CASE WHEN name = '{DB_MAPPING["Soil (%)"]}' THEN value END) as soil
+            AVG(CASE WHEN name = 'temperature' THEN value END) as temperature
         FROM telemetry 
         WHERE device_id = (SELECT device_id FROM device WHERE device_name = ? OR device_id = ?) 
         GROUP BY CAST(ts / ? AS INTEGER)
-        HAVING temp IS NOT NULL 
-            OR hum IS NOT NULL 
-            OR light IS NOT NULL 
-            OR soil IS NOT NULL
+        HAVING temperature IS NOT NULL 
         ORDER BY CAST(ts / ? AS INTEGER) DESC 
         LIMIT ?
-        
     """, (data.device_id, data.device_id, step_ms, step_ms, TIME_STEP))
     
     records = cursor.fetchall()
     conn.close()
-    print("DỮ LIỆU AI ĐANG NHÌN THẤY LÀ:", records) 
-    print("SỐ LƯỢNG:", len(records))
+    
+    print("DỮ LIỆU NHIỆT ĐỘ AI ĐANG NHÌN THẤY LÀ:", records) 
+    print(f"SỐ LƯỢNG MẪU: {len(records)}/{TIME_STEP}")
+    
     if len(records) < TIME_STEP:
         return {    
             "status": "waiting",
             "current_step": len(records),
             "total_steps": TIME_STEP,
-            "message": f"Chờ thêm dữ liệu ({len(records)}/{TIME_STEP})"
+            "message": f"Chờ thêm dữ liệu nhiệt độ ({len(records)}/{TIME_STEP})"
         }
-    df = pd.DataFrame(records, columns=['ts_ms'] + raw_features)
-    df = df.iloc[::-1].reset_index(drop=True)
-    
-
-    df[raw_features] = df[raw_features].ffill().bfill().infer_objects(copy=False)
-    
-    if df[raw_features].isnull().values.any():
-        df[raw_features] = df[raw_features].fillna(0.0)
-    
-    ts = pd.to_datetime(df['ts_ms'], unit='ms', utc=True).dt.tz_convert('Asia/Ho_Chi_Minh')
-    minute_of_day = ts.dt.hour * 60 + ts.dt.minute
-    angle = 2 * np.pi * minute_of_day / 1440
-    sin_h = np.sin(angle).astype(np.float32)
-    cos_h = np.cos(angle).astype(np.float32)
-    
-
-    raw_data = df[raw_features].values.copy().astype(np.float32)
-    raw_data[:, light_idx] = np.log1p(raw_data[:, light_idx])
-    
-    scaled_raw = np.empty_like(raw_data)
-    for i, feat in enumerate(raw_features):
-        sc = scalers[feat]
-        scaled_raw[:, i] = sc.transform(raw_data[:, i].reshape(-1, 1)).ravel()
         
-    data_scaled = np.column_stack([scaled_raw, sin_h, cos_h])
-    input_lstm = data_scaled.reshape(1, TIME_STEP, data_scaled.shape[1]) 
+    df = pd.DataFrame(records, columns=['ts_ms', 'temperature'])
+    df = df.iloc[::-1].reset_index(drop=True) # Đảo ngược lại đúng thứ tự thời gian
     
-
+    # Vá lỗ hổng dữ liệu (nếu có nhịp nào bị mất kết nối)
+    df['temperature'] = df['temperature'].ffill().bfill().infer_objects(copy=False)
+    if df['temperature'].isnull().values.any():
+        df['temperature'] = df['temperature'].fillna(0.0)
+        
+    # Lấy đúng mảng giá trị Nhiệt độ
+    raw_data = df[['temperature']].values.astype(np.float32)
+    
+    # ==========================================
+    # TIỀN XỬ LÝ VÀ DỰ ĐOÁN (1 BIẾN)
+    # ==========================================
+    # 1. Chuẩn hóa bằng Scaler duy nhất
+    scaled_raw = scaler.transform(raw_data)
+    
+    # 2. Reshape về đúng chuẩn LSTM: (1 batch, TIME_STEP, 1 feature)
+    input_lstm = scaled_raw.reshape(1, TIME_STEP, 1) 
+    
+    # 3. Chạy mô hình dự đoán
     prediction_scaled = model.predict(input_lstm, verbose=0)
     
-    # Đưa kết quả về đơn vị gốc
-    out = np.empty_like(prediction_scaled)
-    for i, feat in enumerate(raw_features):
-        out[:, i] = scalers[feat].inverse_transform(prediction_scaled[:, i].reshape(-1, 1)).ravel()
+    # 4. Giải mã kết quả về độ C thực tế
+    out = scaler.inverse_transform(prediction_scaled)
+    predicted_temp = float(out[0][0])
     
-    out[:, light_idx] = np.expm1(out[:, light_idx]) # expm1 cho Light
+    # 5. Xử lý lỗi toán học (nếu có)
+    if math.isnan(predicted_temp) or math.isinf(predicted_temp):
+        safe_temp = None
+    else:
+        # Nhiệt độ phòng/nhà kính không thể âm quá vô lý, có thể set chặn dưới nếu cần
+        safe_temp = round(predicted_temp, 2)
     
-    safe_predictions = {}
-    for i, feat in enumerate(raw_features):
-        val = float(out[0, i])
-        db_key_name = DB_MAPPING[feat] 
-        if math.isnan(val) or math.isinf(val):
-            safe_predictions[db_key_name] = None
-        else:
-            if val < 0 and feat in ['Light', 'Humidity (%)', 'Soil (%)']:
-                val = 0.0
-            safe_predictions[db_key_name] = round(val, 2)
-    
-    # Trả về kết quả
+    # Trả về kết quả JSON gọn gàng
     return {
         "status": "success",
-        "predicted_next_val": safe_predictions
+        "predicted_next_val": {
+            "temperature": safe_temp
+        }
     }
 
 if __name__ == "__main__":
