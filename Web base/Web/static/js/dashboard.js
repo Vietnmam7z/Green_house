@@ -150,25 +150,39 @@ async function capNhatDuLieu() {
                         const teleData = telemetries[teleKey];
                         
                         if (teleData) {
-                            // Ưu tiên lấy trường consumption (nếu có)
-                            const consumptionKey = Object.keys(teleData).find(k => k.includes('consumption'));
-                            
                             let val;
-                            if (consumptionKey && teleData[consumptionKey] !== undefined) {
-                                val = parseFloat(teleData[consumptionKey]);
-                            } else if (teleData.value !== undefined) {
-                                val = parseFloat(teleData.value);
-                            } else {
-                                continue; 
+                            let isConsumption = false;
+                            if (lowerTeleKey.includes('counter')) {
+                                isConsumption = true;
+                                
+                                const consumptionKey = Object.keys(teleData).find(k => k.includes('consumption'));
+                                
+                                if (consumptionKey && teleData[consumptionKey] !== null && teleData[consumptionKey] !== undefined) {
+                                    val = parseFloat(teleData[consumptionKey]);
+                                } else {
+                                    val = 0; 
+                                }
+                            } 
+
+                            else {
+                                if (teleData.value !== undefined && teleData.value !== null) {
+                                    val = parseFloat(teleData.value);
+                                } else {
+                                    continue;
+                                }
                             }
 
-                            const config = getConfig(teleKey);
+                            // Khởi tạo config ban đầu từ tên gốc
+                            let config = getConfig(teleKey);
+                            
+                            if (isConsumption) {
+                                config.label = "Daily Consumption";
+                            }
+
                             const safeDeviceName = deviceName.replace(/\s+/g, '_');
                             const idGocChoAI = teleData.device_id || deviceName;
 
-                            // ==============================================
                             // CHỐT CHẶN AI: CHỈ HIỂN THỊ KHUNG CHO NHIỆT ĐỘ
-                            // ==============================================
                             const duocPhepDungAI = lowerTeleKey.includes('temperature');
 
                             let aiBoxHTML = "";
@@ -181,7 +195,7 @@ async function capNhatDuLieu() {
                                          data-device-id="${idGocChoAI}" 
                                          data-telemetry-name="${lowerTeleKey}" 
                                          data-unit="${config.unit}"
-                                         style="display: ${(predictionStatusDB === 'ON' && isAIEnabled) ? 'block' : 'none'}; margin-top: 8px; font-size: 0.85rem; color: #00bcd4; font-weight: bold;">
+                                         style="display: ${(typeof predictionStatusDB !== 'undefined' && predictionStatusDB === 'ON' && typeof isAIEnabled !== 'undefined' && isAIEnabled) ? 'block' : 'none'}; margin-top: 8px; font-size: 0.85rem; color: #00bcd4; font-weight: bold;">
                                         ${currentAI}
                                     </div>
                                 `;
@@ -189,7 +203,7 @@ async function capNhatDuLieu() {
 
                             const panelHTML = `
                                 <div class="panel" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" 
-                                     onclick="openChartModal('${idGocChoAI}', '${lowerTeleKey}', '${config.unit}', '${config.label}')">
+                                    onclick="openChartModal('${idGocChoAI}', '${teleKey}', '${config.unit}', '${teleKey}')">
                                     <div class="icon-box ${config.color || 'color-default'}">
                                         <i class="fa-solid ${config.icon}"></i>
                                     </div>
