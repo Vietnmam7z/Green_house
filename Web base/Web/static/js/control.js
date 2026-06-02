@@ -6,54 +6,127 @@ let currentFieldId = null;
 // ======================================================================
 // 1. HÀM ĐỒNG BỘ TRẠNG THÁI TỪ DATABASE (Đã fix sử dụng device_controller)
 // ======================================================================
+
+const deviceUIConfig = {
+    light: {
+        name: "Light",
+        icon: `<i class="fa-regular fa-lightbulb" style="color: #fcff36; font-size: 1.5rem;"></i>`
+    },
+    vent: {
+        name: "Vent",
+        icon: `<i class="fa-solid fa-dungeon" style="color: #fbc02d; font-size: 1.5rem;"></i>`
+    },
+    valve: {
+        name: "Irrigation",
+        icon: `<i class="fa-solid fa-faucet-drip" style="color: #00fc00; font-size: 1.5rem;"></i>`
+    },
+    cooling_pad: {
+        name: "Cooling pad",
+        icon: `<i class="fa-solid fa-snowflake" style="color: #42a5f5; font-size: 1.5rem;"></i>`
+    },
+    heater: {
+        name: "Heater",
+        icon: `<i class="fa-solid fa-temperature-arrow-up" style="color: #e64a19; font-size: 1.5rem;"></i>`
+    },
+    co2_valve: {
+        name: "CO2 valve",
+        label: "CO<sub>2</sub> valve",
+        icon: `<i class="fa-solid fa-flask" style="color: #ff00ea; font-size: 1.5rem;"></i>`
+    },
+    fan: {
+        name: "Fan",
+        icon: `<i class="fa-solid fa-fan" style="color: #5be6ff; font-size: 1.5rem;"></i>`
+    },
+    fertilizer: {
+        name: "Fertigation",
+        icon: `<i class="fa-solid fa-seedling" style="color: #7c5e12; font-size: 1.5rem;"></i>`
+    }
+};
+
+function renderDeviceControls(devices) {
+    const container = document.getElementById("deviceControlContainer");
+    container.innerHTML = "";
+
+    devices.forEach(device => {
+        const type = device[2];   // valve, light, fan...
+        const state = device[3];  // ON hoặc DONE
+
+        const config = deviceUIConfig[type];
+
+        // Nếu type không nằm trong danh sách config thì bỏ qua
+        if (!config) return;
+
+        const checked = state === "ON" ? "checked" : "";
+        const label = config.label || config.name;
+
+        container.innerHTML += `
+            <div class="control-card">
+                <div class="control-left">
+                    ${config.icon}
+                    <span>${label}</span>
+                </div>
+
+                <label class="switch">
+                    <input 
+                        type="checkbox" 
+                        class="device-toggle" 
+                        data-device="${config.name}"
+                        data-type="${type}"
+                        ${checked}
+                    >
+                    <span class="slider"></span>
+                </label>
+            </div>
+        `;
+    });
+}
+
 function syncControlStates() {
     if (!currentFieldId) return;
 
-    // Gọi API lấy danh sách thiết bị và trạng thái thật của device_controller
     fetch(`/api/devices_list?field_id=${currentFieldId}`)
         .then(res => res.json())
         .then(data => {
             if (data.success && data.devices) {
-                
-                // Bản đồ Map ngược từ Type (DB) sang tên Nút bấm (UI)
-                const dbToUiType = {
-                    "light": "Light",
-                    "vent": "Vent",
-                    "valve": "Irrigation",
-                    "cooling_pad": "Cooling pad",
-                    "heater": "Heater",
-                    "co2_valve": "CO2 valve",
-                    "fan": "Fan",
-                    "fertilizer": "Fertigation"
-                };
-
-                const toggles = document.querySelectorAll('.device-toggle');
-                
-                toggles.forEach(toggle => {
-                    const uiDeviceName = toggle.getAttribute('data-device'); // Vd: 'Irrigation'
-                    
-                    // Tìm thiết bị trong mảng DB trả về (d[2] là cột Type)
-                    const matchingDevice = data.devices.find(d => dbToUiType[d[2]] === uiDeviceName);
-                    
-                    if (matchingDevice) {
-                        // d[3] là cột State ('ON' hoặc 'DONE')
-                        const stateFromDB = matchingDevice[3];
-                        const isChecked = (stateFromDB === 'ON');
-                        
-                        // Nếu trạng thái DB khác với giao diện -> Cập nhật lại giao diện
-                        if (toggle.checked !== isChecked) {
-                            toggle.checked = isChecked;
-                        }
-                    } else {
-                        // [QUAN TRỌNG]: Nếu không tìm thấy thiết bị đang ON ở ruộng này, ép công tắc về OFF
-                        if (toggle.checked === true) {
-                            toggle.checked = false;
-                        }
-                    }
-                });
+                renderDeviceControls(data.devices);
+                bindDeviceToggleEvents();
             }
         })
         .catch(err => console.error("Lỗi đồng bộ Control:", err));
+}
+
+function bindDeviceToggleEvents() {
+    const toggles = document.querySelectorAll(".device-toggle");
+
+    toggles.forEach(toggle => {
+        toggle.addEventListener("change", function () {
+            const deviceName = this.getAttribute("data-device");
+            const action = this.checked ? "ON" : "OFF";
+
+            fetch("/api/control_device", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    field_id: currentFieldId,
+                    device_name: deviceName,
+                    action: action
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    console.error(data.message);
+                    this.checked = !this.checked;
+                }
+            })
+            .catch(err => {
+                console.error("Lỗi điều khiển thiết bị:", err);
+                this.checked = !this.checked;
+            });
+        });
+    });
 }
 
 // Hàm cập nhật màn hình khi chuyển ruộng

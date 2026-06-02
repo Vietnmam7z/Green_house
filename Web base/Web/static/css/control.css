@@ -151,13 +151,17 @@ h1.page-title {
     align-items: stretch; /* Ép cả 2 bên cao bằng nhau */
 }
 
-/* Phần bên trái: Nút bấm (Cố định chiều rộng để bảng được dài ra) */
 .control-panel {
-    flex: 0 0 450px; /* Cố định chiều rộng 450px cho phần nút bấm */
+    flex: 0 0 450px;
+    min-height: 0;
+}
+
+#deviceControlContainer {
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: repeat(4, 1fr);
     gap: 15px;
+    height: 100%;
     min-height: 0;
 }
 
@@ -169,7 +173,7 @@ h1.page-title {
     align-items: center;
     justify-content: space-between;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    height: 100%; /* Căng đều thẻ lấp đầy khoảng trống grid */
+    height: 100%;
 }
 
 .control-left {

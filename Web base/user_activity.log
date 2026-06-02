@@ -1010,3 +1010,8 @@
 2026-05-24 10:10:58,013 - INFO - Đăng nhập: 1
 2026-05-27 18:54:46,596 - INFO - Đăng nhập: 1
 2026-05-27 18:56:47,386 - INFO - Đăng nhập: 1
+2026-06-02 07:17:47,491 - INFO - Đăng nhập: 1
+2026-06-02 07:31:57,450 - WARNING - Tạo công việc None cho ruộng 002 vào ngày 2026-06-01 lúc 11:11:00 với thiết bị 28 và ngưỡng 0
+2026-06-02 07:33:14,038 - WARNING - Cập nhật công việc 64 cho ruộng 002 vào ngày 2026-06-01 lúc 11:11:00 với thiết bị 28 và ngưỡng 0
+2026-06-02 07:33:19,481 - WARNING - Cập nhật công việc 64 cho ruộng 002 vào ngày 2026-06-01 lúc 11:11:00 với thiết bị 28 và ngưỡng 0
+2026-06-02 07:33:39,650 - WARNING - Cập nhật công việc 64 cho ruộng 002 vào ngày 2026-06-01 lúc 11:11:00 với thiết bị 28 và ngưỡng 1
