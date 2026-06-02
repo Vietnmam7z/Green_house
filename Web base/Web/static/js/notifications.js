@@ -43,7 +43,12 @@ const NotificationSystem = (function() {
             fetchNotificationHistory(); // Tải lại để mất số đỏ
         } catch (err) { console.error("Lỗi đánh dấu đã xem:", err); }
     };
-
+    
+    function updateConfig(newConfig) {
+        console.log("Hệ thống chuông đã nhận cấu hình AI mới:", newConfig);
+        // Có thể ép tải lại thông báo ngay khi AI vừa đổi cấu hình
+        fetchNotificationHistory(); 
+    }
     // Vẽ giao diện chuông
     function renderBellUI() {
         const bellIcon = document.querySelector('img[alt="Notifications"]');
@@ -135,6 +140,6 @@ const NotificationSystem = (function() {
 
     return {
         init,
-        refresh: fetchNotificationHistory // Dùng trong trường hợp muốn gọi ép tải lại từ file khác
+        refresh: fetchNotificationHistory, updateConfig // Dùng trong trường hợp muốn gọi ép tải lại từ file khác
     };
 })();

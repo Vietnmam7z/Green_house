@@ -87,13 +87,25 @@
 
     </div>
 
-    <script src="../static/js/dashboard.js"></script>
     <script src="../static/js/notifications.js"></script>
+    <script src="../static/js/dashboard.js"></script>
+    <style>
+        .chart-time-btn { padding: 6px 16px; margin: 0 4px; cursor: pointer; border: 1px solid #ccc; border-radius: 20px; background: #f8f9fa; font-weight: bold; color: #555; transition: 0.3s; }
+        .chart-time-btn:hover { background: #e2e6ea; }
+        .chart-time-btn.active { background: #00bcd4; color: white; border-color: #00bcd4; }
+    </style>
     <div id="chartModal" onclick="dongBieuDo()" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6);">
         <div onclick="event.stopPropagation()" style="background-color: #fff; margin: 5% auto; padding: 20px; border-radius: 10px; width: 80%; max-width: 800px; position: relative;">
-            <!-- Nút X tắt biểu đồ -->
             <span onclick="dongBieuDo()" style="position: absolute; right: 20px; top: 15px; font-size: 24px; font-weight: bold; cursor: pointer; color: #aaa;">&times;</span>
             <h3 id="chartTitle" style="text-align: center; color: #333; margin-top: 0;">Biểu đồ</h3>
+            
+            <div style="text-align: center; margin-bottom: 15px;">
+                <button class="chart-time-btn" id="btn-time-1h" onclick="changeChartTime('1h')">1 Giờ</button>
+                <button class="chart-time-btn active" id="btn-time-1d" onclick="changeChartTime('1d')">1 Ngày</button>
+                <button class="chart-time-btn" id="btn-time-7d" onclick="changeChartTime('7d')">7 Ngày</button>
+                <button class="chart-time-btn" id="btn-time-30d" onclick="changeChartTime('30d')">30 Ngày</button>
+            </div>
+
             <canvas id="sensorChart" width="400" height="200"></canvas>
         </div>
     </div>

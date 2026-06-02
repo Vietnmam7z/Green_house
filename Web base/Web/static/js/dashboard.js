@@ -17,14 +17,13 @@ function getConfig(key) {
     return { label: key, unit: "", icon: "fa-microchip", color: "color-default" };
 }
 
-// KHỞI TẠO BIẾN TOÀN CỤC THỐNG NHẤT
 let fieldsList = []; 
 let currentIndex = 0; 
 let currentFieldId = null; 
 let isAIEnabled = true; 
-let currentLoggedUser = "Unknown"; // Giữ lại để xử lý phân quyền
+let currentLoggedUser = "Unknown";
 
-// 1. Biến quản lý luồng DỰ ĐOÁN (Prediction)
+
 let predictionStatusDB = 'OFF'; 
 let aiStepValue = 25; 
 let aiResultsCache = {}; 
@@ -251,7 +250,6 @@ async function layDanhSachField() {
 // PHẦN 6: LỊCH SỬ BIỂU ĐỒ SENSOR (CHART.JS)
 // ==========================================
 let myChartInstance = null; 
-
 document.getElementById('closeChartModal')?.addEventListener('click', () => {
     document.getElementById('chartModal').style.display = 'none';
 });
@@ -260,30 +258,60 @@ window.dongBieuDo = function() {
     if (modal) {
         modal.style.display = 'none';
     }
-};
-async function openChartModal(deviceId, telemetryName, unit, label) {
+};  
+let currentChartContext = { deviceId: '', telemetryName: '', unit: '', label: '' };
+
+async function openChartModal(deviceId, telemetryName, unit, label, timeMode = "1d") {
+    currentChartContext = { deviceId, telemetryName, unit, label };
+    
     document.getElementById('chartModal').style.display = 'block';
     document.getElementById('chartTitle').innerText = `Lịch sử ${label} - ${deviceId}`;
     
+    // Gọi hàm load dữ liệu
+    await changeChartTime(timeMode);
+}
+
+async function changeChartTime(timeMode) {
+    document.querySelectorAll('.chart-time-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById(`btn-time-${timeMode}`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    const { deviceId, telemetryName, unit, label } = currentChartContext;
+
+    const payload = { device_name: deviceId, telemetry: telemetryName, time: timeMode };
+
     try {
-        const response = await fetch(`/api/send_chart?device_id=${encodeURIComponent(deviceId)}&name=${encodeURIComponent(telemetryName)}`);
-        const result = await response.json();
+        const response = await fetch('/api/send_chart', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
         
-        if (result.success && result.data) {
-            const labels = []; 
-            const dataValues = []; 
-            
-            result.data.forEach(item => {
+        const result = await response.json();
+        let chartData = Array.isArray(result) ? result : (result.data || []);
+        
+        const labels = []; 
+        const dataValues = []; 
+        
+        if (chartData.length > 0) {
+            chartData.forEach(item => {
                 const dateObj = new Date(item.ts);
-                const timeString = `${dateObj.getHours()}:${dateObj.getMinutes() < 10 ? '0' : ''}${dateObj.getMinutes()}`;
+                const day = dateObj.getDate().toString().padStart(2, '0');
+                const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+                const hours = dateObj.getHours().toString().padStart(2, '0');
+                const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+                const timeString = timeMode === "1h" ? `${hours}:${minutes}` : `${day}/${month} ${hours}:${minutes}`;
                 
                 labels.push(timeString);
                 dataValues.push(item.value);
             });
-            
-            veBieuDo(labels, dataValues, label, unit);
         }
-    } catch (err) { console.error("Lỗi tải dữ liệu biểu đồ:", err); }
+        
+        veBieuDo(labels, dataValues, label, unit);
+        
+    } catch (err) { 
+        console.error("Lỗi tải dữ liệu biểu đồ:", err); 
+    }
 }
 
 function veBieuDo(labels, data, labelName, unit) {

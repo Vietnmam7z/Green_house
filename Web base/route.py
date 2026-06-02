@@ -1252,17 +1252,45 @@ class Routes:
         ]
         return result
 
-    def send_chart(self):
-        device_id = request.args.get('device_id')
-        name = request.args.get('name')
-        
+    def resample_mean(self, data, freq="10min", median_window=5):
 
-        if not device_id or not name:
-            return jsonify({"success": False, "message": "Thiếu tham số device_id hoặc name"}), 400
-        result = self.field.send_chart(device_id, name)
-        if isinstance(result, dict):
-            return jsonify(result)
+        if not data:
+            return []
+
+        df = pd.DataFrame(data)
+        df["ts"] = pd.to_datetime(df["ts"], unit="ms")
+        df = df.set_index("ts")
+
+        df["filtered"] = df["value"].rolling(window=median_window, min_periods=1).median()
+        resampled = df["filtered"].resample(freq).mean().dropna()
+
+        result = [
+            {"ts": int(ts.timestamp() * 1000),
+            "value": round(val, 2) if pd.notnull(val) else None}
+            for ts, val in resampled.items()
+        ]
         return result
+
+    def send_chart(self):
+        device_name = request.get_json().get("device_name")
+        telemetry = request.get_json().get("telemetry")
+        time_mode = request.get_json().get("time")
+        #device_name = "SI Soil Moisture 5"
+        #telemetry="temperature"
+        #time_mode = "7d"
+
+        freq_map = {
+            "1h": "10min",   
+            "1d": "1h",      
+            "7d": "6h",      
+            "30d": "1d"      
+        }
+
+        raw_data = self.field.get_all_telemetry_status(device_name, telemetry, time_mode)   
+
+        resampled = self.resample_mean(raw_data, freq=freq_map[time_mode])
+
+        return jsonify(resampled)
 
     def check_anomaly(self,username):
         result = self.field.check_anomaly(username)
@@ -2006,7 +2034,7 @@ server.add_route('/api/data', routes.send_telemetry, methods=['POST','GET'])
 server.add_route('/api/fields', routes.get_field, methods=['POST','GET'])
 server.add_route('/api/rename_device', routes.rename_device, methods=['POST'])
 server.add_route('/api/rename_field', routes.rename_field_name, methods=['POST'])
-server.add_route('/api/send_chart', routes.send_chart, methods=['GET'])
+server.add_route('/api/send_chart', routes.send_chart, methods=['POST'])
 server.add_route('/api/current_user', routes.get_current_user, methods=['GET'])
 
 server.add_route('/api/control_device', routes.control_device, methods=['POST'])

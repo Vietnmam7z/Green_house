@@ -913,24 +913,52 @@ class FieldDB:
             except Exception as e:
                 return {"success": False, "message": str(e)}
 
-    def send_chart(self, device_id: str, name: str):
+    def get_all_telemetry_status(self, device_name: str, telemetry_name: str, time_range: str):
+        from datetime import datetime, timedelta
+        now = datetime.now()
+
+        # Tính toán mốc thời gian bắt đầu
+        if time_range == "1h":
+            start_time = now - timedelta(hours=1)
+        elif time_range == "1d":
+            start_time = now - timedelta(days=1)
+        elif time_range == "7d":
+            start_time = now - timedelta(days=7)
+        elif time_range == "30d":
+            start_time = now - timedelta(days=30)
+        else:
+            start_time = now - timedelta(days=1)
+
+        start_ms = int(start_time.timestamp() * 1000)
+        end_ms = int(now.timestamp() * 1000)
+
+        # IN RA ĐỂ XEM JAVASCRIPT GỬI XUỐNG CÁI GÌ
+        print(f"\n[DEBUG DB] Đang tìm thiết bị: '{device_name}'", flush=True)
+        print(f"[DEBUG DB] Thông số: '{telemetry_name}'", flush=True)
+
         with self.connect() as conn:
             cursor = conn.cursor()
-        try:
-            cursor.execute("""
-                SELECT ts, value FROM (
-                    SELECT ts, value FROM telemetry 
-                    WHERE device_id = (SELECT device_id FROM device WHERE device_name = ? OR device_id = ?) 
-                    AND name = ? 
-                    ORDER BY ts DESC 
-                    LIMIT 30
-                ) ORDER BY ts ASC
-            """, (device_id, device_id, name))
-            records = cursor.fetchall()
-            data_list = [{"ts": row[0], "value": row[1]} for row in records]
-            return jsonify({"success": True, "data": data_list})
-        except Exception as e:
-                return {"success": False, "message": str(e)}
+            # ĐÃ LẮP TRẢ LẠI BỘ LỌC THỜI GIAN
+            cursor.execute(
+                """
+                SELECT t.ts, t.value
+                FROM telemetry t
+                JOIN device d ON t.device_id = d.device_id
+                WHERE d.device_name = ?
+                  AND t.name = ?
+                  AND t.ts BETWEEN ? AND ?
+                ORDER BY t.ts ASC
+                """,
+                (device_name, telemetry_name, start_ms, end_ms)
+            )
+            rows = cursor.fetchall()
+            
+            print(f"[DEBUG DB] TÌM THẤY {len(rows)} DÒNG DỮ LIỆU (Chưa lọc thời gian)!", flush=True)
+
+        # Ép kiểu dữ liệu về dạng Dict
+        result = [{"ts": int(ts), "value": float(value)} for ts, value in rows]
+        
+        return result
 
     def get_users_with_notifications_enabled(self):
         try:
