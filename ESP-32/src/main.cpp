@@ -12,6 +12,9 @@
 
 const int SAMPLES = 5;
 const float ALPHA = 0.2;
+const unsigned long SAMPLE_INTERVAL = 10000;
+const unsigned long SEND_INTERVAL = 60000;
+
 float currentEmaMoisture = 0.0;
 bool firstRun = true;
 
@@ -33,7 +36,11 @@ ThingsBoard tb(mqttClient);
 HardwareSerial mySerial(2);
 ModbusMaster node;
 
+unsigned long lastSample = 0;
 unsigned long lastSend = 0;
+
+uint16_t rawBuffer[SAMPLES];
+int validCount = 0;
 
 void preTransmission() {
   digitalWrite(RS485_DE_RE, HIGH);
@@ -100,36 +107,40 @@ void loop() {
     Serial.println(" Connected!");
   }
 
-  if (millis() - lastSend > 5000) {
+  if (millis() - lastSample >= SAMPLE_INTERVAL && validCount < SAMPLES) {
+    lastSample = millis();
+
+    uint8_t result = node.readHoldingRegisters(0x0013, 1);
+
+    if (result == node.ku8MBSuccess) {
+      uint16_t val = node.getResponseBuffer(0);
+
+      if (val <= 1000) {
+        rawBuffer[validCount] = val;
+        validCount++;
+        Serial.print("Sample ");
+        Serial.print(validCount);
+        Serial.print(": ");
+        Serial.println(val);
+      }
+    } else {
+      Serial.println("Err");
+    }
+  }
+
+  if (millis() - lastSend >= SEND_INTERVAL) {
     lastSend = millis();
 
-    uint16_t rawBuffer[SAMPLES];
-    int validCount = 0;
+    if (validCount > 0) {
+      Serial.print("Sampling: ");
 
-    Serial.print("Sampling: ");
-
-    for (int i = 0; i < SAMPLES; i++) {
-      uint8_t result = node.readHoldingRegisters(0x0013, 1);
-
-      if (result == node.ku8MBSuccess) {
-        uint16_t val = node.getResponseBuffer(0);
-
-        if (val <= 1000) {
-          rawBuffer[validCount] = val;
-          validCount++;
-          Serial.print(val);
-          Serial.print(" ");
-        }
-      } else {
-        Serial.print("Err ");
+      for (int i = 0; i < validCount; i++) {
+        Serial.print(rawBuffer[i]);
+        Serial.print(" ");
       }
 
-      delay(50);
-    }
+      Serial.println();
 
-    Serial.println();
-
-    if (validCount > 0) {
       sortArray(rawBuffer, validCount);
       uint16_t medianVal = rawBuffer[validCount / 2];
 
@@ -148,13 +159,12 @@ void loop() {
 
       tb.sendTelemetryData("moisture", moisture);
 
-      features[0] = temperature;
-      features[1] = moisture;
+      features[0] = moisture;
 
       if (sizeof(features) / sizeof(float) != EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE) {
         ei_printf("The size of your 'features' array is not correct. Expected %lu items, but had %lu\n",
                   EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, sizeof(features) / sizeof(float));
-        delay(1000);
+        validCount = 0;
         return;
       }
 
@@ -168,7 +178,10 @@ void loop() {
 
       ei_printf("run_classifier returned: %d\n", res);
 
-      if (res != 0) return;
+      if (res != 0) {
+        validCount = 0;
+        return;
+      }
 
       ei_printf("Predictions ");
       ei_printf("(DSP: %d ms., Classification: %d ms., Anomaly: %d ms.)",
@@ -206,6 +219,8 @@ void loop() {
     } else {
       Serial.println("Read failed all samples!");
     }
+
+    validCount = 0;
   }
 
   tb.loop();
